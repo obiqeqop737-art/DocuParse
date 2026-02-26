@@ -125,7 +125,7 @@ export default function DocuParsePro() {
   const testApiConnectivity = async () => {
     setIsTestingApi(true);
     try {
-      // 1. 测试语义模型 DeepSeek-V3.2
+      // 1. 测试语义模型 deepseek-ai/DeepSeek-V3.2
       const dsResult = await chatWithDoc({
         documentContent: "API Test Context",
         userQuery: "请简短回复：DeepSeek-V3.2 已就绪。",
@@ -138,10 +138,12 @@ export default function DocuParsePro() {
         description: dsResult.answer,
       });
 
-      // 2. 测试视觉模型 PaddleOCR-VL-1.5
-      const tinyWhitePixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==";
+      // 2. 测试视觉模型 PaddlePaddle/PaddleOCR-VL-1.5
+      // 使用 64x64 的蓝色正方形作为测试图片，PaddleOCR 需要一定尺寸才能处理
+      const testImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH5QgKDBUuI4vD9AAAADFJREFUeNrtwTEBAAAAwqD1T20ND6AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbnE6AAE89P9eAAAAAElFTkSuQmCC";
+      
       const ocrResult = await performOCR({
-        images: [{ pageIndex: 0, dataUri: tinyWhitePixel }]
+        images: [{ pageIndex: 0, dataUri: testImage }]
       });
 
       const ocrText = ocrResult.results[0].text;
@@ -172,7 +174,8 @@ export default function DocuParsePro() {
       const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
       const pdf = await loadingTask.promise;
       
-      const pagesData: { text: string; imageData?: string }[] = [];
+      // 预分配页面内容数组，确保页码顺序
+      const pagesData: string[] = new Array(pdf.numPages).fill("");
       const imagesToOCR: { pageIndex: number; dataUri: string }[] = [];
 
       for (let i = 1; i <= pdf.numPages; i++) {
@@ -191,12 +194,12 @@ export default function DocuParsePro() {
             await page.render({ canvasContext: context, viewport }).promise;
             const dataUri = canvas.toDataURL('image/jpeg', 0.85);
             imagesToOCR.push({ pageIndex: i - 1, dataUri });
-            pagesData.push({ text: "" }); 
+            // 此时 pagesData[i-1] 仍为空字符串，等待 OCR 回填
           } else {
-            pagesData.push({ text: pageText });
+            pagesData[i - 1] = pageText;
           }
         } else {
-          pagesData.push({ text: pageText });
+          pagesData[i - 1] = pageText;
         }
       }
 
@@ -205,13 +208,13 @@ export default function DocuParsePro() {
         const ocrResponse = await performOCR({ images: imagesToOCR });
         
         ocrResponse.results.forEach(res => {
-          if (pagesData[res.pageIndex]) {
-            pagesData[res.pageIndex].text = res.text;
-          }
+          // 将 OCR 结果填回对应的预分配页码位置
+          pagesData[res.pageIndex] = res.text;
         });
       }
 
-      return pagesData.map((p, idx) => `### 第 ${idx + 1} 页 ###\n\n${p.text}`).join('\n\n');
+      // 按页码顺序拼接全文
+      return pagesData.map((text, idx) => `### 第 ${idx + 1} 页 ###\n\n${text}`).join('\n\n');
 
     } catch (err: any) {
       console.error('PDF Process Error:', err);
@@ -237,6 +240,11 @@ export default function DocuParsePro() {
         fullContent += `\n### 工作表: ${name} ###\n\n${mdTable}\n`;
       });
       return fullContent;
+    }
+
+    // 对于其他格式或 PPTX 暂做基础文本提取提示
+    if (extension === 'pptx') {
+      return "[PPTX 格式支持受限，建议转换为 PDF 上传以获得最佳视觉识别效果]";
     }
 
     return await file.text();
