@@ -30,12 +30,12 @@ const ocrFlow = ai.defineFlow(
   async (input) => {
     const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
     const SILICON_FLOW_API_KEY = 'sk-orcwdodraxjcyrllecfaaukwuuepdysjqeeslnaarzhhjeey';
-    // 更新为用户指定的最新型号
+    // 使用硅基流动目前最强的 72B 视觉模型
     const MODEL_ID = 'Qwen/Qwen2.5-VL-72B-Instruct'; 
 
     let combinedText = '';
 
-    // 为了避免单次请求过大，我们分页面处理
+    // 分页面处理以确保稳定性
     for (let i = 0; i < input.images.length; i++) {
       const base64Image = input.images[i];
       
@@ -63,15 +63,16 @@ const ocrFlow = ai.defineFlow(
         });
 
         if (!response.ok) {
-          throw new Error(`OCR API 错误: ${response.status}`);
+          const error = await response.json().catch(() => ({}));
+          throw new Error(`OCR API 错误: ${response.status} - ${error.message || '未知错误'}`);
         }
 
         const data = await response.json();
         const content = data.choices?.[0]?.message?.content || '';
         combinedText += `\n\n### 第 ${i + 1} 页识别结果 ###\n\n${content}`;
-      } catch (error) {
+      } catch (error: any) {
         console.error(`Page ${i} OCR Failed:`, error);
-        combinedText += `\n\n[第 ${i + 1} 页识别失败]`;
+        combinedText += `\n\n[第 ${i + 1} 页识别失败: ${error.message}]`;
       }
     }
 
