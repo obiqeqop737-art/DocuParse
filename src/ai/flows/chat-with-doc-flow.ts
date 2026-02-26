@@ -2,7 +2,7 @@
 'use server';
 /**
  * @fileOverview 硅基流动 (SiliconFlow) 文档对话 AI 流程。
- * 优化了 Token 消耗：文档内容仅在 System Prompt 中发送一次。
+ * 优化了错误上报：将 API 报错详情完整传回前端。
  */
 
 import { ai } from '@/ai/genkit';
@@ -35,13 +35,11 @@ const chatWithDocFlow = ai.defineFlow(
     outputSchema: ChatWithDocOutputSchema,
   },
   async (input) => {
-    // 硅基流动配置
     const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
     const SILICON_FLOW_API_KEY = 'sk-orcwdodraxjcyrllecfaaukwuuepdysjqeeslnaarzhhjeey';
-    // 严格使用用户要求的 deepseek-ai/DeepSeek-V3.2 模型
+    // 严格按照用户要求使用 deepseek-ai/DeepSeek-V3.2
     const MODEL_ID = 'deepseek-ai/DeepSeek-V3.2';
 
-    // 构造系统提示词：包含解析规则和文档内容
     const systemPrompt = `你是一个工厂技术文档专家。请严格遵循以下解析规则和文档背景来回答用户问题。
 
 ### 解析规则
@@ -50,7 +48,7 @@ ${input.rules}
 ### 文档内容 (Markdown 格式)
 ${input.documentContent}
 
-请注意：在后续对话中，我会保持对上述文档的记忆。如果用户提问与文档无关，请委婉告知。如果文档内容为空或解析失败，请提醒用户检查文件是否为图片扫描件。`;
+请注意：在后续对话中，我会保持对上述文档的记忆。如果用户提问与文档无关，请委婉告知。`;
 
     const messages = [
       { role: "system", content: systemPrompt },
@@ -79,7 +77,8 @@ ${input.documentContent}
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(`硅基流动 API 错误 (${response.status}): ${errorData.message || '请检查模型 ID 是否正确'}`);
+        const errorMsg = errorData.error?.message || errorData.message || '未知服务器错误';
+        throw new Error(`[语义模型 ID: ${MODEL_ID}] 错误: ${errorMsg}`);
       }
 
       const data = await response.json();
@@ -88,7 +87,7 @@ ${input.documentContent}
       return { answer: content };
     } catch (error: any) {
       console.error('Chat Flow Error:', error);
-      throw new Error(`对话失败: ${error.message}`);
+      throw new Error(`发送失败: ${error.message}`);
     }
   }
 );

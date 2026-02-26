@@ -2,7 +2,7 @@
 'use server';
 /**
  * @fileOverview 硅基流动 (SiliconFlow) 视觉 OCR 流程。
- * 严格使用 PaddlePaddle/PaddleOCR-VL-1.5 模型进行视觉识别。
+ * 严格使用 PaddlePaddle/PaddleOCR-VL-1.5 模型。
  */
 
 import { ai } from '@/ai/genkit';
@@ -37,12 +37,11 @@ const ocrFlow = ai.defineFlow(
   async (input) => {
     const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
     const SILICON_FLOW_API_KEY = 'sk-orcwdodraxjcyrllecfaaukwuuepdysjqeeslnaarzhhjeey';
-    // 严格按照用户要求的模型 ID
+    // 严格锁定视觉模型 ID
     const MODEL_ID = 'PaddlePaddle/PaddleOCR-VL-1.5'; 
 
     const results: { pageIndex: number; text: string }[] = [];
 
-    // 逐页发送请求，避免请求体过大及单次请求超时
     for (const item of input.images) {
       try {
         const response = await fetch(SILICON_FLOW_API_URL, {
@@ -57,7 +56,7 @@ const ocrFlow = ai.defineFlow(
               {
                 role: "user",
                 content: [
-                  { type: "text", text: "请将这张图片的内容完整提取并转换为 Markdown 格式，包含表格。不要输出任何解释，直接输出识别结果。" },
+                  { type: "text", text: "请精准提取图片中的所有文本，以 Markdown 格式返回。不要解释，直接返回结果。" },
                   { type: "image_url", image_url: { url: item.dataUri } }
                 ]
               }
@@ -69,8 +68,8 @@ const ocrFlow = ai.defineFlow(
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          const errorMsg = errorData.error?.message || errorData.message || '未知错误';
-          throw new Error(`OCR API 错误 (${response.status}): ${errorMsg}`);
+          const errorMsg = errorData.error?.message || errorData.message || '未知视觉识别错误';
+          throw new Error(`[视觉模型 ID: ${MODEL_ID}] 错误: ${errorMsg}`);
         }
 
         const data = await response.json();
