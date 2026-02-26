@@ -5,7 +5,7 @@ import {
   FileText, Upload, Settings, MessageSquare, Send, Loader2, Search, BookOpen, 
   Sparkles, ShieldCheck, Truck, Layers, Menu, ChevronLeft, FileDown, Eye, 
   CheckCircle2, FileSearch, Database, Activity, Clock, BarChart3, PieChart as PieChartIcon,
-  RefreshCw, AlertCircle, PlayCircle, Trash2
+  RefreshCw, AlertCircle, PlayCircle, Trash2, FileSpreadsheet, Presentation
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -215,17 +215,20 @@ export default function DocuParsePro() {
       if (file) {
         if (doc.type === 'PDF') {
           finalContent = await processPDF(file, docId);
-        } else if (['DOCX', 'XLSX', 'XLS', 'CSV'].includes(doc.type)) {
+        } else if (['DOCX', 'XLSX', 'XLS', 'CSV', 'PPTX', 'PPT'].includes(doc.type)) {
           const ab = await file.arrayBuffer();
           if (doc.type === 'DOCX') {
             finalContent = (await mammoth.extractRawText({ arrayBuffer: ab })).value;
-          } else {
+          } else if (['XLSX', 'XLS', 'CSV'].includes(doc.type)) {
             const wb = XLSX.read(ab, { type: 'array' });
             wb.SheetNames.forEach(name => {
               const ws = wb.Sheets[name];
               const json = XLSX.utils.sheet_to_json(ws, { header: 1 });
               finalContent += `\n### 工作表: ${name} ###\n\n${json.map((r: any) => `| ${r.join(' | ')} |`).join('\n')}\n`;
             });
+          } else {
+            // PPT 简单处理：提示暂不支持深度解析
+            finalContent = "演示文稿 (PPT) 内容解析暂未开放深度文字提取，目前仅支持文件名索引。";
           }
         } else {
           finalContent = await file.text();
@@ -346,6 +349,20 @@ export default function DocuParsePro() {
     return Array.from(m.entries()).map(([name, value]) => ({ name, value }));
   }, [logs]);
 
+  const getFileIcon = (type: string) => {
+    switch (type) {
+      case 'PDF': return <FileDown size={14} />;
+      case 'DOCX':
+      case 'DOC': return <FileText size={14} />;
+      case 'XLSX':
+      case 'XLS':
+      case 'CSV': return <FileSpreadsheet size={14} />;
+      case 'PPTX':
+      case 'PPT': return <Presentation size={14} />;
+      default: return <FileText size={14} />;
+    }
+  };
+
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-white/70 backdrop-blur-xl border-r border-white/20">
       <div className="p-4 flex items-center gap-3">
@@ -382,7 +399,7 @@ export default function DocuParsePro() {
         <label className="group relative w-full flex items-center justify-center gap-2 bg-white hover:bg-blue-600 hover:text-white p-2.5 rounded-lg border border-blue-100 transition-all shadow-md shadow-blue-600/5 cursor-pointer active:scale-95">
           <Upload size={14} className="transition-transform group-hover:-translate-y-0.5" />
           <span className="text-[10px] font-black">上传文档</span>
-          <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.pdf,.docx,.xlsx,.xls,.pptx,.csv" />
+          <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.csv" />
         </label>
       </div>
     </div>
@@ -390,7 +407,7 @@ export default function DocuParsePro() {
 
   return (
     <div className="flex h-screen bg-[#f8fafc] overflow-hidden">
-      <aside className={cn("hidden lg:block transition-all duration-300 shrink-0 border-r border-white/20", isSidebarOpen ? "w-[260px]" : "w-0 overflow-hidden")}>
+      <aside className={cn("hidden lg:block transition-all duration-300 shrink-0 border-r border-white/20", isSidebarOpen ? "w-[300px]" : "w-0 overflow-hidden")}>
         <SidebarContent />
       </aside>
 
@@ -400,14 +417,14 @@ export default function DocuParsePro() {
 
         <header className="h-14 px-4 flex items-center justify-between bg-white/40 backdrop-blur-md border-b border-white/20 sticky top-0 z-30 shrink-0">
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <Sheet><SheetTrigger asChild><Button variant="ghost" size="icon" className="lg:hidden"><Menu size={18} /></Button></SheetTrigger><SheetContent side="left" className="p-0 w-[260px]"><SidebarContent /></SheetContent></Sheet>
+            <Sheet><SheetTrigger asChild><Button variant="ghost" size="icon" className="lg:hidden"><Menu size={18} /></Button></SheetTrigger><SheetContent side="left" className="p-0 w-[300px]"><SidebarContent /></SheetContent></Sheet>
             <Button variant="ghost" size="icon" className="hidden lg:flex text-slate-400" onClick={() => setIsSidebarOpen(!isSidebarOpen)}><ChevronLeft className={cn("transition-transform", !isSidebarOpen && "rotate-180")} size={16} /></Button>
             <div className="min-w-0 flex-1 flex items-center gap-2">
               <h2 className="font-black text-slate-800 text-sm hidden sm:block truncate shrink-0">
                 {activeTab === 'chat' ? '控制台' : activeTab === 'rules' ? '策略库' : '统计'}
               </h2>
               {selectedDoc && activeTab === 'chat' && (
-                <Badge variant="outline" className="bg-white/80 border-blue-100 text-blue-600 rounded-lg px-2 py-0.5 flex items-center gap-1.5 max-w-[120px] shadow-sm overflow-hidden min-w-0">
+                <Badge variant="outline" className="bg-white/80 border-blue-100 text-blue-600 rounded-lg px-2 py-0.5 flex items-center gap-1.5 max-w-[140px] shadow-sm overflow-hidden min-w-0">
                   <FileText size={10} className="shrink-0" />
                   <span className="truncate flex-1 text-[9px] font-bold">{selectedDoc.name}</span>
                 </Badge>
@@ -424,8 +441,8 @@ export default function DocuParsePro() {
 
         {activeTab === 'chat' && (
           <div className="flex-1 flex overflow-hidden">
-            <div className={cn("w-[260px] border-r border-white/20 bg-white/10 flex flex-col shrink-0 transition-all", selectedDocId && "hidden lg:flex")}>
-              <div className="p-3 shrink-0">
+            <div className={cn("w-[300px] border-r border-white/20 bg-white/10 flex flex-col shrink-0 transition-all", selectedDocId && "hidden lg:flex")}>
+              <div className="p-4 shrink-0">
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
                   <Input placeholder="检索..." className="pl-8 h-8 bg-white/80 border-none rounded-lg shadow-sm text-[10px] focus-visible:ring-blue-200" />
@@ -437,12 +454,12 @@ export default function DocuParsePro() {
                     <div className="py-20 text-center opacity-20"><FileSearch size={32} className="mx-auto mb-2" /><p className="text-[9px] font-black uppercase tracking-widest">等待解析</p></div>
                   ) : (
                     documents.map(d => (
-                      <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-[calc(100%-16px)] mx-auto p-2.5 rounded-xl border transition-all text-left flex items-start gap-2.5 group relative overflow-hidden min-w-0", selectedDocId === d.id ? "bg-white border-blue-600 shadow-lg shadow-blue-600/5" : "bg-transparent border-transparent hover:bg-white/40")}>
+                      <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-[calc(100%-32px)] mx-auto p-2.5 rounded-xl border transition-all text-left flex items-start gap-2.5 group relative overflow-hidden min-w-0", selectedDocId === d.id ? "bg-white border-blue-600 shadow-lg shadow-blue-600/5" : "bg-transparent border-transparent hover:bg-white/40")}>
                         <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0 shadow-sm", selectedDocId === d.id ? "bg-blue-600 text-white" : "bg-white text-slate-400")}>
-                          {d.type === 'PDF' ? <FileDown size={14} /> : <FileText size={14} />}
+                          {getFileIcon(d.type)}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-black text-[11px] text-slate-800 truncate block max-w-full pr-1">{d.name}</p>
+                          <p className="font-black text-[10px] text-slate-800 truncate block max-w-[140px] pr-1">{d.name}</p>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="text-[8px] font-bold text-slate-400">{d.date}</span>
                             {d.status === 'completed' ? <Badge className="bg-green-50 text-green-600 text-[7px] h-3.5 px-1 font-bold">已解析</Badge> : d.status === 'pending_confirm' ? <Badge className="bg-orange-50 text-orange-600 text-[7px] h-3.5 px-1 font-bold">待确认</Badge> : <Badge className="bg-blue-50 text-blue-600 text-[7px] h-3.5 px-1 font-bold animate-pulse">解析中</Badge>}
