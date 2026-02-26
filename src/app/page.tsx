@@ -21,7 +21,8 @@ import {
   ChevronLeft,
   FileDown,
   AlertTriangle,
-  Eye
+  Eye,
+  CheckCircle2
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -119,24 +120,22 @@ export default function DocuParsePro() {
       const pagesData: { text: string; imageData?: string }[] = [];
       const imagesToOCR: { pageIndex: number; dataUri: string }[] = [];
 
-      // 1. 遍历每一页提取文本
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
         let pageText = (textContent.items as any[]).map(item => item.str).join(' ').trim();
         
-        // 如果页面没有文本或文本极少，渲染为图片准备 OCR
         if (pageText.length < 50) {
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
-          const viewport = page.getViewport({ scale: 1.5 }); // 适中分辨率确保识别且不超限
+          const viewport = page.getViewport({ scale: 1.5 });
           canvas.height = viewport.height;
           canvas.width = viewport.width;
           if (context) {
             await page.render({ canvasContext: context, viewport }).promise;
             const dataUri = canvas.toDataURL('image/jpeg', 0.85);
             imagesToOCR.push({ pageIndex: i - 1, dataUri });
-            pagesData.push({ text: "" }); // 占位
+            pagesData.push({ text: "" });
           } else {
             pagesData.push({ text: pageText });
           }
@@ -145,18 +144,15 @@ export default function DocuParsePro() {
         }
       }
 
-      // 2. 如果有页面需要 OCR，调用视觉引擎
       if (imagesToOCR.length > 0) {
         setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, status: 'ocr_scanning' } : d));
         const ocrResponse = await performOCR({ images: imagesToOCR });
         
-        // 将 OCR 结果填回对应的页面
         ocrResponse.results.forEach(res => {
           pagesData[res.pageIndex].text = res.text;
         });
       }
 
-      // 3. 合并所有页面内容
       return pagesData.map((p, idx) => `### 第 ${idx + 1} 页 ###\n\n${p.text}`).join('\n\n');
 
     } catch (err: any) {
@@ -260,7 +256,7 @@ export default function DocuParsePro() {
   };
 
   const NavContent = () => (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-900 min-w-0">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-900 min-w-0 overflow-hidden">
       <div className="p-6 flex items-center gap-3 shrink-0">
         <div className="bg-primary text-primary-foreground p-2 rounded-lg shadow-lg shadow-primary/20 shrink-0">
           <BookOpen size={20} />
@@ -271,7 +267,7 @@ export default function DocuParsePro() {
         </div>
       </div>
 
-      <nav className="flex-1 px-3 space-y-1 overflow-y-auto min-h-0">
+      <nav className="flex-1 px-3 space-y-1 overflow-y-auto no-scrollbar min-h-0">
         <Button 
           variant={activeTab === 'chat' ? 'secondary' : 'ghost'} 
           className="w-full justify-start gap-3 h-11 rounded-xl"
@@ -396,7 +392,7 @@ export default function DocuParsePro() {
                         key={doc.id} 
                         onClick={() => setSelectedDocId(doc.id)}
                         className={cn(
-                          "w-full p-3.5 rounded-2xl border text-left transition-all duration-200 group overflow-hidden block",
+                          "w-full p-3.5 rounded-2xl border text-left transition-all duration-200 group overflow-hidden block relative",
                           selectedDocId === doc.id 
                             ? "border-primary bg-white dark:bg-slate-800 shadow-xl shadow-primary/5 ring-1 ring-primary/20" 
                             : "hover:bg-white dark:hover:bg-slate-800 border-transparent bg-transparent"
@@ -409,9 +405,16 @@ export default function DocuParsePro() {
                           )}>
                             {doc.type === 'PDF' ? <FileDown size={18} /> : <FileText size={18} />}
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-bold text-[13px] truncate text-slate-800 dark:text-slate-200">{doc.name}</p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">{doc.date} • {doc.type}</p>
+                          <div className="min-w-0 flex-1 overflow-hidden">
+                            <p className="font-bold text-[13px] truncate text-slate-800 dark:text-slate-200 w-full">{doc.name}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <p className="text-[10px] text-muted-foreground font-medium shrink-0">{doc.date}</p>
+                              {doc.status === 'completed' && (
+                                <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 bg-green-50 text-green-600 border-green-100 shrink-0">
+                                  <CheckCircle2 size={8} className="mr-1" /> 已解析
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
                         {doc.status === 'processing' && (
