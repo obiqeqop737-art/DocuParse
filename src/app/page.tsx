@@ -138,8 +138,7 @@ export default function DocuParsePro() {
         description: dsResult.answer,
       });
 
-      // 2. 测试视觉模型 Qwen3-VL-8B
-      // 使用 1像素的白色 PNG 图片进行连通性测试
+      // 2. 测试视觉模型 PaddleOCR-VL-1.5
       const tinyWhitePixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==";
       const ocrResult = await performOCR({
         images: [{ pageIndex: 0, dataUri: tinyWhitePixel }]
@@ -152,7 +151,7 @@ export default function DocuParsePro() {
 
       toast({
         title: "视觉模型测试成功",
-        description: "Qwen/Qwen3-VL-8B-Instruct 响应正常。",
+        description: "PaddlePaddle/PaddleOCR-VL-1.5 响应正常。",
       });
 
     } catch (error: any) {
@@ -160,7 +159,7 @@ export default function DocuParsePro() {
       toast({
         variant: "destructive",
         title: "API 连接失败",
-        description: error.message || "请检查模型 ID 是否在硅基流动可用列表中。",
+        description: error.message || "请检查模型 ID 是否正确。",
       });
     } finally {
       setIsTestingApi(false);
@@ -181,7 +180,7 @@ export default function DocuParsePro() {
         const textContent = await page.getTextContent();
         let pageText = (textContent.items as any[]).map(item => item.str).join(' ').trim();
         
-        // 如果页面文字过少（可能是扫描件），则渲染为图片进行 OCR
+        // 如果页面文字过少，渲染为图片进行视觉识别
         if (pageText.length < 50) {
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
@@ -192,7 +191,7 @@ export default function DocuParsePro() {
             await page.render({ canvasContext: context, viewport }).promise;
             const dataUri = canvas.toDataURL('image/jpeg', 0.85);
             imagesToOCR.push({ pageIndex: i - 1, dataUri });
-            pagesData.push({ text: "" }); // 占位
+            pagesData.push({ text: "" }); 
           } else {
             pagesData.push({ text: pageText });
           }
@@ -201,7 +200,6 @@ export default function DocuParsePro() {
         }
       }
 
-      // 批量处理需要 OCR 的页面
       if (imagesToOCR.length > 0) {
         setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, status: 'ocr_scanning' } : d));
         const ocrResponse = await performOCR({ images: imagesToOCR });
@@ -278,7 +276,6 @@ export default function DocuParsePro() {
         const markdownContent = `\n# 文档内容: ${file.name}\n\n${finalContent}\n`;
         setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, content: markdownContent, status: 'completed' } : d));
         
-        // 自动触发初始分析
         autoAnalyze(fileId, markdownContent);
 
       } catch (err: any) {
@@ -293,7 +290,7 @@ export default function DocuParsePro() {
     try {
       const response = await chatWithDoc({
         documentContent: content,
-        userQuery: "请执行全能架构解析：精准识别文档所有章节目录，并提取各章节的核心技术要求、合规标准或物流细节。请以清晰的 Markdown 结构呈现。",
+        userQuery: "请执行全能架构解析：精准识别文档所有章节目录，并提取各章节的核心技术要求。请以清晰的 Markdown 结构呈现。",
         rules: activeRule.content,
         history: []
       });
@@ -448,7 +445,7 @@ export default function DocuParsePro() {
           <div className="flex items-center gap-4 shrink-0">
             <div className="hidden sm:flex items-center gap-2.5 px-4 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
               <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" />
-              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">DeepSeek-V3.2 + Qwen3-VL-8B 活跃</span>
+              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">DeepSeek-V3.2 + PaddleOCR-VL 活跃</span>
             </div>
           </div>
         </header>
@@ -478,7 +475,7 @@ export default function DocuParsePro() {
                         key={doc.id} 
                         onClick={() => setSelectedDocId(doc.id)}
                         className={cn(
-                          "w-full p-3.5 rounded-2xl border text-left transition-all duration-200 group overflow-hidden block relative",
+                          "w-full p-3.5 rounded-2xl border text-left transition-all duration-200 group overflow-hidden block relative min-w-0",
                           selectedDocId === doc.id 
                             ? "border-primary bg-white dark:bg-slate-800 shadow-xl shadow-primary/5 ring-1 ring-primary/20" 
                             : "hover:bg-white dark:hover:bg-slate-800 border-transparent bg-transparent"
@@ -514,7 +511,7 @@ export default function DocuParsePro() {
                         {doc.status === 'ocr_scanning' && (
                           <div className="mt-3 flex items-center gap-2.5 text-[10px] text-blue-500 font-bold bg-blue-50 p-2 rounded-lg border border-blue-100 overflow-hidden">
                             <Eye size={12} className="animate-pulse shrink-0" /> 
-                            <span className="truncate">Qwen3-VL-8B 视觉引擎识别中...</span>
+                            <span className="truncate">视觉识别引擎识别中...</span>
                           </div>
                         )}
                       </button>
@@ -585,7 +582,7 @@ export default function DocuParsePro() {
                   <footer className="p-4 sm:p-6 md:p-8 border-t bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl shrink-0">
                     <div className="max-w-4xl mx-auto flex flex-col gap-4">
                       <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-2 px-2">
-                         {['识别全文目录', '分析合规风险点', '提取物流参数', '总结装卸标准'].map((hint, idx) => (
+                         {['识别全文目录', '分析技术标准', '提取表格数据'].map((hint, idx) => (
                            <Badge 
                              key={hint} 
                              variant="secondary" 
@@ -618,7 +615,6 @@ export default function DocuParsePro() {
                           <Send size={18} className="sm:size-5" />
                         </Button>
                       </div>
-                      <p className="text-[10px] text-center text-muted-foreground font-medium truncate">数据经过硅基流动加密传输</p>
                     </div>
                   </footer>
                 </>
@@ -629,7 +625,7 @@ export default function DocuParsePro() {
                   </div>
                   <h3 className="text-xl sm:text-2xl font-black tracking-tight">上传文档以开启对话</h3>
                   <p className="text-[13px] sm:text-sm text-muted-foreground mt-3 max-w-xs sm:max-w-sm leading-relaxed font-medium">
-                    支持 Office 全家桶 (Word/Excel)、PDF、PPT、CSV。扫描件由 Qwen3-VL 视觉引擎分页识别。
+                    支持 Office、PDF、TXT。扫描件由 PaddleOCR-VL 视觉引擎识别。
                   </p>
                   <Button variant="outline" className="mt-8 sm:mt-10 rounded-xl sm:rounded-2xl px-8 sm:px-10 py-5 sm:py-7 h-auto border-2 hover:bg-primary hover:text-white transition-all group" asChild>
                     <label className="cursor-pointer">
@@ -651,7 +647,7 @@ export default function DocuParsePro() {
                 <div>
                   <h3 className="text-2xl sm:text-3xl font-black tracking-tight">解析策略库</h3>
                   <p className="text-muted-foreground text-[13px] sm:text-sm mt-2 font-medium">
-                    选中的策略将作为“深度提示词”注入 AI，指导其阅读维度
+                    选中的策略将注入 AI，指导其阅读维度
                   </p>
                 </div>
                 <Button 

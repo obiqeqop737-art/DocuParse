@@ -2,7 +2,7 @@
 'use server';
 /**
  * @fileOverview 硅基流动 (SiliconFlow) 视觉 OCR 流程。
- * 严格使用 Qwen/Qwen3-VL-8B-Instruct 模型进行视觉识别。
+ * 严格使用 PaddlePaddle/PaddleOCR-VL-1.5 模型进行视觉识别。
  */
 
 import { ai } from '@/ai/genkit';
@@ -37,8 +37,8 @@ const ocrFlow = ai.defineFlow(
   async (input) => {
     const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
     const SILICON_FLOW_API_KEY = 'sk-orcwdodraxjcyrllecfaaukwuuepdysjqeeslnaarzhhjeey';
-    // 严格使用用户要求的 Qwen/Qwen3-VL-8B-Instruct 模型
-    const MODEL_ID = 'Qwen/Qwen3-VL-8B-Instruct'; 
+    // 严格按照用户要求的模型 ID
+    const MODEL_ID = 'PaddlePaddle/PaddleOCR-VL-1.5'; 
 
     const results: { pageIndex: number; text: string }[] = [];
 
@@ -57,7 +57,7 @@ const ocrFlow = ai.defineFlow(
               {
                 role: "user",
                 content: [
-                  { type: "text", text: "请将这张图片（第 " + (item.pageIndex + 1) + " 页）的内容完整提取并转换为 Markdown 格式，包含表格。不要输出任何解释，直接输出识别结果。" },
+                  { type: "text", text: "请将这张图片的内容完整提取并转换为 Markdown 格式，包含表格。不要输出任何解释，直接输出识别结果。" },
                   { type: "image_url", image_url: { url: item.dataUri } }
                 ]
               }
