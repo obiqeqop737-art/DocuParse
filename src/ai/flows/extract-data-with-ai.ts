@@ -1,61 +1,34 @@
 'use server';
 /**
- * @fileOverview 一个用于智能解析技术文档并根据预定义规则提取关键信息的 Genkit 流程。
- *
- * - extractDataWithAI - 处理 AI 数据提取过程的函数。
- * - ExtractDataWithAIInput - extractDataWithAI 函数的输入类型。
- * - ExtractDataWithAIOutput - extractDataWithAI 函数的返回类型。
+ * @fileOverview 自定义 AI 数据提取流程。
+ * 
+ * 已剥离 Google AI 插件，改为调用自定义/内部 AI 接口。
+ * 这样可以确保数据在受控的私有化网络或自定义 API 中处理。
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
+// 定义输入和输出 Schema
 const ExtractDataWithAIInputSchema = z.object({
-  documentContent: z.string().describe('需要解析的技术文档全文内容。'),
-  extractionRules: z.string().describe('对需要提取的关键信息的自然语言描述。例如："提取文档标题、版本号、作者和发布日期。"'),
+  documentContent: z.string().describe('需要解析的技术文档内容。'),
+  extractionRules: z.string().describe('数据提取规则。'),
 });
 export type ExtractDataWithAIInput = z.infer<typeof ExtractDataWithAIInputSchema>;
 
-const ExtractDataWithAIOutputSchema = z.record(z.string(), z.string()).describe('包含从文档中提取的键值对的 JSON 对象。键是字段名，值是对应的提取数据。');
+const ExtractDataWithAIOutputSchema = z.record(z.string(), z.string()).describe('提取结果 JSON。');
 export type ExtractDataWithAIOutput = z.infer<typeof ExtractDataWithAIOutputSchema>;
 
+/**
+ * 调用自定义 AI API 的包装函数
+ */
 export async function extractDataWithAI(input: ExtractDataWithAIInput): Promise<ExtractDataWithAIOutput> {
   return extractDataWithAIFlow(input);
 }
 
-const extractDataPrompt = ai.definePrompt({
-  name: 'extractDataPrompt',
-  input: { schema: ExtractDataWithAIInputSchema },
-  output: { schema: ExtractDataWithAIOutputSchema },
-  prompt: `你是一位专业的技术文档解析专家。你的任务是从提供的技术文档内容中，根据给定的提取规则精确提取关键信息。
-
-文档内容：
-"""
-{{{documentContent}}}
-"""
-
-提取规则：
-"""
-{{{extractionRules}}}
-"""
-
-请仔细阅读文档内容并识别提取规则中指定的各项信息。
-输出要求：
-1. 以 JSON 对象的形式输出，其中键是提取规则建议的字段名，值是对应的提取数据。
-2. 如果在文档中找不到某项信息，请为该字段提供空字符串 ""。
-3. 确保输出是合法的 JSON 对象。
-4. 优先保留文档中的专业术语和数值精度。
-
-示例输出结构（基于“提取文档标题、版本、作者、日期”规则）：
-{
-  "文档标题": "示例技术规范",
-  "版本": "1.0",
-  "作者": "张三",
-  "发布日期": "2023-10-26"
-}
-`,
-});
-
+/**
+ * 使用 Genkit 定义流程，但内部逻辑改为 fetch 请求自定义 API
+ */
 const extractDataWithAIFlow = ai.defineFlow(
   {
     name: 'extractDataWithAIFlow',
@@ -63,18 +36,68 @@ const extractDataWithAIFlow = ai.defineFlow(
     outputSchema: ExtractDataWithAIOutputSchema,
   },
   async (input) => {
+    // 这里是你自定义 API 的配置
+    // 建议通过环境变量管理敏感信息
+    const CUSTOM_API_URL = process.env.CUSTOM_AI_API_URL || 'https://your-internal-api.com/v1/chat/completions';
+    const CUSTOM_API_KEY = process.env.CUSTOM_AI_API_KEY || '';
+
+    const systemPrompt = `你是一位专业的技术文档解析专家。请从文档中提取关键信息并返回 JSON 格式。
+文档内容：
+"""
+${input.documentContent}
+"""
+提取规则：
+"""
+${input.extractionRules}
+"""`;
+
     try {
-      const { output } = await extractDataPrompt(input);
-      if (!output) {
-        throw new Error('AI 未能生成有效的提取结果。');
+      const response = await fetch(CUSTOM_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${CUSTOM_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "your-custom-model", // 指定你的模型名称
+          messages: [
+            { role: "system", content: "你是一个精准的数据提取助手。" },
+            { role: "user", content: systemPrompt }
+          ],
+          temperature: 0.1,
+          response_format: { type: "json_object" } // 如果你的 API 支持 JSON 模式
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`API 请求失败 (${response.status}): ${errorData.message || '未知错误'}`);
       }
-      return output;
+
+      const data = await response.json();
+      
+      // 假设你的 API 返回格式类似 OpenAI: data.choices[0].message.content
+      const content = data.choices?.[0]?.message?.content;
+      
+      if (!content) {
+        throw new Error('AI 服务未返回内容。');
+      }
+
+      // 尝试解析 AI 返回的 JSON 字符串
+      try {
+        return JSON.parse(content);
+      } catch {
+        // 如果不是标准 JSON，尝试清理（处理 Markdown 代码块等）
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          return JSON.parse(jsonMatch[0]);
+        }
+        throw new Error('AI 返回的内容无法解析为 JSON。');
+      }
+
     } catch (error: any) {
-      // 捕获配额限制错误 (429) 并返回友好的中文提示
-      if (error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED') || error.message?.includes('quota')) {
-        throw new Error('AI 服务当前配额已耗尽或请求过于频繁，请稍后再试。');
-      }
-      throw error;
+      console.error('AI 流程错误:', error);
+      throw new Error(`数据提取失败: ${error.message}`);
     }
   }
 );
