@@ -103,6 +103,9 @@ export default function DocuParsePro() {
   const [isChatting, setIsChatting] = useState(false);
   const [isTestingApi, setIsTestingApi] = useState(false);
   
+  // 用于存储上传的 File 对象，避免依赖 DOM 查询
+  const uploadedFilesRef = useRef<Map<string, File>>(new Map());
+  
   const [rules, setRules] = useState<Rule[]>(DEFAULT_RULES);
   const [selectedRuleId, setSelectedRuleId] = useState<string>(DEFAULT_RULES[0].id);
 
@@ -196,6 +199,10 @@ export default function DocuParsePro() {
         date: new Date().toLocaleDateString(),
         chatHistory: []
       };
+      
+      // 存储文件对象
+      uploadedFilesRef.current.set(fileId, file);
+      
       setDocuments(prev => [newDoc, ...prev]);
       setSelectedDocId(fileId);
     }
@@ -205,34 +212,43 @@ export default function DocuParsePro() {
     const doc = documents.find(d => d.id === docId);
     if (!doc) return;
 
+    const file = uploadedFilesRef.current.get(docId);
+    if (!file) {
+      toast({ variant: "destructive", title: "文件读取失败", description: "请尝试重新上传文件。" });
+      return;
+    }
+
     setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status: 'processing' } : d));
     
     try {
-      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-      const file = Array.from(fileInput.files || []).find(f => f.name === doc.name);
-      
       let finalContent = "";
-      if (file) {
-        if (doc.type === 'PDF') {
-          finalContent = await processPDF(file, docId);
-        } else if (['DOCX', 'XLSX', 'XLS', 'CSV', 'PPTX', 'PPT'].includes(doc.type)) {
-          const ab = await file.arrayBuffer();
-          if (doc.type === 'DOCX') {
-            finalContent = (await mammoth.extractRawText({ arrayBuffer: ab })).value;
-          } else if (['XLSX', 'XLS', 'CSV'].includes(doc.type)) {
-            const wb = XLSX.read(ab, { type: 'array' });
-            wb.SheetNames.forEach(name => {
-              const ws = wb.Sheets[name];
-              const json = XLSX.utils.sheet_to_json(ws, { header: 1 });
-              finalContent += `\n### 工作表: ${name} ###\n\n${json.map((r: any) => `| ${r.join(' | ')} |`).join('\n')}\n`;
-            });
-          } else {
-            // PPT 简单处理：提示暂不支持深度解析
-            finalContent = "演示文稿 (PPT) 内容解析暂未开放深度文字提取，目前仅支持文件名索引。";
+      if (doc.type === 'PDF') {
+        finalContent = await processPDF(file, docId);
+      } else if (['DOCX', 'XLSX', 'XLS', 'CSV', 'PPTX', 'PPT'].includes(doc.type)) {
+        const ab = await file.arrayBuffer();
+        if (doc.type === 'DOCX') {
+          // 使用 mammoth 正确解析 DOCX 内容
+          const result = await mammoth.extractRawText({ arrayBuffer: ab });
+          finalContent = result.value;
+          if (result.messages.length > 0) {
+            console.warn('Mammoth Messages:', result.messages);
           }
+        } else if (['XLSX', 'XLS', 'CSV'].includes(doc.type)) {
+          const wb = XLSX.read(ab, { type: 'array' });
+          wb.SheetNames.forEach(name => {
+            const ws = wb.Sheets[name];
+            const json = XLSX.utils.sheet_to_json(ws, { header: 1 });
+            finalContent += `\n### 工作表: ${name} ###\n\n${json.map((r: any) => `| ${Array.isArray(r) ? r.join(' | ') : r} |`).join('\n')}\n`;
+          });
         } else {
-          finalContent = await file.text();
+          finalContent = `[该格式 (${doc.type}) 暂不支持深度内容提取，已解析文件名: ${doc.name}]`;
         }
+      } else {
+        finalContent = await file.text();
+      }
+
+      if (!finalContent.trim()) {
+        throw new Error("未能从文档中提取到有效文本内容。");
       }
 
       const fullContent = `\n# 文档内容: ${doc.name}\n\n${finalContent}\n`;
@@ -242,10 +258,15 @@ export default function DocuParsePro() {
       const response = await fetch('/api/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentContent: fullContent, userQuery: "请执行全能架构解析：精准识别文档目录，提取技术核心要求。", rules: activeRule.content, history: [] })
+        body: JSON.stringify({ 
+          documentContent: fullContent, 
+          userQuery: `请执行[${activeRule.name}]：根据预设策略对文档进行初步分析。`, 
+          rules: activeRule.content, 
+          history: [] 
+        })
       });
 
-      if (!response.ok) throw new Error('流式传输失败');
+      if (!response.ok) throw new Error('AI 响应初始化失败');
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let fullAnswer = "";
@@ -269,7 +290,7 @@ export default function DocuParsePro() {
           }
         }
       }
-      recordUsage('Chat', 1, 'API_call', { docId, mode: 'Auto' });
+      recordUsage('Chat', 1, 'API_call', { docId, mode: 'Auto', type: doc.type });
     } catch (err: any) {
       toast({ variant: "destructive", title: "解析失败", description: err.message });
       setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status: 'error' } : d));
@@ -290,7 +311,12 @@ export default function DocuParsePro() {
       const res = await fetch('/api/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentContent: selectedDoc.content, userQuery: userMsg.content, rules: activeRule.content, history: selectedDoc.chatHistory })
+        body: JSON.stringify({ 
+          documentContent: selectedDoc.content, 
+          userQuery: userMsg.content, 
+          rules: activeRule.content, 
+          history: selectedDoc.chatHistory 
+        })
       });
       if (!res.ok) throw new Error('发送失败');
       const reader = res.body?.getReader();
@@ -424,9 +450,9 @@ export default function DocuParsePro() {
                 {activeTab === 'chat' ? '控制台' : activeTab === 'rules' ? '策略库' : '统计'}
               </h2>
               {selectedDoc && activeTab === 'chat' && (
-                <Badge variant="outline" className="bg-white/80 border-blue-100 text-blue-600 rounded-lg px-2 py-0.5 flex items-center gap-1.5 max-w-[140px] shadow-sm overflow-hidden min-w-0">
-                  <FileText size={10} className="shrink-0" />
-                  <span className="truncate flex-1 text-[9px] font-bold">{selectedDoc.name}</span>
+                <Badge variant="outline" className="bg-white/80 border-blue-100 text-blue-600 rounded-lg px-2 py-0.5 flex items-center gap-1.5 max-w-[160px] shadow-sm overflow-hidden min-w-0">
+                  {getFileIcon(selectedDoc.type)}
+                  <span className="truncate flex-1 text-[9px] font-bold ml-1">{selectedDoc.name}</span>
                 </Badge>
               )}
             </div>
@@ -445,7 +471,7 @@ export default function DocuParsePro() {
               <div className="p-4 shrink-0">
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
-                  <Input placeholder="检索..." className="pl-8 h-8 bg-white/80 border-none rounded-lg shadow-sm text-[10px] focus-visible:ring-blue-200" />
+                  <Input placeholder="检索文档..." className="pl-8 h-8 bg-white/80 border-none rounded-lg shadow-sm text-[10px] focus-visible:ring-blue-200" />
                 </div>
               </div>
               <ScrollArea className="flex-1">
@@ -485,7 +511,10 @@ export default function DocuParsePro() {
                           <Button onClick={() => startAnalysis(selectedDoc.id)} className="w-full h-10 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2">
                             <PlayCircle size={14} /> 开启 AI 深度解析
                           </Button>
-                          <Button variant="ghost" onClick={() => setDocuments(prev => prev.filter(d => d.id !== selectedDoc.id))} className="text-slate-400 text-[10px] font-bold hover:text-red-500 h-8"><Trash2 size={12} className="mr-1.5" /> 取消</Button>
+                          <Button variant="ghost" onClick={() => {
+                            uploadedFilesRef.current.delete(selectedDoc.id);
+                            setDocuments(prev => prev.filter(d => d.id !== selectedDoc.id));
+                          }} className="text-slate-400 text-[10px] font-bold hover:text-red-500 h-8"><Trash2 size={12} className="mr-1.5" /> 取消</Button>
                         </div>
                       </Card>
                     </div>
@@ -516,7 +545,7 @@ export default function DocuParsePro() {
                       </ScrollArea>
                       <footer className="p-4 border-t border-white/20 bg-white/40 backdrop-blur-xl shrink-0">
                         <div className="max-w-3xl mx-auto relative group">
-                          <textarea placeholder="提问..." className="w-full min-h-[44px] max-h-[120px] bg-white/80 border-none rounded-[1.25rem] p-3 pr-14 text-[11px] font-bold focus:ring-2 focus:ring-blue-100 shadow-inner resize-none no-scrollbar" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} />
+                          <textarea placeholder="进一步提问..." className="w-full min-h-[44px] max-h-[120px] bg-white/80 border-none rounded-[1.25rem] p-3 pr-14 text-[11px] font-bold focus:ring-2 focus:ring-blue-100 shadow-inner resize-none no-scrollbar" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} />
                           <Button onClick={handleSendMessage} disabled={!chatInput.trim() || isChatting || selectedDoc.status !== 'completed'} className="absolute right-2 bottom-2 w-8 h-8 rounded-lg bg-blue-600 text-white shadow-lg shadow-blue-600/30 hover:scale-105 active:scale-95 transition-all">
                             <Send size={14} />
                           </Button>
@@ -547,7 +576,7 @@ export default function DocuParsePro() {
             <div className="max-w-4xl mx-auto">
               <div className="flex items-center justify-between mb-8">
                 <div><h3 className="text-2xl font-black text-slate-800 tracking-tight">解析策略库</h3><p className="mt-1 text-slate-400 text-[10px] font-bold">配置不同文档场景的 AI 解析逻辑</p></div>
-                <Button variant="outline" onClick={() => setIsTestingApi(!isTestingApi)} className="rounded-lg h-10 px-4 border-2 border-blue-100 font-black text-[10px] gap-2 shadow-sm"><Activity size={14} /> API 测试</Button>
+                <Button variant="outline" onClick={() => setIsTestingApi(!isTestingApi)} className="rounded-lg h-10 px-4 border-2 border-blue-100 font-black text-[10px] gap-2 shadow-sm"><Activity size={14} /> 运行状态</Button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {rules.map(r => (
