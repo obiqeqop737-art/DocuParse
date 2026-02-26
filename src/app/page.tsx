@@ -213,7 +213,7 @@ export default function DocuParsePro() {
       toast({ title: "模型链路连通", description: "DeepSeek-V3 响应正常。" });
       recordUsage('Chat', 1, 'API_call', { model: 'DeepSeek-V3', test: true });
 
-      // 使用标准的 16x16 JPEG 图片，PaddleOCR 更容易识别
+      // 使用 16x16 JPEG，确保 PaddleOCR 识别无误
       const testImage = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAQABADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc6R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXiJmqjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/9oAMBAAIRAxEAPwD5/ooooA//2Q==";
       const ocrResult = await performOCR({ images: [{ pageIndex: 0, dataUri: testImage }] });
       const ocrText = ocrResult.results[0].text;
@@ -559,7 +559,7 @@ export default function DocuParsePro() {
       </aside>
       <main className="flex-1 flex flex-col min-w-0 bg-background relative overflow-hidden">
         <header className="h-16 px-6 border-b flex items-center justify-between bg-white dark:bg-slate-900 sticky top-0 z-20 shrink-0">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="md:hidden shrink-0"><Menu size={20} /></Button>
@@ -571,12 +571,12 @@ export default function DocuParsePro() {
             </Button>
             <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
               <span className="font-extrabold text-sm hidden sm:inline-block tracking-tight text-slate-700 dark:text-slate-200 shrink-0">
-                {activeTab === 'chat' ? '文档分析控制台' : activeTab === 'rules' ? '解析策略配置' : '用量统计面板'}
+                {activeTab === 'chat' ? '文档分析控制台' : activeTab === 'rules' ? '解析策略库' : '统计面板'}
               </span>
               {selectedDoc && activeTab === 'chat' && (
-                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 rounded-lg py-1 px-3 min-w-0 flex-1 max-w-[200px]">
+                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 rounded-lg py-1 px-3 min-w-0 flex-1 max-w-[200px] overflow-hidden">
                   {selectedDoc.type === 'PDF' ? <FileDown size={12} className="mr-1.5 shrink-0" /> : <FileText size={12} className="mr-1.5 shrink-0" />}
-                  <span className="truncate">{selectedDoc.name}</span>
+                  <span className="truncate flex-1 min-w-0">{selectedDoc.name}</span>
                 </Badge>
               )}
             </div>
@@ -584,7 +584,7 @@ export default function DocuParsePro() {
           <div className="flex items-center gap-4 shrink-0 ml-4">
             <div className="hidden lg:flex items-center gap-2.5 px-4 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
               <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" />
-              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 truncate">DeepSeek-V3 已就绪</span>
+              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 truncate">DeepSeek-V3 流式已就绪</span>
             </div>
           </div>
         </header>
@@ -603,7 +603,7 @@ export default function DocuParsePro() {
                 </div>
               </div>
               <ScrollArea className="flex-1 min-w-0">
-                <div className="p-4 space-y-2.5 overflow-hidden min-w-0">
+                <div className="p-4 space-y-2.5 flex flex-col items-stretch min-w-0 overflow-hidden">
                   {documents.length === 0 ? (
                     <div className="text-center py-24 opacity-30">
                       <FileSearch className="mx-auto mb-4 text-primary" size={48} />
@@ -611,10 +611,16 @@ export default function DocuParsePro() {
                     </div>
                   ) : (
                     documents.map(doc => (
-                      <button key={doc.id} onClick={() => setSelectedDocId(doc.id)} className={cn(
+                      <button 
+                        key={doc.id} 
+                        onClick={() => setSelectedDocId(doc.id)} 
+                        className={cn(
                           "w-full max-w-full p-4 rounded-2xl border text-left transition-all duration-200 group flex items-start gap-4 relative min-w-0 box-border overflow-hidden",
-                          selectedDocId === doc.id ? "border-primary bg-white dark:bg-slate-800 shadow-xl shadow-primary/5 shadow-inner" : "hover:bg-white dark:hover:bg-slate-800 border-transparent bg-transparent"
-                        )}>
+                          selectedDocId === doc.id 
+                            ? "border-primary bg-white dark:bg-slate-800 shadow-md shadow-primary/10 shadow-inner" 
+                            : "hover:bg-white dark:hover:bg-slate-800 border-transparent bg-transparent"
+                        )}
+                      >
                         <div className={cn("p-2.5 rounded-xl transition-colors shrink-0", selectedDocId === doc.id ? "bg-primary text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500")}>
                           {doc.type === 'PDF' && <FileDown size={18} />}
                           {['XLSX', 'XLS', 'CSV'].includes(doc.type) && <FileSpreadsheet size={18} />}
@@ -829,3 +835,4 @@ export default function DocuParsePro() {
     </div>
   );
 }
+
