@@ -31,7 +31,8 @@ import {
   BarChart3,
   PieChart as PieChartIcon,
   Clock,
-  Database
+  Database,
+  RefreshCw
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -61,7 +62,7 @@ import {
   initiateAnonymousSignIn,
   addDocumentNonBlocking
 } from '@/firebase';
-import { collection, serverTimestamp, query, orderBy, limit } from 'firebase/firestore';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { 
   BarChart, 
   Bar, 
@@ -152,24 +153,24 @@ export default function DocuParsePro() {
     }
   }, [user, auth]);
 
-  // 获取流量日志
+  // 获取流量日志 - 确保稳定性，使用 user?.uid 作为 key
   const logsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
+    if (!db || !user?.uid) return null;
     return query(
       collection(db, 'users', user.uid, 'trafficConsumptionLogs'),
       orderBy('eventDateTime', 'desc'),
       limit(100)
     );
-  }, [db, user]);
+  }, [db, user?.uid]);
 
-  const { data: logs } = useCollection(logsQuery);
+  const { data: logs, isLoading: isLogsLoading } = useCollection(logsQuery);
 
-  // 记录用量
-  const recordUsage = (type: 'Chat' | 'OCR', amount: number, unit: string, details: any) => {
-    if (!db || !user) return;
+  // 记录用量 - 异步非阻塞
+  const recordUsage = (type: 'Chat' | 'OCR' | 'System', amount: number, unit: string, details: any) => {
+    if (!db || !user?.uid) return;
     const logData = {
       userId: user.uid,
-      eventType: type === 'Chat' ? 'AIProcessing' : 'DocumentProcessed',
+      eventType: type === 'Chat' ? 'AIProcessing' : type === 'OCR' ? 'DocumentProcessed' : 'SystemEvent',
       eventDateTime: new Date().toISOString(),
       consumedAmount: amount,
       consumptionUnit: unit,
@@ -178,6 +179,13 @@ export default function DocuParsePro() {
     const colRef = collection(db, 'users', user.uid, 'trafficConsumptionLogs');
     addDocumentNonBlocking(colRef, logData);
   };
+
+  // 初始化会话记录 - 当用户登录成功且没有任何日志时，记录一次初始化以确保看板有数据
+  useEffect(() => {
+    if (user?.uid && db && logs !== null && logs.length === 0 && !isLogsLoading) {
+      recordUsage('System', 1, 'session', { info: 'First login initialized statistics' });
+    }
+  }, [user?.uid, db, logs, isLogsLoading]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -188,16 +196,18 @@ export default function DocuParsePro() {
   const testApiConnectivity = async () => {
     setIsTestingApi(true);
     try {
+      // 1. 测试语义模型
       const dsResult = await chatWithDoc({
         documentContent: "API Test Context",
-        userQuery: "请简短回复：DeepSeek-V3.2 已就绪。",
+        userQuery: "请简短回复：DeepSeek-V3 已就绪。",
         rules: "None",
         history: []
       });
       
       toast({ title: "语义模型测试成功", description: dsResult.answer });
-      recordUsage('Chat', 1, 'API_call', { model: 'DeepSeek-V3.2', test: true });
+      recordUsage('Chat', 1, 'API_call', { model: 'DeepSeek-V3', test: true });
 
+      // 2. 测试视觉模型 - 使用标准 JPEG
       const testImage = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAQABADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc6R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXiJmqjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/9oAMBAAIRAxEAPwD5/ooooA//2Q==";
       
       const ocrResult = await performOCR({
@@ -356,26 +366,42 @@ export default function DocuParsePro() {
 
   // 流量看板组件逻辑
   const chartData = useMemo(() => {
-    if (!logs) return [];
+    if (!logs || logs.length === 0) return [];
     const dailyMap = new Map();
+    // 聚合最近7天的数据
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const key = d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+      dailyMap.set(key, 0);
+    }
+
     logs.forEach(log => {
-      const date = new Date(log.eventDateTime).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
-      dailyMap.set(date, (dailyMap.get(date) || 0) + log.consumedAmount);
+      const logDate = new Date(log.eventDateTime);
+      const key = logDate.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+      if (dailyMap.has(key)) {
+        dailyMap.set(key, (dailyMap.get(key) || 0) + (log.consumedAmount || 0));
+      }
     });
-    return Array.from(dailyMap.entries()).map(([date, amount]) => ({ date, amount })).reverse();
+
+    return Array.from(dailyMap.entries()).map(([date, amount]) => ({ date, amount }));
   }, [logs]);
 
   const pieData = useMemo(() => {
-    if (!logs) return [];
+    if (!logs || logs.length === 0) return [];
     const typeMap = new Map();
     logs.forEach(log => {
-      const type = log.eventType === 'AIProcessing' ? '语义解析' : '视觉识别';
-      typeMap.set(type, (typeMap.get(type) || 0) + log.consumedAmount);
+      let label = '其他';
+      if (log.eventType === 'AIProcessing') label = '语义解析';
+      if (log.eventType === 'DocumentProcessed') label = '视觉识别';
+      if (log.eventType === 'SystemEvent') label = '系统事件';
+      typeMap.set(label, (typeMap.get(label) || 0) + (log.consumedAmount || 0));
     });
     return Array.from(typeMap.entries()).map(([name, value]) => ({ name, value }));
   }, [logs]);
 
-  const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b'];
+  const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
 
   const NavContent = () => (
     <div className="flex flex-col h-full bg-white dark:bg-slate-900 min-w-0 overflow-hidden">
@@ -487,7 +513,7 @@ export default function DocuParsePro() {
           <div className="flex items-center gap-4 shrink-0">
             <div className="hidden sm:flex items-center gap-2.5 px-4 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
               <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" />
-              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 truncate">DeepSeek-V3.2 + PaddleOCR-VL 活跃</span>
+              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 truncate">DeepSeek-V3 + PaddleOCR-VL 活跃</span>
             </div>
           </div>
         </header>
@@ -597,7 +623,7 @@ export default function DocuParsePro() {
                     <div className="max-w-4xl mx-auto flex flex-col gap-4">
                       <div className="relative">
                         <Textarea 
-                          placeholder="输入您的问题 (DeepSeek-V3.2 已就绪)..."
+                          placeholder="输入您的问题 (DeepSeek-V3 已就绪)..."
                           className="min-h-[50px] sm:min-h-[60px] max-h-[200px] resize-none py-4 sm:py-5 px-5 sm:px-6 pr-14 sm:pr-16 rounded-2xl sm:rounded-3xl bg-slate-50 dark:bg-slate-900/50 border-none focus-visible:ring-primary/20 text-[13px] sm:text-[14px] shadow-inner"
                           value={chatInput}
                           onChange={(e) => setChatInput(e.target.value)}
@@ -679,11 +705,19 @@ export default function DocuParsePro() {
         {activeTab === 'stats' && (
           <ScrollArea className="flex-1 p-4 sm:p-6 md:p-8 bg-slate-50/30">
             <div className="max-w-6xl mx-auto space-y-8">
-              <header className="flex items-end gap-3">
-                <div className="p-3 bg-primary/10 text-primary rounded-2xl"><Database size={24} /></div>
-                <div>
-                  <h3 className="text-2xl font-black tracking-tight">流量统计后台</h3>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">实时 AI 资源消耗概览</p>
+              <header className="flex items-end gap-3 justify-between">
+                <div className="flex items-end gap-3">
+                  <div className="p-3 bg-primary/10 text-primary rounded-2xl"><Database size={24} /></div>
+                  <div>
+                    <h3 className="text-2xl font-black tracking-tight">流量统计后台</h3>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">实时 AI 资源消耗概览</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                   {isLogsLoading && <Loader2 size={18} className="animate-spin text-muted-foreground" />}
+                   <Button variant="outline" size="icon" onClick={() => window.location.reload()}>
+                     <RefreshCw size={16} />
+                   </Button>
                 </div>
               </header>
 
@@ -699,7 +733,7 @@ export default function DocuParsePro() {
                   <CardHeader className="pb-2">
                     <CardDescription className="flex items-center gap-2"><Sparkles size={14} className="text-purple-500" /> 语义消耗</CardDescription>
                     <CardTitle className="text-3xl font-black text-purple-600">
-                      {logs?.filter(l => l.eventType === 'AIProcessing').reduce((acc, curr) => acc + curr.consumedAmount, 0) || 0}
+                      {logs?.filter(l => l.eventType === 'AIProcessing').reduce((acc, curr) => acc + (curr.consumedAmount || 0), 0) || 0}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="text-[10px] font-bold text-muted-foreground uppercase">单位: API CALLS</CardContent>
@@ -708,95 +742,105 @@ export default function DocuParsePro() {
                   <CardHeader className="pb-2">
                     <CardDescription className="flex items-center gap-2"><Eye size={14} className="text-blue-500" /> 视觉识别</CardDescription>
                     <CardTitle className="text-3xl font-black text-blue-600">
-                      {logs?.filter(l => l.eventType === 'DocumentProcessed').reduce((acc, curr) => acc + curr.consumedAmount, 0) || 0}
+                      {logs?.filter(l => l.eventType === 'DocumentProcessed').reduce((acc, curr) => acc + (curr.consumedAmount || 0), 0) || 0}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="text-[10px] font-bold text-muted-foreground uppercase">单位: PAGES</CardContent>
                 </Card>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <Card className="lg:col-span-2 rounded-[2rem] border-none shadow-2xl shadow-slate-200/50 bg-white overflow-hidden">
-                  <CardHeader className="border-b bg-slate-50/50">
-                    <CardTitle className="text-lg flex items-center gap-2"><BarChart3 size={18} /> 近期消耗趋势</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-8 h-[350px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                        <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
-                        <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
-                        <RechartsTooltip cursor={{fill: '#f1f5f9'}} content={({active, payload}) => {
-                          if (active && payload && payload.length) {
-                            return <div className="bg-white p-3 rounded-xl shadow-2xl border border-slate-100 font-bold text-xs">{payload[0].value} Units</div>
-                          }
-                          return null;
-                        }} />
-                        <Bar dataKey="amount" radius={[8, 8, 0, 0]}>
-                          {chartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
+              {logs && logs.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <Card className="lg:col-span-2 rounded-[2rem] border-none shadow-2xl shadow-slate-200/50 bg-white overflow-hidden">
+                      <CardHeader className="border-b bg-slate-50/50">
+                        <CardTitle className="text-lg flex items-center gap-2"><BarChart3 size={18} /> 近期消耗趋势 (7日内)</CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-8 h-[350px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+                            <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+                            <RechartsTooltip cursor={{fill: '#f1f5f9'}} content={({active, payload}) => {
+                              if (active && payload && payload.length) {
+                                return <div className="bg-white p-3 rounded-xl shadow-2xl border border-slate-100 font-bold text-xs">{payload[0].value} Units</div>
+                              }
+                              return null;
+                            }} />
+                            <Bar dataKey="amount" radius={[8, 8, 0, 0]}>
+                              {chartData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
 
-                <Card className="rounded-[2rem] border-none shadow-2xl shadow-slate-200/50 bg-white overflow-hidden">
-                  <CardHeader className="border-b bg-slate-50/50">
-                    <CardTitle className="text-lg flex items-center gap-2"><PieChartIcon size={18} /> 资源分布</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-8 h-[350px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={pieData} innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
-                          {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                        </Pie>
-                        <RechartsTooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="flex flex-col gap-2 px-4 pb-4">
-                       {pieData.map((d, i) => (
-                         <div key={d.name} className="flex items-center justify-between text-xs font-bold">
-                           <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{backgroundColor: COLORS[i % COLORS.length]}} /> {d.name}</div>
-                           <span>{d.value} Units</span>
-                         </div>
-                       ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                    <Card className="rounded-[2rem] border-none shadow-2xl shadow-slate-200/50 bg-white overflow-hidden">
+                      <CardHeader className="border-b bg-slate-50/50">
+                        <CardTitle className="text-lg flex items-center gap-2"><PieChartIcon size={18} /> 资源分布</CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-8 h-[350px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={pieData} innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
+                              {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                            </Pie>
+                            <RechartsTooltip />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="flex flex-col gap-2 px-4 pb-4">
+                           {pieData.map((d, i) => (
+                             <div key={d.name} className="flex items-center justify-between text-xs font-bold">
+                               <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{backgroundColor: COLORS[i % COLORS.length]}} /> {d.name}</div>
+                               <span>{d.value} Units</span>
+                             </div>
+                           ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
 
-              <Card className="rounded-[2rem] border-none shadow-2xl shadow-slate-200/50 bg-white overflow-hidden">
-                <CardHeader className="border-b bg-slate-50/50 flex flex-row items-center justify-between">
-                  <CardTitle className="text-lg flex items-center gap-2"><Clock size={18} /> 详细日志明细</CardTitle>
-                  <Badge variant="outline">最近 100 条记录</Badge>
-                </CardHeader>
-                <Table>
-                  <TableHeader className="bg-slate-50/50">
-                    <TableRow>
-                      <TableHead className="font-bold">发生时间</TableHead>
-                      <TableHead className="font-bold">事件类型</TableHead>
-                      <TableHead className="font-bold text-right">消耗数值</TableHead>
-                      <TableHead className="font-bold">单位</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {logs?.map((log) => (
-                      <TableRow key={log.id} className="hover:bg-slate-50/30 transition-colors">
-                        <TableCell className="text-xs text-slate-500">{new Date(log.eventDateTime).toLocaleString()}</TableCell>
-                        <TableCell>
-                          <Badge variant={log.eventType === 'AIProcessing' ? 'secondary' : 'outline'} className="text-[10px] font-bold">
-                            {log.eventType === 'AIProcessing' ? '语义解析' : '视觉扫描'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-bold text-slate-700">{log.consumedAmount}</TableCell>
-                        <TableCell className="text-[10px] text-muted-foreground font-bold">{log.consumptionUnit}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </Card>
+                  <Card className="rounded-[2rem] border-none shadow-2xl shadow-slate-200/50 bg-white overflow-hidden">
+                    <CardHeader className="border-b bg-slate-50/50 flex flex-row items-center justify-between">
+                      <CardTitle className="text-lg flex items-center gap-2"><Clock size={18} /> 详细日志明细</CardTitle>
+                      <Badge variant="outline">最近记录</Badge>
+                    </CardHeader>
+                    <Table>
+                      <TableHeader className="bg-slate-50/50">
+                        <TableRow>
+                          <TableHead className="font-bold">发生时间</TableHead>
+                          <TableHead className="font-bold">事件类型</TableHead>
+                          <TableHead className="font-bold text-right">消耗数值</TableHead>
+                          <TableHead className="font-bold">单位</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {logs.map((log) => (
+                          <TableRow key={log.id} className="hover:bg-slate-50/30 transition-colors">
+                            <TableCell className="text-xs text-slate-500">{new Date(log.eventDateTime).toLocaleString()}</TableCell>
+                            <TableCell>
+                              <Badge variant={log.eventType === 'AIProcessing' ? 'secondary' : log.eventType === 'DocumentProcessed' ? 'outline' : 'ghost'} className="text-[10px] font-bold">
+                                {log.eventType === 'AIProcessing' ? '语义解析' : log.eventType === 'DocumentProcessed' ? '视觉扫描' : '系统事件'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-mono font-bold text-slate-700">{log.consumedAmount || 0}</TableCell>
+                            <TableCell className="text-[10px] text-muted-foreground font-bold">{log.consumptionUnit}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </Card>
+                </>
+              ) : (
+                <Card className="rounded-[2rem] border-dashed border-2 p-24 flex flex-col items-center justify-center opacity-40">
+                  <Activity size={48} className="mb-4" />
+                  <p className="font-bold tracking-widest uppercase text-sm">暂无消耗记录</p>
+                  <p className="text-xs mt-2">当您开始上传文档或与 AI 对话时，记录将出现在此处。</p>
+                </Card>
+              )}
             </div>
           </ScrollArea>
         )}
@@ -811,4 +855,3 @@ export default function DocuParsePro() {
     </div>
   );
 }
-
