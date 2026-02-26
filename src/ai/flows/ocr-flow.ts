@@ -2,7 +2,8 @@
 'use server';
 /**
  * @fileOverview 硅基流动 (SiliconFlow) 视觉 OCR 流程。
- * 严格使用 PaddlePaddle/PaddleOCR-VL-1.5 模型。
+ * 严格锁定 PaddlePaddle/PaddleOCR-VL-1.5 模型。
+ * 修复了之前版本中的 i is not defined 语法错误。
  */
 
 import { ai } from '@/ai/genkit';
@@ -44,7 +45,9 @@ const ocrFlow = ai.defineFlow(
 
     for (const item of input.images) {
       try {
-        // 确保 dataUri 格式正确，PaddleOCR 偏好标准的 OpenAI Vision 格式
+        // 强制移除 Base64 字符串中的所有空格和换行符，防止后端处理器报错
+        const cleanDataUri = item.dataUri.replace(/\s/g, '');
+
         const response = await fetch(SILICON_FLOW_API_URL, {
           method: 'POST',
           headers: {
@@ -58,7 +61,7 @@ const ocrFlow = ai.defineFlow(
                 role: "user",
                 content: [
                   { type: "text", text: "请精准提取图片中的所有文本，以 Markdown 格式返回。不要解释，直接返回结果。" },
-                  { type: "image_url", image_url: { url: item.dataUri } }
+                  { type: "image_url", image_url: { url: cleanDataUri } }
                 ]
               }
             ],

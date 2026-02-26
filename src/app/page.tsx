@@ -139,7 +139,7 @@ export default function DocuParsePro() {
       });
 
       // 2. 测试视觉模型 PaddlePaddle/PaddleOCR-VL-1.5
-      // 使用更标准的 JPEG 16x16 黑色图片进行连通性测试，避免 PIL 识别错误
+      // 使用标准的 JPEG 图像进行测试，强制清理空白符
       const testImage = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAQABADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc6R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXiJmqjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/9oAMBAAIRAxEAPwD5/ooooA//2Q==";
       
       const ocrResult = await performOCR({
@@ -174,7 +174,6 @@ export default function DocuParsePro() {
       const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
       const pdf = await loadingTask.promise;
       
-      // 预分配页面内容数组，确保页码顺序
       const pagesData: string[] = new Array(pdf.numPages).fill("");
       const imagesToOCR: { pageIndex: number; dataUri: string }[] = [];
 
@@ -183,7 +182,7 @@ export default function DocuParsePro() {
         const textContent = await page.getTextContent();
         let pageText = (textContent.items as any[]).map(item => item.str).join(' ').trim();
         
-        // 如果页面文字过少，渲染为图片进行视觉识别
+        // 阈值：如果文字少于 50 个字符，则认为该页主要是图片，需要视觉识别
         if (pageText.length < 50) {
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
@@ -194,7 +193,6 @@ export default function DocuParsePro() {
             await page.render({ canvasContext: context, viewport }).promise;
             const dataUri = canvas.toDataURL('image/jpeg', 0.85);
             imagesToOCR.push({ pageIndex: i - 1, dataUri });
-            // 此时 pagesData[i-1] 仍为空字符串，等待 OCR 回填
           } else {
             pagesData[i - 1] = pageText;
           }
@@ -208,12 +206,11 @@ export default function DocuParsePro() {
         const ocrResponse = await performOCR({ images: imagesToOCR });
         
         ocrResponse.results.forEach(res => {
-          // 将 OCR 结果填回对应的预分配页码位置
           pagesData[res.pageIndex] = res.text;
         });
       }
 
-      // 按页码顺序拼接全文
+      // 保证页码顺序拼接
       return pagesData.map((text, idx) => `### 第 ${idx + 1} 页 ###\n\n${text}`).join('\n\n');
 
     } catch (err: any) {
@@ -242,9 +239,8 @@ export default function DocuParsePro() {
       return fullContent;
     }
 
-    // 对于其他格式或 PPTX 暂做基础文本提取提示
     if (extension === 'pptx') {
-      return "[PPTX 格式支持受限，建议转换为 PDF 上传以获得最佳视觉识别效果]";
+      return "[PPTX 格式建议转为 PDF 上传以获得最佳视觉识别效果]";
     }
 
     return await file.text();
@@ -422,10 +418,6 @@ export default function DocuParsePro() {
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="p-0 w-72">
-                <SheetHeader className="sr-only">
-                  <SheetTitle>导航菜单</SheetTitle>
-                  <SheetDescription>访问文档对话和解析规则设置</SheetDescription>
-                </SheetHeader>
                 <NavContent />
               </SheetContent>
             </Sheet>
@@ -453,7 +445,7 @@ export default function DocuParsePro() {
           <div className="flex items-center gap-4 shrink-0">
             <div className="hidden sm:flex items-center gap-2.5 px-4 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
               <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" />
-              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">DeepSeek-V3.2 + PaddleOCR-VL 活跃</span>
+              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 truncate">DeepSeek-V3.2 + PaddleOCR-VL 活跃</span>
             </div>
           </div>
         </header>
@@ -519,7 +511,7 @@ export default function DocuParsePro() {
                         {doc.status === 'ocr_scanning' && (
                           <div className="mt-3 flex items-center gap-2.5 text-[10px] text-blue-500 font-bold bg-blue-50 p-2 rounded-lg border border-blue-100 overflow-hidden">
                             <Eye size={12} className="animate-pulse shrink-0" /> 
-                            <span className="truncate">视觉识别引擎识别中...</span>
+                            <span className="truncate">视觉引擎识别中...</span>
                           </div>
                         )}
                       </button>
@@ -633,7 +625,7 @@ export default function DocuParsePro() {
                   </div>
                   <h3 className="text-xl sm:text-2xl font-black tracking-tight">上传文档以开启对话</h3>
                   <p className="text-[13px] sm:text-sm text-muted-foreground mt-3 max-w-xs sm:max-w-sm leading-relaxed font-medium">
-                    支持 Office、PDF、TXT。扫描件由 PaddleOCR-VL 视觉引擎识别。
+                    支持 Office、PDF、TXT。由 PaddleOCR-VL 视觉引擎识别。
                   </p>
                   <Button variant="outline" className="mt-8 sm:mt-10 rounded-xl sm:rounded-2xl px-8 sm:px-10 py-5 sm:py-7 h-auto border-2 hover:bg-primary hover:text-white transition-all group" asChild>
                     <label className="cursor-pointer">

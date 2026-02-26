@@ -2,7 +2,7 @@
 'use server';
 /**
  * @fileOverview 硅基流动 (SiliconFlow) 文档对话 AI 流程。
- * 优化了错误上报：将 API 报错详情完整传回前端。
+ * 严格绑定 deepseek-ai/DeepSeek-V3.2 模型。
  */
 
 import { ai } from '@/ai/genkit';
