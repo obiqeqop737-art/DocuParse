@@ -1,19 +1,25 @@
 'use server';
 /**
  * @fileOverview 硅基流动 (SiliconFlow) 视觉 OCR 流程。
- * 用于处理扫描件 PDF，将其图片内容转换为 Markdown 文本。
+ * 严格使用 Qwen/Qwen3-VL-32B-Instruct 模型进行视觉识别。
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
 const OCRInputSchema = z.object({
-  images: z.array(z.string()).describe('PDF 页面的 Base64 图片数据列表（带 MIME 类型）。'),
+  images: z.array(z.object({
+    pageIndex: z.number(),
+    dataUri: z.string()
+  })).describe('待识别的图片及其原始页码列表。'),
 });
 export type OCRInput = z.infer<typeof OCRInputSchema>;
 
 const OCROutputSchema = z.object({
-  fullText: z.string().describe('所有页面合并后的 Markdown 识别结果。'),
+  results: z.array(z.object({
+    pageIndex: z.number(),
+    text: z.string()
+  })).describe('识别后的文本及页码映射。'),
 });
 export type OCROutput = z.infer<typeof OCROutputSchema>;
 
@@ -30,15 +36,12 @@ const ocrFlow = ai.defineFlow(
   async (input) => {
     const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
     const SILICON_FLOW_API_KEY = 'sk-orcwdodraxjcyrllecfaaukwuuepdysjqeeslnaarzhhjeey';
-    // 严格使用用户要求的 Qwen/Qwen3-VL-32B-Instruct 模型
     const MODEL_ID = 'Qwen/Qwen3-VL-32B-Instruct'; 
 
-    let combinedText = '';
+    const results: { pageIndex: number; text: string }[] = [];
 
-    // 分页面处理以确保稳定性
-    for (let i = 0; i < input.images.length; i++) {
-      const base64Image = input.images[i];
-      
+    // 逐页发送请求，避免请求体过大及超时
+    for (const item of input.images) {
       try {
         const response = await fetch(SILICON_FLOW_API_URL, {
           method: 'POST',
@@ -52,8 +55,8 @@ const ocrFlow = ai.defineFlow(
               {
                 role: "user",
                 content: [
-                  { type: "text", text: "你是一个专业的工业文档识别专家。请将这张图片中的文字、表格和结构完整地提取出来，并转换为 Markdown 格式输出。不要包含任何解释性文字，直接输出文档内容。" },
-                  { type: "image_url", image_url: { url: base64Image } }
+                  { type: "text", text: "请将这张图片（第 " + (item.pageIndex + 1) + " 页）的内容完整提取并转换为 Markdown 格式，包含表格。不要输出任何解释，直接输出识别结果。" },
+                  { type: "image_url", image_url: { url: item.dataUri } }
                 ]
               }
             ],
@@ -69,13 +72,13 @@ const ocrFlow = ai.defineFlow(
 
         const data = await response.json();
         const content = data.choices?.[0]?.message?.content || '';
-        combinedText += `\n\n### 第 ${i + 1} 页识别结果 ###\n\n${content}`;
+        results.push({ pageIndex: item.pageIndex, text: content });
       } catch (error: any) {
-        console.error(`Page ${i} OCR Failed:`, error);
-        combinedText += `\n\n[第 ${i + 1} 页识别失败: ${error.message}]`;
+        console.error(`Page ${item.pageIndex} OCR Failed:`, error);
+        results.push({ pageIndex: item.pageIndex, text: `[该页视觉识别失败: ${error.message}]` });
       }
     }
 
-    return { fullText: combinedText };
+    return { results };
   }
 );
