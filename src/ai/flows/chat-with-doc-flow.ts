@@ -37,8 +37,8 @@ const chatWithDocFlow = ai.defineFlow(
     // 硅基流动配置
     const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
     const SILICON_FLOW_API_KEY = 'sk-orcwdodraxjcyrllecfaaukwuuepdysjqeeslnaarzhhjeey';
-    // 切换至旗舰级 DeepSeek-V3 模型
-    const MODEL_ID = 'deepseek-ai/DeepSeek-V3';
+    // 严格使用用户要求的 DeepSeek-V3.2 模型
+    const MODEL_ID = 'deepseek-ai/DeepSeek-V3.2';
 
     // 构造系统提示词：包含解析规则和文档内容
     const systemPrompt = `你是一个工厂技术文档专家。请严格遵循以下解析规则和文档背景来回答用户问题。

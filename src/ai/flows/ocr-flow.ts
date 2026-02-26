@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview 硅基流动 (SiliconFlow) Qwen-VL 视觉 OCR 流程。
+ * @fileOverview 硅基流动 (SiliconFlow) 视觉 OCR 流程。
  * 用于处理扫描件 PDF，将其图片内容转换为 Markdown 文本。
  */
 
@@ -30,8 +30,8 @@ const ocrFlow = ai.defineFlow(
   async (input) => {
     const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
     const SILICON_FLOW_API_KEY = 'sk-orcwdodraxjcyrllecfaaukwuuepdysjqeeslnaarzhhjeey';
-    // 使用硅基流动目前最强的 72B 视觉模型
-    const MODEL_ID = 'Qwen/Qwen2.5-VL-72B-Instruct'; 
+    // 严格使用用户要求的 Qwen/Qwen3-VL-32B-Instruct 模型
+    const MODEL_ID = 'Qwen/Qwen3-VL-32B-Instruct'; 
 
     let combinedText = '';
 
