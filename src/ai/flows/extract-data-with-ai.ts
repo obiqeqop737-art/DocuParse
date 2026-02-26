@@ -27,29 +27,31 @@ const extractDataPrompt = ai.definePrompt({
   name: 'extractDataPrompt',
   input: { schema: ExtractDataWithAIInputSchema },
   output: { schema: ExtractDataWithAIOutputSchema },
-  prompt: `You are an expert technical document parser. Your task is to extract specific key information from the provided technical document based on the given extraction rules.
+  prompt: `你是一位专业的技术文档解析专家。你的任务是从提供的技术文档内容中，根据给定的提取规则精确提取关键信息。
 
-Document Content:
+文档内容：
 """
 {{{documentContent}}}
 """
 
-Extraction Rules:
+提取规则：
 """
 {{{extractionRules}}}
 """
 
-Carefully read the document content and identify the information specified in the extraction rules.
-Output the extracted information as a JSON object, where the keys are the names of the fields to extract (as suggested by the extraction rules) and the values are the corresponding extracted data.
-If a piece of information cannot be found, provide an empty string for its value.
-Ensure the output is a valid JSON object.
+请仔细阅读文档内容并识别提取规则中指定的各项信息。
+输出要求：
+1. 以 JSON 对象的形式输出，其中键是提取规则建议的字段名，值是对应的提取数据。
+2. 如果在文档中找不到某项信息，请为该字段提供空字符串 ""。
+3. 确保输出是合法的 JSON 对象。
+4. 优先保留文档中的专业术语和数值精度。
 
-Example Output Structure (based on rules like "Extract Document Title, Version, Author, Date of Issue"):
+示例输出结构（基于“提取文档标题、版本、作者、日期”规则）：
 {
-  "Document Title": "Example Technical Specification",
-  "Version": "1.0",
-  "Author": "John Doe",
-  "Date of Issue": "2023-10-26"
+  "文档标题": "示例技术规范",
+  "版本": "1.0",
+  "作者": "张三",
+  "发布日期": "2023-10-26"
 }
 `,
 });
@@ -68,6 +70,7 @@ const extractDataWithAIFlow = ai.defineFlow(
       }
       return output;
     } catch (error: any) {
+      // 捕获配额限制错误 (429) 并返回友好的中文提示
       if (error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED') || error.message?.includes('quota')) {
         throw new Error('AI 服务当前配额已耗尽或请求过于频繁，请稍后再试。');
       }
