@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -351,7 +352,7 @@ export default function DocuParsePro() {
                 {activeTab === 'chat' ? '文档分析控制台' : '解析策略配置'}
               </span>
               {selectedDoc && activeTab === 'chat' && (
-                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 rounded-lg py-1 px-3 min-w-0 max-w-[150px] sm:max-w-[200px]">
+                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 rounded-lg py-1 px-3 min-w-0 max-w-[120px] sm:max-w-[180px]">
                   <FileText size={12} className="mr-1.5 shrink-0" />
                   <span className="truncate">{selectedDoc.name}</span>
                 </Badge>
@@ -370,7 +371,7 @@ export default function DocuParsePro() {
         {activeTab === 'chat' && (
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-w-0">
             <div className={cn(
-              "w-full md:w-72 border-r bg-slate-50/50 dark:bg-slate-900/50 flex flex-col shrink-0 overflow-hidden",
+              "w-full md:w-80 md:min-w-80 md:max-w-80 border-r bg-slate-50/50 dark:bg-slate-900/50 flex flex-col shrink-0 overflow-hidden",
               selectedDocId ? "hidden md:flex" : "flex"
             )}>
               <div className="p-4 border-b bg-white dark:bg-slate-900 shrink-0">
@@ -380,7 +381,7 @@ export default function DocuParsePro() {
                 </div>
               </div>
               <ScrollArea className="flex-1">
-                <div className="p-3 space-y-2.5 overflow-hidden">
+                <div className="p-3 space-y-2.5 overflow-hidden min-w-0">
                   {documents.length === 0 ? (
                     <div className="text-center py-24 opacity-30">
                       <FileSearch className="mx-auto mb-4 text-primary" size={48} />
@@ -405,9 +406,9 @@ export default function DocuParsePro() {
                           )}>
                             {doc.type === 'PDF' ? <FileDown size={18} /> : <FileText size={18} />}
                           </div>
-                          <div className="min-w-0 flex-1 overflow-hidden">
-                            <p className="font-bold text-[13px] truncate text-slate-800 dark:text-slate-200 w-full">{doc.name}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-[13px] truncate text-slate-800 dark:text-slate-200">{doc.name}</p>
+                            <div className="flex items-center gap-2 mt-0.5 min-w-0">
                               <p className="text-[10px] text-muted-foreground font-medium shrink-0">{doc.date}</p>
                               {doc.status === 'completed' && (
                                 <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 bg-green-50 text-green-600 border-green-100 shrink-0">
@@ -450,9 +451,9 @@ export default function DocuParsePro() {
                   </div>
                   
                   <ScrollArea className="flex-1 px-4 md:px-12 py-8" ref={scrollRef}>
-                    <div className="max-w-4xl mx-auto space-y-8 pb-20">
+                    <div className="max-w-4xl mx-auto space-y-8 pb-20 min-w-0">
                       {selectedDoc.chatHistory.map((msg, i) => (
-                        <div key={i} className={cn("flex gap-3 sm:gap-5", msg.role === 'user' ? "flex-row-reverse" : "flex-row")}>
+                        <div key={i} className={cn("flex gap-3 sm:gap-5 min-w-0", msg.role === 'user' ? "flex-row-reverse" : "flex-row")}>
                           <div className={cn(
                             "w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 border shadow-sm",
                             msg.role === 'user' ? "bg-slate-100 dark:bg-slate-800" : "bg-primary text-primary-foreground shadow-primary/20"
@@ -460,10 +461,10 @@ export default function DocuParsePro() {
                             {msg.role === 'user' ? <span className="text-[10px] sm:text-xs font-bold">用户</span> : <Sparkles size={16} className="sm:size-5" />}
                           </div>
                           <div className={cn(
-                            "max-w-[85%] p-4 sm:p-5 rounded-2xl sm:rounded-3xl text-[13px] sm:text-[14px] leading-relaxed shadow-sm transition-all overflow-x-auto",
+                            "max-w-[90%] p-4 sm:p-5 rounded-2xl sm:rounded-3xl text-[13px] sm:text-[14px] leading-relaxed shadow-sm transition-all overflow-x-auto min-w-0",
                             msg.role === 'user' 
                               ? "bg-primary text-primary-foreground rounded-tr-none" 
-                              : "bg-slate-50 dark:bg-slate-900 border rounded-tl-none text-foreground prose dark:prose-invert max-w-none prose-sm prose-slate"
+                              : "bg-slate-50 dark:bg-slate-900 border rounded-tl-none text-foreground prose dark:prose-invert prose-sm prose-slate"
                           )}>
                             {msg.role === 'user' ? (
                               msg.content
@@ -476,12 +477,12 @@ export default function DocuParsePro() {
                         </div>
                       ))}
                       {isChatting && (
-                        <div className="flex gap-3 sm:gap-5">
+                        <div className="flex gap-3 sm:gap-5 min-w-0">
                           <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
                             <Sparkles size={16} className="sm:size-5" />
                           </div>
-                          <div className="bg-slate-50 dark:bg-slate-900 border p-4 sm:p-5 rounded-2xl sm:rounded-3xl rounded-tl-none shadow-sm flex flex-col gap-3 max-w-[85%]">
-                            <div className="flex items-center gap-3">
+                          <div className="bg-slate-50 dark:bg-slate-900 border p-4 sm:p-5 rounded-2xl sm:rounded-3xl rounded-tl-none shadow-sm flex flex-col gap-3 max-w-[85%] min-w-0">
+                            <div className="flex items-center gap-3 min-w-0">
                               <Loader2 size={16} className="animate-spin text-primary shrink-0" />
                               <span className="text-[12px] sm:text-[13px] font-bold text-slate-700 dark:text-slate-300 truncate">DeepSeek-V3.2 正在研读中...</span>
                             </div>
