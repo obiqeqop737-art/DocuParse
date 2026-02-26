@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -36,6 +37,8 @@ import { cn } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 import * as pdfjsLib from 'pdfjs-dist';
 
@@ -121,8 +124,6 @@ export default function DocuParsePro() {
       
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
-        
-        // 尝试提取文本内容
         const textContent = await page.getTextContent();
         let lastY, text = '';
         const items = textContent.items as any[];
@@ -138,7 +139,6 @@ export default function DocuParsePro() {
         const cleanedText = text.trim();
         if (!cleanedText) {
           emptyPages++;
-          // 如果页面没有文本，准备渲染图片以便 OCR
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
           const viewport = page.getViewport({ scale: 1.5 });
@@ -153,7 +153,7 @@ export default function DocuParsePro() {
       }
       
       return { 
-        text: emptyPages / pdf.numPages > 0.8 ? "___SCAN_DETECTED___" : fullText,
+        text: (emptyPages / pdf.numPages) > 0.8 ? "___SCAN_DETECTED___" : fullText,
         images 
       };
     } catch (err: any) {
@@ -204,7 +204,6 @@ export default function DocuParsePro() {
         const markdownContent = `\n\`\`\`markdown\n# 文档内容: ${file.name}\n\n${finalContent}\n\`\`\`\n`;
         setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, content: markdownContent, status: 'completed' } : d));
         
-        // 自动触发首次分析对话
         autoAnalyze(fileId, markdownContent);
 
       } catch (err: any) {
@@ -459,9 +458,15 @@ export default function DocuParsePro() {
                             "max-w-[85%] p-5 rounded-3xl text-[14px] leading-relaxed shadow-sm transition-all",
                             msg.role === 'user' 
                               ? "bg-primary text-primary-foreground rounded-tr-none" 
-                              : "bg-slate-50 dark:bg-slate-900 border rounded-tl-none text-foreground whitespace-pre-wrap"
+                              : "bg-slate-50 dark:bg-slate-900 border rounded-tl-none text-foreground prose dark:prose-invert max-w-none prose-sm"
                           )}>
-                            {msg.content}
+                            {msg.role === 'user' ? (
+                              msg.content
+                            ) : (
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {msg.content}
+                              </ReactMarkdown>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -500,7 +505,7 @@ export default function DocuParsePro() {
                       </div>
                       <div className="relative">
                         <Textarea 
-                          placeholder="输入您的问题 (DeepSeek-V3 已挂载全文)..."
+                          placeholder="输入您的问题 (DeepSeek-V3.2 已挂载全文)..."
                           className="min-h-[60px] max-h-[200px] resize-none py-5 px-6 pr-16 rounded-3xl bg-slate-50 dark:bg-slate-900/50 border-none focus-visible:ring-primary/20 text-[14px] shadow-inner"
                           value={chatInput}
                           onChange={(e) => setChatInput(e.target.value)}
@@ -588,9 +593,9 @@ export default function DocuParsePro() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-xs text-slate-600 leading-relaxed font-medium line-clamp-4 bg-white/50 p-4 rounded-2xl">
+                      <div className="text-xs text-slate-600 leading-relaxed font-medium line-clamp-4 bg-white/50 p-4 rounded-2xl prose prose-sm max-w-none">
                         {rule.content}
-                      </p>
+                      </div>
                     </CardContent>
                     <CardFooter>
                       <Button 
@@ -616,6 +621,16 @@ export default function DocuParsePro() {
         }
         .animate-progress-scan {
           animation: progress-scan 2s infinite linear;
+        }
+        /* Markdown 表格样式修正 */
+        .prose table {
+          @apply w-full border-collapse border border-slate-200 dark:border-slate-800 text-sm;
+        }
+        .prose th, .prose td {
+          @apply border border-slate-200 dark:border-slate-800 p-2 text-left;
+        }
+        .prose th {
+          @apply bg-slate-50 dark:bg-slate-900 font-bold;
         }
       `}</style>
     </div>
