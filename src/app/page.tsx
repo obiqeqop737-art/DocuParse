@@ -41,7 +41,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { chatWithDoc } from '@/ai/flows/chat-with-doc-flow';
 import { performOCR } from '@/ai/flows/ocr-flow';
 import { cn } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
@@ -146,6 +145,16 @@ export default function DocuParsePro() {
   const activeRule = rules.find(r => r.id === selectedRuleId) || rules[0];
   const selectedDoc = documents.find(d => d.id === selectedDocId);
 
+  // 判定是否正在“纯加载”（即 AI 还没开始说话）
+  const isCurrentlyReading = useMemo(() => {
+    if (!isChatting || !selectedDoc) return false;
+    const history = selectedDoc.chatHistory;
+    if (history.length === 0) return true;
+    // 如果最后一条消息不是 model，或者虽然是 model 但还是空的，则认为在研读中
+    const lastMsg = history[history.length - 1];
+    return lastMsg.role !== 'model';
+  }, [isChatting, selectedDoc]);
+
   // 匿名登录
   useEffect(() => {
     if (!user && auth) {
@@ -194,7 +203,7 @@ export default function DocuParsePro() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           documentContent: "API Test Context",
-          userQuery: "请简短回复：DeepSeek-V3 已就绪。",
+          userQuery: "请简短回复：链路已连通。",
           rules: "None",
           history: []
         })
@@ -202,7 +211,7 @@ export default function DocuParsePro() {
 
       if (!response.ok) throw new Error('流式接口响应异常');
       
-      toast({ title: "语义模型流式接口正常", description: "DeepSeek-V3 响应链路已连通。" });
+      toast({ title: "模型链路连通", description: "DeepSeek-V3 响应正常。" });
       recordUsage('Chat', 1, 'API_call', { model: 'DeepSeek-V3', test: true });
 
       const testImage = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAQABADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc6R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXiJmqjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/9oAMBAAIRAxEAPwD5/ooooA//2Q==";
@@ -396,7 +405,7 @@ export default function DocuParsePro() {
       const decoder = new TextDecoder();
       let fullAnswer = "";
 
-      // 添加一条空的模型回复
+      // 在流接收到第一个数据包前，界面会显示“研读中”
       setDocuments(prev => prev.map(d => d.id === selectedDoc.id ? { 
         ...d, 
         chatHistory: [...currentHistory, { role: 'model', content: '' }] 
@@ -635,7 +644,7 @@ export default function DocuParsePro() {
                           </div>
                         </div>
                       ))}
-                      {isChatting && !selectedDoc.chatHistory.find(m => m.role === 'model' && m.content === '') && (
+                      {isCurrentlyReading && (
                         <div className="flex gap-3 sm:gap-5 min-w-0">
                           <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-lg shadow-primary/20"><Sparkles size={16} className="sm:size-5" /></div>
                           <div className="bg-slate-50 dark:bg-slate-900 border p-4 sm:p-5 rounded-2xl sm:rounded-3xl rounded-tl-none shadow-sm flex flex-col gap-3 max-w-[85%] min-w-0">
@@ -806,3 +815,4 @@ export default function DocuParsePro() {
     </div>
   );
 }
+
