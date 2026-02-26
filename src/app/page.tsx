@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   FileText, 
   Upload, 
@@ -17,17 +17,15 @@ import {
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { extractDataWithAI } from '@/ai/flows/extract-data-with-ai';
 
-// Mock data types
+// 模拟数据类型
 interface Document {
   id: string;
   name: string;
@@ -48,13 +46,13 @@ export default function DocuParsePro() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [documents, setDocuments] = useState<Document[]>([]);
   const [rules, setRules] = useState<ExtractionRule[]>([
-    { id: '1', name: 'Standard Factory Spec', rules: 'Extract Document Title, Revision Number, Author, Issuing Department, and Material Requirements.' },
-    { id: '2', name: 'Maintenance Log Rule', rules: 'Extract Equipment ID, Date of Service, Technician Name, Parts Replaced, and Next Service Date.' }
+    { id: '1', name: '标准工厂规范', rules: '提取文档标题、修订号、作者、发布部门和材料要求。' },
+    { id: '2', name: '维护日志规则', rules: '提取设备 ID、服务日期、技术人员姓名、更换部件和下次服务日期。' }
   ]);
   const [selectedRuleId, setSelectedRuleId] = useState<string>(rules[0]?.id || '');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Stats
+  // 统计
   const processedCount = documents.filter(d => d.status === 'completed').length;
   const pendingCount = documents.filter(d => d.status === 'pending').length;
 
@@ -62,12 +60,12 @@ export default function DocuParsePro() {
     const files = e.target.files;
     if (!files) return;
 
-    const newDocs: Document[] = Array.from(files).map((file, idx) => ({
+    const newDocs: Document[] = Array.from(files).map((file) => ({
       id: Math.random().toString(36).substr(2, 9),
       name: file.name,
-      type: file.name.split('.').pop() || 'unknown',
+      type: file.name.split('.').pop() || '未知',
       status: 'pending',
-      content: `Simulated content for ${file.name}. Technical specification revision 2.3. Author: John Smith. Dept: Industrial Systems. Requirements: Steel S235JR, Precision Grade A.`,
+      content: `这是 ${file.name} 的模拟内容。技术规范修订版 2.3。作者：张三。部门：工业系统部。要求：钢材 S235JR，精密 A 级。`,
       date: new Date().toLocaleDateString(),
     }));
 
@@ -105,7 +103,7 @@ export default function DocuParsePro() {
     if (!doc.extractedData) return;
     
     let content = '';
-    let fileName = `${doc.name.split('.')[0]}_extracted.${format}`;
+    let fileName = `${doc.name.split('.')[0]}_提取结果.${format}`;
     let type = '';
 
     if (format === 'json') {
@@ -129,7 +127,7 @@ export default function DocuParsePro() {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      {/* Sidebar */}
+      {/* 侧边栏 */}
       <aside className="w-64 bg-primary text-primary-foreground flex flex-col border-r border-primary/20">
         <div className="p-6 flex items-center gap-2">
           <div className="bg-accent text-primary p-2 rounded-lg">
@@ -144,30 +142,30 @@ export default function DocuParsePro() {
             className="w-full justify-start gap-3" 
             onClick={() => setActiveTab('dashboard')}
           >
-            <LayoutDashboard size={20} /> Dashboard
+            <LayoutDashboard size={20} /> 仪表盘
           </Button>
           <Button 
             variant={activeTab === 'documents' ? 'secondary' : 'ghost'} 
             className="w-full justify-start gap-3"
             onClick={() => setActiveTab('documents')}
           >
-            <FileText size={20} /> Documents
+            <FileText size={20} /> 文档库
           </Button>
           <Button 
             variant={activeTab === 'rules' ? 'secondary' : 'ghost'} 
             className="w-full justify-start gap-3"
             onClick={() => setActiveTab('rules')}
           >
-            <Settings size={20} /> Rules Editor
+            <Settings size={20} /> 规则编辑器
           </Button>
         </nav>
 
         <div className="p-4 mt-auto">
           <Card className="bg-primary/40 border-primary/20 text-primary-foreground">
             <CardContent className="p-4">
-              <p className="text-xs opacity-70 mb-2">Usage Summary</p>
+              <p className="text-xs opacity-70 mb-2">使用摘要</p>
               <div className="flex justify-between items-center mb-1">
-                <span className="text-sm">Processed</span>
+                <span className="text-sm">已处理</span>
                 <span className="text-sm font-bold">{processedCount}</span>
               </div>
               <div className="h-1.5 w-full bg-primary/30 rounded-full overflow-hidden">
@@ -181,25 +179,27 @@ export default function DocuParsePro() {
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* 主内容区 */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
+        {/* 页眉 */}
         <header className="h-16 border-b bg-white/50 backdrop-blur-md flex items-center justify-between px-8">
           <div className="flex items-center gap-4">
-            <h2 className="text-lg font-semibold text-primary capitalize">{activeTab}</h2>
+            <h2 className="text-lg font-semibold text-primary capitalize">
+              {activeTab === 'dashboard' ? '仪表盘' : activeTab === 'documents' ? '文档库' : '规则编辑器'}
+            </h2>
             <Separator orientation="vertical" className="h-6" />
             <Badge variant="outline" className="text-muted-foreground border-muted-foreground/20">
-              v1.0.4 Stable
+              v1.0.4 稳定版
             </Badge>
           </div>
           <div className="flex items-center gap-3">
              <div className="relative">
                 <Label htmlFor="file-upload" className="cursor-pointer">
                   <div className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-primary-foreground px-4 py-2 rounded-md font-medium text-sm transition-colors">
-                    <Upload size={16} /> Upload New
+                    <Upload size={16} /> 上传新文档
                   </div>
                 </Label>
-                <Input 
+                <input 
                   id="file-upload" 
                   type="file" 
                   multiple 
@@ -211,39 +211,39 @@ export default function DocuParsePro() {
           </div>
         </header>
 
-        {/* Viewport */}
+        {/* 视口区 */}
         <div className="flex-1 overflow-auto p-8">
           {activeTab === 'dashboard' && (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card className="border-none shadow-sm bg-white">
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Total Files</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">总文件数</CardTitle>
                     <FileText className="h-4 w-4 text-primary" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-3xl font-bold">{documents.length}</div>
-                    <p className="text-xs text-muted-foreground mt-1">+12% from last week</p>
+                    <p className="text-xs text-muted-foreground mt-1">较上周增长 12%</p>
                   </CardContent>
                 </Card>
                 <Card className="border-none shadow-sm bg-white">
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Success Rate</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">解析成功率</CardTitle>
                     <CheckCircle2 className="h-4 w-4 text-accent" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-3xl font-bold">98.4%</div>
-                    <p className="text-xs text-muted-foreground mt-1">Industrial grade accuracy</p>
+                    <p className="text-xs text-muted-foreground mt-1">工业级解析精度</p>
                   </CardContent>
                 </Card>
                 <Card className="border-none shadow-sm bg-white">
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Pending Tasks</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">待处理任务</CardTitle>
                     <Clock className="h-4 w-4 text-orange-500" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-3xl font-bold">{pendingCount}</div>
-                    <p className="text-xs text-muted-foreground mt-1">Requires user attention</p>
+                    <p className="text-xs text-muted-foreground mt-1">需要用户关注</p>
                   </CardContent>
                 </Card>
               </div>
@@ -251,8 +251,8 @@ export default function DocuParsePro() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <Card className="border-none shadow-sm bg-white overflow-hidden">
                   <CardHeader>
-                    <CardTitle className="text-lg">Recent Documents</CardTitle>
-                    <CardDescription>The latest files added to your library.</CardDescription>
+                    <CardTitle className="text-lg">最近文档</CardTitle>
+                    <CardDescription>最新添加到库中的文件。</CardDescription>
                   </CardHeader>
                   <CardContent className="p-0">
                     <ScrollArea className="h-[300px]">
@@ -260,7 +260,7 @@ export default function DocuParsePro() {
                         {documents.length === 0 ? (
                           <div className="text-center py-12 text-muted-foreground">
                             <Upload className="mx-auto h-8 w-8 mb-4 opacity-20" />
-                            <p>No documents uploaded yet.</p>
+                            <p>尚未上传任何文档。</p>
                           </div>
                         ) : (
                           <div className="space-y-4">
@@ -277,11 +277,11 @@ export default function DocuParsePro() {
                                 </div>
                                 <div className="flex items-center gap-4">
                                   {doc.status === 'completed' ? (
-                                    <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none">Ready</Badge>
+                                    <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none">就绪</Badge>
                                   ) : doc.status === 'processing' ? (
-                                    <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none animate-pulse">Parsing...</Badge>
+                                    <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none animate-pulse">解析中...</Badge>
                                   ) : (
-                                    <Badge variant="outline">Queued</Badge>
+                                    <Badge variant="outline">已排队</Badge>
                                   )}
                                   <ChevronRight size={16} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                                 </div>
@@ -299,26 +299,26 @@ export default function DocuParsePro() {
                     <div className="w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-accent via-transparent to-transparent"></div>
                   </div>
                   <CardHeader>
-                    <CardTitle className="text-lg text-accent">Intelligent Extraction</CardTitle>
+                    <CardTitle className="text-lg text-accent">智能数据提取</CardTitle>
                     <CardDescription className="text-primary-foreground/70">
-                      Our AI-powered engine automatically identifies technical schemas and values.
+                      我们的 AI 引擎自动识别技术架构和数值。
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4 relative z-10">
                     <div className="bg-white/10 backdrop-blur-md rounded-lg p-4 border border-white/10 space-y-2">
                       <div className="flex items-center gap-2 text-xs font-semibold text-accent uppercase tracking-wider">
-                         <div className="w-2 h-2 rounded-full bg-accent animate-ping" /> Live Status
+                         <div className="w-2 h-2 rounded-full bg-accent animate-ping" /> 实时状态
                       </div>
                       <p className="text-sm font-light">
-                        System ready. Processing speeds at 0.4s/page. Enhanced pattern recognition active for DIN and ISO standards.
+                        系统就绪。处理速度 0.4秒/页。针对 DIN 和 ISO 标准的增强型模式识别已激活。
                       </p>
                     </div>
                     <Button variant="secondary" className="w-full gap-2 group" onClick={() => setActiveTab('rules')}>
-                      Configure Extraction Rules <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                      配置提取规则 <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                     </Button>
                   </CardContent>
                   <CardFooter className="pt-0">
-                    <p className="text-[10px] text-primary-foreground/50">Last security audit: Today, 08:32 AM</p>
+                    <p className="text-[10px] text-primary-foreground/50">上次安全审计：今天，08:32 AM</p>
                   </CardFooter>
                 </Card>
               </div>
@@ -329,12 +329,12 @@ export default function DocuParsePro() {
             <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-500">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-2xl font-bold text-primary">Document Library</h3>
-                  <p className="text-muted-foreground">Manage and analyze your technical files.</p>
+                  <h3 className="text-2xl font-bold text-primary">文档库</h3>
+                  <p className="text-muted-foreground">管理并分析您的技术文件。</p>
                 </div>
                 <div className="flex gap-2">
                   <div className="w-64">
-                    <Label className="sr-only">Extraction Rule</Label>
+                    <Label className="sr-only">提取规则</Label>
                     <select 
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                       value={selectedRuleId}
@@ -357,7 +357,7 @@ export default function DocuParsePro() {
                         <div>
                           <CardTitle className="text-lg">{doc.name}</CardTitle>
                           <div className="flex gap-4 text-xs text-muted-foreground mt-1">
-                            <span>{doc.type.toUpperCase()} Format</span>
+                            <span>{doc.type.toUpperCase()} 格式</span>
                             <span>•</span>
                             <span>{doc.date}</span>
                           </div>
@@ -370,12 +370,12 @@ export default function DocuParsePro() {
                             disabled={isProcessing}
                             className="bg-primary text-white"
                           >
-                            Extract Data
+                            开始解析
                           </Button>
                         )}
                         {doc.status === 'processing' && (
                           <Button disabled className="bg-primary/50 cursor-wait">
-                            <Clock className="mr-2 h-4 w-4 animate-spin" /> Processing
+                            <Clock className="mr-2 h-4 w-4 animate-spin" /> 处理中
                           </Button>
                         )}
                         {doc.status === 'completed' && (
@@ -397,7 +397,7 @@ export default function DocuParsePro() {
                           {Object.entries(doc.extractedData).map(([key, value]) => (
                             <div key={key} className="bg-muted/30 p-4 rounded-lg border border-transparent hover:border-accent/20 transition-colors">
                               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">{key}</p>
-                              <p className="text-sm font-medium text-primary line-clamp-2">{value || <span className="italic text-muted-foreground font-normal">Not found</span>}</p>
+                              <p className="text-sm font-medium text-primary line-clamp-2">{value || <span className="italic text-muted-foreground font-normal">未找到相关信息</span>}</p>
                             </div>
                           ))}
                         </div>
@@ -409,8 +409,8 @@ export default function DocuParsePro() {
                 {documents.length === 0 && (
                   <div className="text-center py-20 border-2 border-dashed rounded-xl bg-white/50">
                     <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4 opacity-30" />
-                    <h4 className="text-lg font-medium text-primary">Start by uploading a file</h4>
-                    <p className="text-sm text-muted-foreground mb-6">Drag and drop or use the upload button above.</p>
+                    <h4 className="text-lg font-medium text-primary">从上传文件开始</h4>
+                    <p className="text-sm text-muted-foreground mb-6">拖放文件或点击上方的上传按钮。</p>
                   </div>
                 )}
               </div>
@@ -420,15 +420,15 @@ export default function DocuParsePro() {
           {activeTab === 'rules' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-500 max-w-4xl mx-auto">
               <div>
-                <h3 className="text-2xl font-bold text-primary">Extraction Rules</h3>
-                <p className="text-muted-foreground">Define what the AI should look for in your documents.</p>
+                <h3 className="text-2xl font-bold text-primary">提取规则</h3>
+                <p className="text-muted-foreground">定义 AI 应该在您的文档中寻找哪些信息。</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card className="border-none shadow-sm flex flex-col">
                   <CardHeader>
-                    <CardTitle className="text-lg">Saved Rule Sets</CardTitle>
-                    <CardDescription>Select a rule set to modify it.</CardDescription>
+                    <CardTitle className="text-lg">已保存的规则集</CardTitle>
+                    <CardDescription>选择一个模板进行修改。</CardDescription>
                   </CardHeader>
                   <CardContent className="flex-1">
                     <ScrollArea className="h-[400px]">
@@ -452,33 +452,33 @@ export default function DocuParsePro() {
                   <CardFooter className="pt-0">
                     <Button variant="outline" className="w-full gap-2" onClick={() => {
                       const id = Math.random().toString(36).substr(2, 9);
-                      const newRule = { id, name: 'New Custom Rule', rules: 'List extraction fields here...' };
+                      const newRule = { id, name: '新的自定义规则', rules: '在此列出需要提取的字段...' };
                       setRules([...rules, newRule]);
                       setSelectedRuleId(id);
                     }}>
-                      <Plus size={16} /> Create New Template
+                      <Plus size={16} /> 创建新模板
                     </Button>
                   </CardFooter>
                 </Card>
 
                 <Card className="border-none shadow-sm">
                   <CardHeader>
-                    <CardTitle className="text-lg">Edit Rule Configuration</CardTitle>
-                    <CardDescription>Natural language instructions for the parser.</CardDescription>
+                    <CardTitle className="text-lg">编辑规则配置</CardTitle>
+                    <CardDescription>使用自然语言描述提取目标。</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Template Name</Label>
+                      <Label>模板名称</Label>
                       <Input 
                         value={rules.find(r => r.id === selectedRuleId)?.name || ''} 
                         onChange={(e) => setRules(prev => prev.map(r => r.id === selectedRuleId ? { ...r, name: e.target.value } : r))}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Instruction Rules</Label>
+                      <Label>指令规则</Label>
                       <Textarea 
                         rows={8}
-                        placeholder="E.g., Extract Product Name, Dimensions, Weight, Material Code, and Revision History..."
+                        placeholder="例如：提取产品名称、尺寸、重量、材料代码和修订历史..."
                         value={rules.find(r => r.id === selectedRuleId)?.rules || ''}
                         onChange={(e) => setRules(prev => prev.map(r => r.id === selectedRuleId ? { ...r, rules: e.target.value } : r))}
                         className="resize-none"
@@ -488,14 +488,14 @@ export default function DocuParsePro() {
                       <div className="flex items-start gap-3">
                         <AlertCircle className="text-accent shrink-0 mt-0.5" size={18} />
                         <p className="text-xs text-primary leading-relaxed">
-                          <strong>Pro Tip:</strong> Using bullet points or clear comma-separated lists of field names provides the best extraction accuracy.
+                          <strong>小提示：</strong> 使用项目符号或清晰的逗号分隔列表来描述字段，可以获得最佳的解析准确度。
                         </p>
                       </div>
                     </div>
                   </CardContent>
                   <CardFooter className="justify-end gap-2">
-                    <Button variant="ghost">Reset</Button>
-                    <Button className="bg-primary text-white">Save Template</Button>
+                    <Button variant="ghost">重置</Button>
+                    <Button className="bg-primary text-white">保存模板</Button>
                   </CardFooter>
                 </Card>
               </div>

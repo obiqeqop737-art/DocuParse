@@ -2,8 +2,8 @@ import type {Metadata} from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'DocuParse Pro - Technical Document Assistant',
-  description: 'AI-powered technical document parsing for factories and industrial applications.',
+  title: 'DocuParse Pro - 技术文档助手',
+  description: '为工厂和工业应用提供的 AI 驱动技术文档解析。',
 };
 
 export default function RootLayout({
@@ -12,7 +12,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="zh">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

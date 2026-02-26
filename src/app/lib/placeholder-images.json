@@ -2,13 +2,13 @@
   "placeholderImages": [
     {
       "id": "hero-dashboard",
-      "description": "Abstract technical blueprint representation",
+      "description": "抽象技术蓝图展示",
       "imageUrl": "https://picsum.photos/seed/docu1/1200/400",
       "imageHint": "technical blueprint"
     },
     {
       "id": "file-icon-placeholder",
-      "description": "Document analysis visual",
+      "description": "文档分析视觉效果",
       "imageUrl": "https://picsum.photos/seed/docu2/200/200",
       "imageHint": "document paper"
     }

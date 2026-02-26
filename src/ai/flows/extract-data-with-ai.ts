@@ -1,22 +1,22 @@
 'use server';
 /**
- * @fileOverview A Genkit flow for intelligently parsing technical documents and extracting key information based on predefined rules.
+ * @fileOverview 一个用于智能解析技术文档并根据预定义规则提取关键信息的 Genkit 流程。
  *
- * - extractDataWithAI - A function that handles the data extraction process using AI.
- * - ExtractDataWithAIInput - The input type for the extractDataWithAI function.
- * - ExtractDataWithAIOutput - The return type for the extractDataWithAI function.
+ * - extractDataWithAI - 处理 AI 数据提取过程的函数。
+ * - ExtractDataWithAIInput - extractDataWithAI 函数的输入类型。
+ * - ExtractDataWithAIOutput - extractDataWithAI 函数的返回类型。
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
 const ExtractDataWithAIInputSchema = z.object({
-  documentContent: z.string().describe('The full text content of the technical document to be parsed.'),
-  extractionRules: z.string().describe('A natural language description of the key information to extract. For example: "Extract Document Title, Version, Author, and Date of Issue."'),
+  documentContent: z.string().describe('需要解析的技术文档全文内容。'),
+  extractionRules: z.string().describe('对需要提取的关键信息的自然语言描述。例如："提取文档标题、版本号、作者和发布日期。"'),
 });
 export type ExtractDataWithAIInput = z.infer<typeof ExtractDataWithAIInputSchema>;
 
-const ExtractDataWithAIOutputSchema = z.record(z.string(), z.string()).describe('A JSON object containing the extracted key-value pairs from the document. Keys are the field names and values are the corresponding extracted data.');
+const ExtractDataWithAIOutputSchema = z.record(z.string(), z.string()).describe('包含从文档中提取的键值对的 JSON 对象。键是字段名，值是对应的提取数据。');
 export type ExtractDataWithAIOutput = z.infer<typeof ExtractDataWithAIOutputSchema>;
 
 export async function extractDataWithAI(input: ExtractDataWithAIInput): Promise<ExtractDataWithAIOutput> {
@@ -63,7 +63,7 @@ const extractDataWithAIFlow = ai.defineFlow(
   async (input) => {
     const { output } = await extractDataPrompt(input);
     if (!output) {
-      throw new Error('Failed to extract data: AI did not return an output.');
+      throw new Error('无法提取数据：AI 未返回任何输出。');
     }
     return output;
   }
