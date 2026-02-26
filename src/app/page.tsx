@@ -37,7 +37,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescri
 // 动态导入 pdfjs
 import * as pdfjsLib from 'pdfjs-dist';
 
-// 配置 PDF.js Worker
+// 配置 PDF.js Worker - 使用更稳定的 CDN 版本
 if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 }
@@ -109,22 +109,40 @@ export default function DocuParsePro() {
     }
   }, [selectedDoc?.chatHistory, isChatting]);
 
-  // PDF 文本提取函数
+  // 优化的 PDF 文本提取函数
   const extractTextFromPDF = async (file: File): Promise<string> => {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    let fullText = '';
-    
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(' ');
-      fullText += `\n\n--- 第 ${i} 页 ---\n\n${pageText}`;
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
+      let fullText = '';
+      
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        
+        // 增强的文本提取算法：处理坐标偏移以识别换行和段落
+        let lastY, text = '';
+        const items = textContent.items as any[];
+        
+        for (const item of items) {
+          if (lastY !== undefined && Math.abs(lastY - item.transform[5]) > 5) {
+            text += '\n';
+          }
+          text += item.str;
+          lastY = item.transform[5];
+        }
+        
+        // 如果提取内容为空，可能是扫描件
+        const cleanedText = text.trim();
+        fullText += `\n\n--- 第 ${i} 页 ---\n\n${cleanedText || '[未检测到文本内容，请确认是否为扫描件图片]'}`;
+      }
+      
+      return fullText;
+    } catch (err: any) {
+      console.error('PDF Parse Error:', err);
+      throw new Error(`PDF 解析失败: ${err.message}`);
     }
-    
-    return fullText;
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -135,9 +153,8 @@ export default function DocuParsePro() {
       const fileId = Math.random().toString(36).substring(2, 9);
       
       try {
-        let text = '';
         const fileExtension = file.name.split('.').pop()?.toLowerCase();
-
+        
         // 创建初始文档对象
         const newDoc: Document = {
           id: fileId,
@@ -152,10 +169,19 @@ export default function DocuParsePro() {
         setDocuments(prev => [newDoc, ...prev]);
         setSelectedDocId(fileId);
 
+        let text = '';
         if (fileExtension === 'pdf') {
           text = await extractTextFromPDF(file);
         } else {
           text = await file.text();
+        }
+
+        if (!text || text.includes('[未检测到文本内容]')) {
+          toast({ 
+            variant: "destructive", 
+            title: "文本提取警告", 
+            description: "该 PDF 似乎是扫描件图片，DeepSeek 只能基于空内容进行猜测，建议上传文字版 PDF。" 
+          });
         }
 
         const markdownContent = `\n\`\`\`markdown\n# 文档名: ${file.name}\n\n${text}\n\`\`\`\n`;
@@ -167,7 +193,7 @@ export default function DocuParsePro() {
         setDocuments(prev => prev.filter(d => d.id !== fileId));
         toast({ 
           variant: "destructive", 
-          title: "文件读取失败", 
+          title: "文件处理失败", 
           description: err.message || file.name 
         });
       }
@@ -179,7 +205,7 @@ export default function DocuParsePro() {
     try {
       const response = await chatWithDoc({
         documentContent: content,
-        userQuery: "请执行解析策略：识别全文章节目录并提取各章节摘要。",
+        userQuery: "请执行解析策略：识别全文章节目录并提取各章节摘要。如果文档内容为空或识别失败，请告知我。",
         rules: activeRule.content,
         history: []
       });
@@ -193,7 +219,7 @@ export default function DocuParsePro() {
       ));
     } catch (error: any) {
       setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status: 'error' } : d));
-      toast({ variant: "destructive", title: "深度研读失败", description: error.message });
+      toast({ variant: "destructive", title: "解析失败", description: error.message });
     } finally {
       setIsChatting(false);
     }
@@ -287,7 +313,6 @@ export default function DocuParsePro() {
 
   return (
     <div className="flex h-screen bg-muted/30 overflow-hidden font-sans">
-      {/* Desktop Sidebar */}
       <aside className={cn(
         "hidden md:flex flex-col border-r transition-all duration-300 bg-white dark:bg-slate-900",
         isSidebarOpen ? "w-64" : "w-0 overflow-hidden"
@@ -295,9 +320,7 @@ export default function DocuParsePro() {
         <NavContent />
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 bg-background relative">
-        {/* Header Bar */}
         <header className="h-16 px-6 border-b flex items-center justify-between bg-white dark:bg-slate-900 sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <Sheet>
@@ -338,14 +361,13 @@ export default function DocuParsePro() {
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex items-center gap-2.5 px-4 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
               <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" />
-              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">DeepSeek-V3 活跃</span>
+              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">DeepSeek-V3.2 活跃</span>
             </div>
           </div>
         </header>
 
         {activeTab === 'chat' && (
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-            {/* Document Library */}
             <div className={cn(
               "w-full md:w-72 border-r bg-slate-50/50 dark:bg-slate-900/50 flex flex-col",
               selectedDocId ? "hidden md:flex" : "flex"
@@ -389,7 +411,7 @@ export default function DocuParsePro() {
                         </div>
                         {doc.status === 'processing' && (
                           <div className="mt-3 flex items-center gap-2.5 text-[10px] text-primary font-bold bg-primary/5 p-2 rounded-lg border border-primary/10">
-                            <Loader2 size={12} className="animate-spin" /> 正在研读文档结构...
+                            <Loader2 size={12} className="animate-spin" /> 正在深度扫描内容...
                           </div>
                         )}
                       </button>
@@ -399,7 +421,6 @@ export default function DocuParsePro() {
               </ScrollArea>
             </div>
 
-            {/* Chat Area */}
             <div className={cn(
               "flex-1 flex flex-col bg-white dark:bg-slate-950 overflow-hidden",
               !selectedDocId && "hidden md:flex"
@@ -434,7 +455,7 @@ export default function DocuParsePro() {
                           <div className="bg-slate-50 dark:bg-slate-900 border p-5 rounded-3xl rounded-tl-none shadow-sm flex flex-col gap-3 max-w-[85%] animate-in fade-in slide-in-from-left-2">
                             <div className="flex items-center gap-3">
                               <Loader2 size={16} className="animate-spin text-primary" />
-                              <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300">DeepSeek-V3 正在研读中...</span>
+                              <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300">DeepSeek-V3.2 正在研读中...</span>
                             </div>
                             <div className="h-1.5 w-48 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                               <div className="h-full bg-primary animate-progress-scan w-1/3 rounded-full" />
@@ -461,7 +482,7 @@ export default function DocuParsePro() {
                       </div>
                       <div className="relative group">
                         <Textarea 
-                          placeholder="输入您的问题 (DeepSeek-V3 已挂载文档全文)..." 
+                          placeholder="输入您的问题 (DeepSeek 已挂载文档全文)..." 
                           className="min-h-[60px] max-h-[200px] resize-none py-5 px-6 pr-16 rounded-3xl bg-slate-50 dark:bg-slate-900/50 border-none focus-visible:ring-primary/20 text-[14px] shadow-inner"
                           value={chatInput}
                           onChange={(e) => setChatInput(e.target.value)}
@@ -481,7 +502,7 @@ export default function DocuParsePro() {
                           <Send size={20} />
                         </Button>
                       </div>
-                      <p className="text-[10px] text-center text-muted-foreground font-medium">所有文档数据将通过硅基流动 API 加密处理，符合工厂 EHS 安全规范</p>
+                      <p className="text-[10px] text-center text-muted-foreground font-medium">所有文档数据将通过硅基流动 API 加密处理，符合工厂安全规范</p>
                     </div>
                   </footer>
                 </>
@@ -492,7 +513,7 @@ export default function DocuParsePro() {
                   </div>
                   <h3 className="text-2xl font-black tracking-tight text-slate-800 dark:text-slate-100">开始您的智能解析</h3>
                   <p className="text-sm text-muted-foreground mt-3 max-w-sm leading-relaxed font-medium">
-                    请在左侧选择已有文档或上传新的 PDF/TXT 技术规范。DeepSeek-V3 引擎将为您提供深度解析与实时问答支持。
+                    请在左侧选择已有文档或上传新的 PDF/TXT 技术规范。DeepSeek 引擎将为您提供深度解析与实时问答支持。
                   </p>
                   <Button variant="outline" className="mt-10 rounded-2xl px-10 py-7 h-auto border-2 hover:bg-primary hover:text-white hover:border-primary transition-all group" asChild>
                     <label className="cursor-pointer">
@@ -514,7 +535,7 @@ export default function DocuParsePro() {
                 <div>
                   <h3 className="text-3xl font-black tracking-tight text-slate-800 dark:text-slate-100">解析策略库</h3>
                   <p className="text-muted-foreground text-sm mt-2 font-medium">
-                    定义的策略将作为 System Prompt 注入硅基流动 AI 引擎，指导其分析维度
+                    定义的策略将作为 System Prompt 注入 AI 引擎，指导其分析维度
                   </p>
                 </div>
                 <Button onClick={() => setIsAddingRule(true)} className="gap-3 rounded-2xl h-12 px-6 shadow-lg shadow-primary/20">

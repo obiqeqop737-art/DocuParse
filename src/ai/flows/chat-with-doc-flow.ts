@@ -38,10 +38,10 @@ const chatWithDocFlow = ai.defineFlow(
     // 硅基流动配置
     const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
     const SILICON_FLOW_API_KEY = 'sk-orcwdodraxjcyrllecfaaukwuuepdysjqeeslnaarzhhjeey';
-    const MODEL_ID = 'deepseek-ai/DeepSeek-V3';
+    // 更新为用户指定的最新型号
+    const MODEL_ID = 'deepseek-ai/DeepSeek-V3.2';
 
     // 构造系统提示词：包含解析规则和文档内容
-    // 这是优化 Token 的关键：文档只在这里出现一次
     const systemPrompt = `你是一个工厂技术文档专家。请严格遵循以下解析规则和文档背景来回答用户问题。
 
 ### 解析规则
@@ -50,11 +50,10 @@ ${input.rules}
 ### 文档内容 (Markdown 格式)
 ${input.documentContent}
 
-请注意：在后续对话中，我会保持对上述文档的记忆。如果用户提问与文档无关，请委婉告知。`;
+请注意：在后续对话中，我会保持对上述文档的记忆。如果用户提问与文档无关，请委婉告知。如果文档内容为空或解析失败，请提醒用户检查文件是否为图片扫描件。`;
 
     const messages = [
       { role: "system", content: systemPrompt },
-      // 历史记录中仅包含纯文本对话，不包含重复的文档内容
       ...(input.history || []).map(h => ({ 
         role: h.role === 'model' ? 'assistant' : 'user', 
         content: h.content 
@@ -73,14 +72,14 @@ ${input.documentContent}
           model: MODEL_ID,
           messages: messages,
           temperature: 0.3,
-          max_tokens: 2048,
+          max_tokens: 4096,
           stream: false
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(`硅基流动 API 错误 (${response.status}): ${errorData.message || '未知错误'}`);
+        throw new Error(`硅基流动 API 错误 (${response.status}): ${errorData.message || '请检查模型 ID 是否正确'}`);
       }
 
       const data = await response.json();
