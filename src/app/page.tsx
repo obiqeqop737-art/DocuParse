@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -391,7 +390,7 @@ export default function DocuParsePro() {
 
   return (
     <div className="flex h-screen bg-[#f8fafc] overflow-hidden">
-      <aside className={cn("hidden lg:block transition-all duration-500 shrink-0", isSidebarOpen ? "w-80" : "w-0")}>
+      <aside className={cn("hidden lg:block transition-all duration-500 shrink-0", isSidebarOpen ? "w-96" : "w-0")}>
         <SidebarContent />
       </aside>
 
@@ -401,7 +400,7 @@ export default function DocuParsePro() {
 
         <header className="h-20 px-8 flex items-center justify-between bg-white/40 backdrop-blur-md border-b border-white/20 sticky top-0 z-30 shrink-0">
           <div className="flex items-center gap-4 min-w-0 flex-1">
-            <Sheet><SheetTrigger asChild><Button variant="ghost" size="icon" className="lg:hidden"><Menu /></Button></SheetTrigger><SheetContent side="left" className="p-0 w-80"><SidebarContent /></SheetContent></Sheet>
+            <Sheet><SheetTrigger asChild><Button variant="ghost" size="icon" className="lg:hidden"><Menu /></Button></SheetTrigger><SheetContent side="left" className="p-0 w-96"><SidebarContent /></SheetContent></Sheet>
             <Button variant="ghost" size="icon" className="hidden lg:flex text-slate-400" onClick={() => setIsSidebarOpen(!isSidebarOpen)}><ChevronLeft className={cn("transition-transform", !isSidebarOpen && "rotate-180")} /></Button>
             <div className="min-w-0 flex-1 flex items-center gap-3">
               <h2 className="font-black text-slate-800 text-lg hidden sm:block truncate shrink-0">
@@ -425,7 +424,7 @@ export default function DocuParsePro() {
 
         {activeTab === 'chat' && (
           <div className="flex-1 flex overflow-hidden">
-            <div className={cn("w-80 border-r border-white/20 bg-white/20 flex flex-col shrink-0 transition-all", selectedDocId && "hidden lg:flex")}>
+            <div className={cn("w-96 border-r border-white/20 bg-white/20 flex flex-col shrink-0 transition-all", selectedDocId && "hidden lg:flex")}>
               <div className="p-6 shrink-0">
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -438,7 +437,7 @@ export default function DocuParsePro() {
                     <div className="py-32 text-center opacity-20"><FileSearch size={48} className="mx-auto mb-4" /><p className="text-xs font-black uppercase">等待解析文档</p></div>
                   ) : (
                     documents.map(d => (
-                      <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-[calc(100%-24px)] mx-auto p-3.5 rounded-2xl border transition-all text-left flex items-start gap-3 group relative overflow-hidden", selectedDocId === d.id ? "bg-white border-blue-600 shadow-xl shadow-blue-600/5" : "bg-transparent border-transparent hover:bg-white/40")}>
+                      <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-[calc(100%-32px)] mx-auto p-3.5 rounded-2xl border transition-all text-left flex items-start gap-3 group relative overflow-hidden", selectedDocId === d.id ? "bg-white border-blue-600 shadow-xl shadow-blue-600/5" : "bg-transparent border-transparent hover:bg-white/40")}>
                         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-colors shrink-0", selectedDocId === d.id ? "bg-blue-600 text-white" : "bg-white text-slate-400 shadow-sm")}>
                           {d.type === 'PDF' ? <FileDown size={18} /> : <FileText size={18} />}
                         </div>
