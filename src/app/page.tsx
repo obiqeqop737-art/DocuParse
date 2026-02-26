@@ -23,7 +23,9 @@ import {
   FileDown,
   AlertTriangle,
   Eye,
-  CheckCircle2
+  CheckCircle2,
+  Table as TableIcon,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -42,6 +44,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 import * as pdfjsLib from 'pdfjs-dist';
+import * as XLSX from 'xlsx';
+import mammoth from 'mammoth';
 
 if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
@@ -126,6 +130,7 @@ export default function DocuParsePro() {
         const textContent = await page.getTextContent();
         let pageText = (textContent.items as any[]).map(item => item.str).join(' ').trim();
         
+        // 如果文本内容极少，认为是扫描件，触发 OCR
         if (pageText.length < 50) {
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
@@ -147,6 +152,7 @@ export default function DocuParsePro() {
 
       if (imagesToOCR.length > 0) {
         setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, status: 'ocr_scanning' } : d));
+        // 严格使用 Qwen/Qwen3-VL-32B-Instruct
         const ocrResponse = await performOCR({ images: imagesToOCR });
         
         ocrResponse.results.forEach(res => {
@@ -162,6 +168,30 @@ export default function DocuParsePro() {
     }
   };
 
+  const processOfficeFile = async (file: File, extension: string): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    
+    if (extension === 'docx') {
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      return result.value;
+    } 
+    
+    if (['xlsx', 'xls', 'csv'].includes(extension)) {
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      let fullContent = "";
+      workbook.SheetNames.forEach(name => {
+        const worksheet = workbook.Sheets[name];
+        // 将 Excel 转换为 Markdown 友好的表格格式
+        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const mdTable = json.map((row: any) => `| ${row.join(' | ')} |`).join('\n');
+        fullContent += `\n### 工作表: ${name} ###\n\n${mdTable}\n`;
+      });
+      return fullContent;
+    }
+
+    return await file.text();
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -170,11 +200,11 @@ export default function DocuParsePro() {
       const fileId = Math.random().toString(36).substring(2, 9);
       
       try {
-        const fileExtension = file.name.split('.').pop()?.toLowerCase();
+        const fileExtension = file.name.split('.').pop()?.toLowerCase() || '';
         const newDoc: Document = {
           id: fileId,
           name: file.name,
-          type: fileExtension?.toUpperCase() || 'UNKNOWN',
+          type: fileExtension.toUpperCase(),
           status: 'processing',
           content: '',
           date: new Date().toLocaleDateString(),
@@ -187,6 +217,8 @@ export default function DocuParsePro() {
         let finalContent = '';
         if (fileExtension === 'pdf') {
           finalContent = await processPDF(file, fileId);
+        } else if (['docx', 'xlsx', 'xls', 'csv', 'pptx'].includes(fileExtension)) {
+          finalContent = await processOfficeFile(file, fileExtension);
         } else {
           finalContent = await file.text();
         }
@@ -194,6 +226,7 @@ export default function DocuParsePro() {
         const markdownContent = `\n# 文档内容: ${file.name}\n\n${finalContent}\n`;
         setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, content: markdownContent, status: 'completed' } : d));
         
+        // 自动触发首次分析
         autoAnalyze(fileId, markdownContent);
 
       } catch (err: any) {
@@ -206,6 +239,7 @@ export default function DocuParsePro() {
   const autoAnalyze = async (docId: string, content: string) => {
     setIsChatting(true);
     try {
+      // 严格使用 deepseek-ai/DeepSeek-V3.2
       const response = await chatWithDoc({
         documentContent: content,
         userQuery: "请执行全能架构解析：精准识别文档所有章节目录，并提取各章节的核心技术要求、合规标准或物流细节。请以清晰的 Markdown 结构呈现。",
@@ -264,7 +298,7 @@ export default function DocuParsePro() {
         </div>
         <div className="min-w-0">
           <h1 className="text-lg font-bold tracking-tight truncate">DocuParse Pro</h1>
-          <p className="text-[10px] text-muted-foreground uppercase font-semibold truncate">工厂文档 AI 助理</p>
+          <p className="text-[10px] text-muted-foreground uppercase font-semibold truncate">全能文档 AI 助理</p>
         </div>
       </div>
 
@@ -306,8 +340,8 @@ export default function DocuParsePro() {
 
       <div className="p-4 border-t bg-muted/20 shrink-0">
         <label className="w-full cursor-pointer flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white p-3.5 rounded-2xl transition-all shadow-lg shadow-primary/30 active:scale-[0.98]">
-          <Upload size={18} /> <span className="text-sm font-bold tracking-wide truncate">上传 PDF/TXT</span>
-          <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.pdf" />
+          <Upload size={18} /> <span className="text-sm font-bold tracking-wide truncate">上传 Office/PDF</span>
+          <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.pdf,.docx,.xlsx,.xls,.pptx,.csv" />
         </label>
       </div>
     </div>
@@ -315,6 +349,7 @@ export default function DocuParsePro() {
 
   return (
     <div className="flex h-screen bg-muted/30 overflow-hidden font-sans">
+      {/* PC 侧边栏 */}
       <aside className={cn(
         "hidden md:flex flex-col border-r transition-all duration-300 bg-white dark:bg-slate-900 shrink-0",
         isSidebarOpen ? "w-64" : "w-0 overflow-hidden"
@@ -323,6 +358,7 @@ export default function DocuParsePro() {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 bg-background relative overflow-hidden">
+        {/* 顶部导航 */}
         <header className="h-16 px-6 border-b flex items-center justify-between bg-white dark:bg-slate-900 sticky top-0 z-20 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <Sheet>
@@ -353,7 +389,7 @@ export default function DocuParsePro() {
               </span>
               {selectedDoc && activeTab === 'chat' && (
                 <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 rounded-lg py-1 px-3 min-w-0 max-w-[120px] sm:max-w-[180px]">
-                  <FileText size={12} className="mr-1.5 shrink-0" />
+                  {selectedDoc.type === 'PDF' ? <FileDown size={12} className="mr-1.5 shrink-0" /> : <FileText size={12} className="mr-1.5 shrink-0" />}
                   <span className="truncate">{selectedDoc.name}</span>
                 </Badge>
               )}
@@ -370,6 +406,7 @@ export default function DocuParsePro() {
 
         {activeTab === 'chat' && (
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-w-0">
+            {/* 中间文档列表列 */}
             <div className={cn(
               "w-full md:w-80 md:min-w-80 md:max-w-80 border-r bg-slate-50/50 dark:bg-slate-900/50 flex flex-col shrink-0 overflow-hidden",
               selectedDocId ? "hidden md:flex" : "flex"
@@ -404,7 +441,9 @@ export default function DocuParsePro() {
                             "p-2.5 rounded-xl transition-colors shrink-0", 
                             selectedDocId === doc.id ? "bg-primary text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500"
                           )}>
-                            {doc.type === 'PDF' ? <FileDown size={18} /> : <FileText size={18} />}
+                            {doc.type === 'PDF' && <FileDown size={18} />}
+                            {['XLSX', 'XLS', 'CSV'].includes(doc.type) && <FileSpreadsheet size={18} />}
+                            {['DOCX', 'TXT', 'PPTX'].includes(doc.type) && <FileText size={18} />}
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="font-bold text-[13px] truncate text-slate-800 dark:text-slate-200">{doc.name}</p>
@@ -421,7 +460,7 @@ export default function DocuParsePro() {
                         {doc.status === 'processing' && (
                           <div className="mt-3 flex items-center gap-2.5 text-[10px] text-primary font-bold bg-primary/5 p-2 rounded-lg border border-primary/10 overflow-hidden">
                             <Loader2 size={12} className="animate-spin shrink-0" /> 
-                            <span className="truncate">正在提取文本...</span>
+                            <span className="truncate">深度解析中...</span>
                           </div>
                         )}
                         {doc.status === 'ocr_scanning' && (
@@ -437,6 +476,7 @@ export default function DocuParsePro() {
               </ScrollArea>
             </div>
 
+            {/* 右侧聊天区 */}
             <div className={cn(
               "flex-1 flex flex-col bg-white dark:bg-slate-950 overflow-hidden relative min-w-0",
               !selectedDocId && "hidden md:flex"
@@ -484,7 +524,7 @@ export default function DocuParsePro() {
                           <div className="bg-slate-50 dark:bg-slate-900 border p-4 sm:p-5 rounded-2xl sm:rounded-3xl rounded-tl-none shadow-sm flex flex-col gap-3 max-w-[85%] min-w-0">
                             <div className="flex items-center gap-3 min-w-0">
                               <Loader2 size={16} className="animate-spin text-primary shrink-0" />
-                              <span className="text-[12px] sm:text-[13px] font-bold text-slate-700 dark:text-slate-300 truncate">DeepSeek-V3.2 正在研读中...</span>
+                              <span className="text-[12px] sm:text-[13px] font-bold text-slate-700 dark:text-slate-300 truncate">DeepSeek-V3.2 深度研读中...</span>
                             </div>
                             <div className="h-1 w-32 sm:w-48 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                               <div className="h-full bg-primary animate-progress-scan w-1/3 rounded-full" />
@@ -542,13 +582,13 @@ export default function DocuParsePro() {
                   </div>
                   <h3 className="text-xl sm:text-2xl font-black tracking-tight">上传文档以开启对话</h3>
                   <p className="text-[13px] sm:text-sm text-muted-foreground mt-3 max-w-xs sm:max-w-sm leading-relaxed font-medium">
-                    支持多页 PPT/PDF。扫描件由 Qwen3-VL 视觉引擎分页识别。
+                    支持 Office 全家桶 (Word/Excel)、PDF、PPT、CSV。扫描件由 Qwen3-VL 视觉引擎分页识别。
                   </p>
                   <Button variant="outline" className="mt-8 sm:mt-10 rounded-xl sm:rounded-2xl px-8 sm:px-10 py-5 sm:py-7 h-auto border-2 hover:bg-primary hover:text-white transition-all group" asChild>
                     <label className="cursor-pointer">
                       <Upload className="mr-2 sm:mr-3 transition-transform group-hover:-translate-y-1" size={18} /> 
                       <span className="font-bold tracking-wide">立即上传</span>
-                      <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.pdf" />
+                      <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.pdf,.docx,.xlsx,.xls,.pptx,.csv" />
                     </label>
                   </Button>
                 </div>
