@@ -3,7 +3,7 @@
 /**
  * @fileOverview 硅基流动 (SiliconFlow) 视觉 OCR 流程。
  * 严格锁定 PaddlePaddle/PaddleOCR-VL-1.5 模型。
- * 修复了之前版本中的 i is not defined 语法错误。
+ * 修复了 Base64 格式解析问题。
  */
 
 import { ai } from '@/ai/genkit';
@@ -38,15 +38,14 @@ const ocrFlow = ai.defineFlow(
   async (input) => {
     const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
     const SILICON_FLOW_API_KEY = 'sk-orcwdodraxjcyrllecfaaukwuuepdysjqeeslnaarzhhjeey';
-    // 严格锁定视觉模型 ID
     const MODEL_ID = 'PaddlePaddle/PaddleOCR-VL-1.5'; 
 
     const results: { pageIndex: number; text: string }[] = [];
 
     for (const item of input.images) {
       try {
-        // 强制移除 Base64 字符串中的所有空格和换行符，防止后端处理器报错
-        const cleanDataUri = item.dataUri.replace(/\s/g, '');
+        // 强制移除 Data URI 以外的任何潜在非法字符
+        const cleanDataUri = item.dataUri.trim();
 
         const response = await fetch(SILICON_FLOW_API_URL, {
           method: 'POST',

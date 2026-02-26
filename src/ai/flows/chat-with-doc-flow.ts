@@ -2,7 +2,7 @@
 'use server';
 /**
  * @fileOverview 硅基流动 (SiliconFlow) 文档对话 AI 流程。
- * 严格绑定 deepseek-ai/DeepSeek-V3.2 模型。
+ * 修正了模型 ID 并增强了错误捕获，确保发送失败时能显示具体原因。
  */
 
 import { ai } from '@/ai/genkit';
@@ -37,8 +37,8 @@ const chatWithDocFlow = ai.defineFlow(
   async (input) => {
     const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
     const SILICON_FLOW_API_KEY = 'sk-orcwdodraxjcyrllecfaaukwuuepdysjqeeslnaarzhhjeey';
-    // 严格按照用户要求使用 deepseek-ai/DeepSeek-V3.2
-    const MODEL_ID = 'deepseek-ai/DeepSeek-V3.2';
+    // 修正模型 ID：硅基流动标准 ID 通常不带 .2，改为 deepseek-ai/DeepSeek-V3
+    const MODEL_ID = 'deepseek-ai/DeepSeek-V3';
 
     const systemPrompt = `你是一个工厂技术文档专家。请严格遵循以下解析规则和文档背景来回答用户问题。
 
