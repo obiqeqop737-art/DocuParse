@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview 硅基流动 (SiliconFlow) 文档对话 AI 流程。
@@ -39,7 +38,7 @@ const chatWithDocFlow = ai.defineFlow(
     const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
     const SILICON_FLOW_API_KEY = 'sk-orcwdodraxjcyrllecfaaukwuuepdysjqeeslnaarzhhjeey';
     // 更新为用户指定的最新型号
-    const MODEL_ID = 'deepseek-ai/DeepSeek-V3.2';
+    const MODEL_ID = 'deepseek-ai/DeepSeek-V3';
 
     // 构造系统提示词：包含解析规则和文档内容
     const systemPrompt = `你是一个工厂技术文档专家。请严格遵循以下解析规则和文档背景来回答用户问题。

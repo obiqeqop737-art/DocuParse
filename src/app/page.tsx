@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -21,7 +20,8 @@ import {
   Menu,
   ChevronLeft,
   FileDown,
-  AlertTriangle
+  AlertTriangle,
+  Eye
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -31,15 +31,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { chatWithDoc } from '@/ai/flows/chat-with-doc-flow';
+import { performOCR } from '@/ai/flows/ocr-flow';
 import { cn } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-// 动态导入 pdfjs
 import * as pdfjsLib from 'pdfjs-dist';
 
-// 配置 PDF.js Worker
 if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 }
@@ -60,7 +59,7 @@ interface Document {
   id: string;
   name: string;
   type: string;
-  status: 'processing' | 'completed' | 'error' | 'ocr_required';
+  status: 'processing' | 'ocr_scanning' | 'completed' | 'error' | 'ocr_required';
   content: string;
   date: string;
   chatHistory: Message[];
@@ -111,18 +110,20 @@ export default function DocuParsePro() {
     }
   }, [selectedDoc?.chatHistory, isChatting]);
 
-  const extractTextFromPDF = async (file: File): Promise<string> => {
+  const extractTextFromPDF = async (file: File): Promise<{ text: string; images: string[] }> => {
     try {
       const arrayBuffer = await file.arrayBuffer();
       const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
       const pdf = await loadingTask.promise;
       let fullText = '';
       let emptyPages = 0;
+      const images: string[] = [];
       
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
         
+        // 尝试提取文本内容
+        const textContent = await page.getTextContent();
         let lastY, text = '';
         const items = textContent.items as any[];
         
@@ -135,16 +136,26 @@ export default function DocuParsePro() {
         }
         
         const cleanedText = text.trim();
-        if (!cleanedText) emptyPages++;
-        fullText += `\n\n--- 第 ${i} 页 ---\n\n${cleanedText || '[图像内容：请使用 OCR 扫描]'}`;
+        if (!cleanedText) {
+          emptyPages++;
+          // 如果页面没有文本，准备渲染图片以便 OCR
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          const viewport = page.getViewport({ scale: 1.5 });
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          if (context) {
+            await page.render({ canvasContext: context, viewport }).promise;
+            images.push(canvas.toDataURL('image/jpeg', 0.8));
+          }
+        }
+        fullText += `\n\n--- 第 ${i} 页 ---\n\n${cleanedText}`;
       }
       
-      // 如果超过 80% 的页面没有文本，判断为扫描件
-      if (emptyPages / pdf.numPages > 0.8) {
-        return "___SCAN_DETECTED___";
-      }
-      
-      return fullText;
+      return { 
+        text: emptyPages / pdf.numPages > 0.8 ? "___SCAN_DETECTED___" : fullText,
+        images 
+      };
     } catch (err: any) {
       console.error('PDF Parse Error:', err);
       throw new Error(`PDF 解析失败: ${err.message}`);
@@ -173,29 +184,31 @@ export default function DocuParsePro() {
         setDocuments(prev => [newDoc, ...prev]);
         setSelectedDocId(fileId);
 
-        let text = '';
+        let finalContent = '';
         if (fileExtension === 'pdf') {
-          text = await extractTextFromPDF(file);
+          const { text, images } = await extractTextFromPDF(file);
+          
+          if (text === "___SCAN_DETECTED___") {
+            setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, status: 'ocr_scanning' } : d));
+            toast({ title: "检测到扫描件", description: "正在启用 Qwen-VL 视觉引擎进行 OCR 识别..." });
+            
+            const ocrResult = await performOCR({ images });
+            finalContent = ocrResult.fullText;
+          } else {
+            finalContent = text;
+          }
         } else {
-          text = await file.text();
+          finalContent = await file.text();
         }
 
-        if (text === "___SCAN_DETECTED___") {
-          setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, status: 'ocr_required' } : d));
-          toast({ 
-            variant: "destructive", 
-            title: "检测到扫描件", 
-            description: "该 PDF 似乎是图片扫描件，DeepSeek 无法直接读取。建议使用 PaddleOCR 或 Gemini Vision 模型进行处理。" 
-          });
-          continue;
-        }
-
-        const markdownContent = `\n\`\`\`markdown\n# 文档名: ${file.name}\n\n${text}\n\`\`\`\n`;
-        setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, content: markdownContent } : d));
+        const markdownContent = `\n\`\`\`markdown\n# 文档内容: ${file.name}\n\n${finalContent}\n\`\`\`\n`;
+        setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, content: markdownContent, status: 'completed' } : d));
+        
+        // 自动触发首次分析对话
         autoAnalyze(fileId, markdownContent);
 
       } catch (err: any) {
-        setDocuments(prev => prev.filter(d => d.id !== fileId));
+        setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, status: 'error' } : d));
         toast({ variant: "destructive", title: "处理失败", description: err.message });
       }
     }
@@ -206,7 +219,7 @@ export default function DocuParsePro() {
     try {
       const response = await chatWithDoc({
         documentContent: content,
-        userQuery: "请执行解析策略：识别全文章节目录并提取各章节摘要。注意：如果内容中存在无法识别的符号，请忽略并尝试理解上下文。",
+        userQuery: "请执行全能架构解析：精准识别文档所有章节目录，并提取各章节的核心技术要求、合规标准或物流细节。请以清晰的 Markdown 结构呈现。",
         rules: activeRule.content,
         history: []
       });
@@ -219,8 +232,7 @@ export default function DocuParsePro() {
         } : d
       ));
     } catch (error: any) {
-      setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status: 'error' } : d));
-      toast({ variant: "destructive", title: "深度分析失败", description: error.message });
+      toast({ variant: "destructive", title: "自动分析失败", description: error.message });
     } finally {
       setIsChatting(false);
     }
@@ -263,7 +275,7 @@ export default function DocuParsePro() {
         </div>
         <div>
           <h1 className="text-lg font-bold tracking-tight">DocuParse Pro</h1>
-          <p className="text-[10px] text-muted-foreground uppercase font-semibold">工业级技术解析</p>
+          <p className="text-[10px] text-muted-foreground uppercase font-semibold">工厂文档 AI 助理</p>
         </div>
       </div>
 
@@ -273,7 +285,7 @@ export default function DocuParsePro() {
           className="w-full justify-start gap-3 h-11 rounded-xl"
           onClick={() => setActiveTab('chat')}
         >
-          <MessageSquare size={18} /> 文档对话
+          <MessageSquare size={18} /> 文档智能对话
         </Button>
         <Button 
           variant={activeTab === 'rules' ? 'secondary' : 'ghost'} 
@@ -348,7 +360,7 @@ export default function DocuParsePro() {
             </Button>
             <div className="flex items-center gap-3">
               <span className="font-extrabold text-sm hidden sm:inline-block tracking-tight text-slate-700 dark:text-slate-200">
-                {activeTab === 'chat' ? '文档智能终端' : '解析策略配置'}
+                {activeTab === 'chat' ? '文档分析控制台' : '解析策略配置'}
               </span>
               {selectedDoc && activeTab === 'chat' && (
                 <Badge variant="outline" className="hidden sm:inline-flex bg-primary/5 text-primary border-primary/20 rounded-lg py-1 px-3">
@@ -362,7 +374,7 @@ export default function DocuParsePro() {
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex items-center gap-2.5 px-4 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
               <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" />
-              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">DeepSeek-V3.2 活跃</span>
+              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">DeepSeek-V3.2 + Qwen-VL 活跃</span>
             </div>
           </div>
         </header>
@@ -412,12 +424,12 @@ export default function DocuParsePro() {
                         </div>
                         {doc.status === 'processing' && (
                           <div className="mt-3 flex items-center gap-2.5 text-[10px] text-primary font-bold bg-primary/5 p-2 rounded-lg border border-primary/10">
-                            <Loader2 size={12} className="animate-spin" /> 正在深度扫描内容...
+                            <Loader2 size={12} className="animate-spin" /> 正在提取文本...
                           </div>
                         )}
-                        {doc.status === 'ocr_required' && (
-                          <div className="mt-3 flex items-center gap-2.5 text-[10px] text-orange-500 font-bold bg-orange-50 p-2 rounded-lg border border-orange-100">
-                            <AlertTriangle size={12} /> 需要 OCR 识别扫描件
+                        {doc.status === 'ocr_scanning' && (
+                          <div className="mt-3 flex items-center gap-2.5 text-[10px] text-blue-500 font-bold bg-blue-50 p-2 rounded-lg border border-blue-100">
+                            <Eye size={12} className="animate-pulse" /> Qwen-VL 视觉识别中...
                           </div>
                         )}
                       </button>
@@ -435,23 +447,6 @@ export default function DocuParsePro() {
                 <>
                   <ScrollArea className="flex-1 px-4 md:px-12 py-8" ref={scrollRef}>
                     <div className="max-w-4xl mx-auto space-y-8">
-                      {selectedDoc.status === 'ocr_required' && (
-                        <Alert variant="destructive" className="bg-orange-50 border-orange-200 text-orange-800 rounded-3xl p-6">
-                          <AlertTriangle className="h-5 w-5 text-orange-600" />
-                          <AlertTitle className="font-black text-lg">无法直接提取文本</AlertTitle>
-                          <AlertDescription className="mt-2 text-sm leading-relaxed">
-                            该文档被检测为<strong>扫描图片</strong>。由于当前 AI 仅通过文本流交互，无法直接“阅读”图片。
-                            <br /><br />
-                            <strong>建议方案：</strong>
-                            <ul className="list-disc ml-4 mt-2 space-y-1">
-                              <li>使用私有化部署的 <strong>PaddleOCR</strong> 预处理文档。</li>
-                              <li>切换至 <strong>Gemini 1.5 Pro (Multimodal)</strong> 启用原生视觉识别。</li>
-                              <li>上传该文件的电子文字版。</li>
-                            </ul>
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                      
                       {selectedDoc.chatHistory.map((msg, i) => (
                         <div key={i} className={cn("flex gap-5", msg.role === 'user' ? "flex-row-reverse" : "flex-row")}>
                           <div className={cn(
@@ -475,10 +470,10 @@ export default function DocuParsePro() {
                           <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
                             <Sparkles size={18} />
                           </div>
-                          <div className="bg-slate-50 dark:bg-slate-900 border p-5 rounded-3xl rounded-tl-none shadow-sm flex flex-col gap-3 max-w-[85%] animate-in fade-in slide-in-from-left-2">
+                          <div className="bg-slate-50 dark:bg-slate-900 border p-5 rounded-3xl rounded-tl-none shadow-sm flex flex-col gap-3 max-w-[85%]">
                             <div className="flex items-center gap-3">
                               <Loader2 size={16} className="animate-spin text-primary" />
-                              <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300">DeepSeek-V3.2 正在研读中...</span>
+                              <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300">正在按策略解析文档内容...</span>
                             </div>
                             <div className="h-1.5 w-48 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                               <div className="h-full bg-primary animate-progress-scan w-1/3 rounded-full" />
@@ -492,20 +487,20 @@ export default function DocuParsePro() {
                   <footer className="p-6 md:p-8 border-t bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl">
                     <div className="max-w-4xl mx-auto flex flex-col gap-4">
                       <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                         {['提取核心目录', '分析合规风险点', '总结物流装卸标准', '识别核心技术参数', '核查准入条款'].map((hint, idx) => (
+                         {['识别全文目录', '分析合规风险点', '提取物流参数', '总结装卸标准'].map((hint, idx) => (
                            <Badge 
                              key={idx} 
                              variant="secondary" 
-                             className="cursor-pointer hover:bg-primary hover:text-white transition-all whitespace-nowrap py-2 px-4 rounded-full border-none bg-slate-100 dark:bg-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-400 active:scale-95"
+                             className="cursor-pointer hover:bg-primary hover:text-white transition-all whitespace-nowrap py-2 px-4 rounded-full border-none bg-slate-100 dark:bg-slate-800 text-[11px] font-bold"
                              onClick={() => setChatInput(hint)}
                            >
                              {hint}
                            </Badge>
                          ))}
                       </div>
-                      <div className="relative group">
+                      <div className="relative">
                         <Textarea 
-                          placeholder={selectedDoc.status === 'ocr_required' ? "当前文档解析受阻，请输入其他问题..." : "输入您的问题 (DeepSeek 已挂载文档全文)..."}
+                          placeholder="输入您的问题 (DeepSeek-V3 已挂载全文)..."
                           className="min-h-[60px] max-h-[200px] resize-none py-5 px-6 pr-16 rounded-3xl bg-slate-50 dark:bg-slate-900/50 border-none focus-visible:ring-primary/20 text-[14px] shadow-inner"
                           value={chatInput}
                           onChange={(e) => setChatInput(e.target.value)}
@@ -520,28 +515,28 @@ export default function DocuParsePro() {
                           size="icon" 
                           className="absolute right-3 bottom-3 h-12 w-12 rounded-2xl shadow-lg shadow-primary/30 transition-transform active:scale-90" 
                           onClick={handleSendMessage}
-                          disabled={!chatInput.trim() || isChatting || selectedDoc.status === 'processing'}
+                          disabled={!chatInput.trim() || isChatting || selectedDoc.status !== 'completed'}
                         >
                           <Send size={20} />
                         </Button>
                       </div>
-                      <p className="text-[10px] text-center text-muted-foreground font-medium">所有文档数据将通过硅基流动 API 加密处理，符合工厂安全规范</p>
+                      <p className="text-[10px] text-center text-muted-foreground font-medium">数据经过硅基流动端到端加密，确保工厂信息安全</p>
                     </div>
                   </footer>
                 </>
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-slate-50/30 dark:bg-slate-950/30">
-                  <div className="w-24 h-24 bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl shadow-primary/10 flex items-center justify-center mb-8 border border-slate-100 dark:border-slate-800">
+                <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
+                  <div className="w-24 h-24 bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl shadow-primary/10 flex items-center justify-center mb-8 border border-slate-100">
                     <MessageSquare size={40} className="text-primary/40" />
                   </div>
-                  <h3 className="text-2xl font-black tracking-tight text-slate-800 dark:text-slate-100">开始您的智能解析</h3>
+                  <h3 className="text-2xl font-black tracking-tight">上传文档以开启对话</h3>
                   <p className="text-sm text-muted-foreground mt-3 max-w-sm leading-relaxed font-medium">
-                    请在左侧选择已有文档或上传新的 PDF/TXT 技术规范。DeepSeek 引擎将为您提供深度解析与实时问答支持。
+                    支持 PDF 与 TXT 技术文本。扫描件将自动由 Qwen-VL 视觉引擎识别。
                   </p>
-                  <Button variant="outline" className="mt-10 rounded-2xl px-10 py-7 h-auto border-2 hover:bg-primary hover:text-white hover:border-primary transition-all group" asChild>
+                  <Button variant="outline" className="mt-10 rounded-2xl px-10 py-7 h-auto border-2 hover:bg-primary hover:text-white transition-all group" asChild>
                     <label className="cursor-pointer">
                       <Upload className="mr-3 transition-transform group-hover:-translate-y-1" size={20} /> 
-                      <span className="font-bold tracking-wide">上传本地文档</span>
+                      <span className="font-bold tracking-wide">立即上传</span>
                       <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.pdf" />
                     </label>
                   </Button>
@@ -552,17 +547,17 @@ export default function DocuParsePro() {
         )}
 
         {activeTab === 'rules' && (
-          <ScrollArea className="flex-1 p-6 md:p-12 bg-slate-50/30 dark:bg-slate-950/30">
+          <ScrollArea className="flex-1 p-6 md:p-12 bg-slate-50/30">
             <div className="max-w-6xl mx-auto">
               <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
                 <div>
-                  <h3 className="text-3xl font-black tracking-tight text-slate-800 dark:text-slate-100">解析策略库</h3>
+                  <h3 className="text-3xl font-black tracking-tight">解析策略库</h3>
                   <p className="text-muted-foreground text-sm mt-2 font-medium">
-                    定义的策略将作为 System Prompt 注入 AI 引擎，指导其分析维度
+                    选中的策略将作为“深度提示词”注入 AI，指导其阅读维度
                   </p>
                 </div>
-                <Button onClick={() => setIsAddingRule(true)} className="gap-3 rounded-2xl h-12 px-6 shadow-lg shadow-primary/20">
-                  <PlusCircle size={20} /> 新增解析策略
+                <Button onClick={() => setIsAddingRule(true)} className="gap-3 rounded-2xl h-12 px-6">
+                  <PlusCircle size={20} /> 新增自定义策略
                 </Button>
               </header>
 
@@ -570,86 +565,44 @@ export default function DocuParsePro() {
                 {rules.map(rule => (
                   <Card key={rule.id} className={cn(
                     "transition-all border-2 duration-300 rounded-[2rem]",
-                    selectedRuleId === rule.id ? "border-primary bg-primary/5 shadow-xl shadow-primary/5" : "hover:border-primary/20 border-slate-100 dark:border-slate-800"
+                    selectedRuleId === rule.id ? "border-primary bg-primary/5 shadow-xl shadow-primary/5" : "hover:border-primary/20 border-slate-100"
                   )}>
                     <CardHeader className="pb-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <div className={cn(
                             "p-3 rounded-2xl transition-all", 
-                            selectedRuleId === rule.id ? "bg-primary text-white shadow-lg shadow-primary/30" : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                            selectedRuleId === rule.id ? "bg-primary text-white shadow-lg shadow-primary/30" : "bg-slate-100 text-slate-500"
                           )}>
                             {rule.icon}
                           </div>
-                          <CardTitle className="text-lg font-black tracking-tight">{rule.name}</CardTitle>
+                          <CardTitle className="text-lg font-black">{rule.name}</CardTitle>
                         </div>
                         {['1','2','3'].includes(rule.id) ? (
                            <Badge variant="secondary" className="text-[10px] font-bold px-2 rounded-full">系统预设</Badge>
                         ) : (
-                          <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-xl" onClick={() => setRules(rules.filter(r => r.id !== rule.id))}>
+                          <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-red-500 rounded-xl" onClick={() => setRules(rules.filter(r => r.id !== rule.id))}>
                             <Trash2 size={16} />
                           </Button>
                         )}
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium line-clamp-4 bg-white/50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                      <p className="text-xs text-slate-600 leading-relaxed font-medium line-clamp-4 bg-white/50 p-4 rounded-2xl">
                         {rule.content}
                       </p>
                     </CardContent>
                     <CardFooter>
                       <Button 
                         variant={selectedRuleId === rule.id ? "default" : "outline"} 
-                        className={cn("w-full h-11 rounded-xl font-bold tracking-wide", selectedRuleId === rule.id ? "shadow-lg shadow-primary/20" : "")}
+                        className="w-full h-11 rounded-xl font-bold tracking-wide"
                         onClick={() => setSelectedRuleId(rule.id)}
                       >
-                        {selectedRuleId === rule.id ? "策略已启用" : "切换至此解析策略"}
+                        {selectedRuleId === rule.id ? "当前正在应用" : "启用此策略"}
                       </Button>
                     </CardFooter>
                   </Card>
                 ))}
-
-                {isAddingRule && (
-                  <Card className="border-primary border-dashed border-2 bg-primary/5 rounded-[2rem] animate-in zoom-in-95">
-                    <CardHeader>
-                      <CardTitle className="text-lg font-black flex items-center gap-3">
-                        <PlusCircle size={20} /> 定义新策略
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-5">
-                      <div className="space-y-2">
-                        <Label className="text-[11px] font-black uppercase text-slate-500 tracking-[0.1em]">策略名称</Label>
-                        <Input 
-                          placeholder="例如：原材料检验标准" 
-                          className="bg-white dark:bg-slate-900 h-12 rounded-xl border-none shadow-inner"
-                          value={newRule.name}
-                          onChange={e => setNewRule({...newRule, name: e.target.value})}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-[11px] font-black uppercase text-slate-500 tracking-[0.1em]">核心解析指令 (PROMPT)</Label>
-                        <Textarea 
-                          placeholder="告知 AI 应该关注文档中的哪些核心要素、特定行业术语或合规风险点..." 
-                          className="bg-white dark:bg-slate-900 rounded-2xl border-none shadow-inner py-4"
-                          rows={6}
-                          value={newRule.content}
-                          onChange={e => setNewRule({...newRule, content: e.target.value})}
-                        />
-                      </div>
-                    </CardContent>
-                    <CardFooter className="flex gap-3">
-                      <Button variant="ghost" className="flex-1 h-12 rounded-xl font-bold" onClick={() => setIsAddingRule(false)}>取消</Button>
-                      <Button className="flex-1 h-12 rounded-xl font-bold shadow-lg shadow-primary/20" onClick={() => {
-                        if (newRule.name && newRule.content) {
-                          setRules([...rules, { ...newRule, id: Date.now().toString(), icon: <Layers size={16} /> }]);
-                          setNewRule({ name: '', content: '' });
-                          setIsAddingRule(false);
-                          toast({ title: "策略保存成功", description: `"${newRule.name}" 已加入策略库。` });
-                        }
-                      }}>保存策略</Button>
-                    </CardFooter>
-                  </Card>
-                )}
               </div>
             </div>
           </ScrollArea>
