@@ -18,7 +18,6 @@ import {
   Truck,
   Layers,
   Menu,
-  X,
   ChevronLeft
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -31,7 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { chatWithDoc } from '@/ai/flows/chat-with-doc-flow';
 import { cn } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
 interface Message {
   role: 'user' | 'model';
@@ -252,16 +251,20 @@ export default function DocuParsePro() {
         {/* Header Bar */}
         <header className="h-16 px-4 border-b flex items-center justify-between bg-white dark:bg-slate-900 sticky top-0 z-20">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="md:hidden" asChild>
-              <Sheet>
-                <SheetTrigger>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="md:hidden">
                   <Menu size={20} />
-                </SheetTrigger>
-                <SheetContent side="left" className="p-0 w-72">
-                  <NavContent />
-                </SheetContent>
-              </Sheet>
-            </Button>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="p-0 w-72">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>导航菜单</SheetTitle>
+                  <SheetDescription>访问文档对话和解析规则设置</SheetDescription>
+                </SheetHeader>
+                <NavContent />
+              </SheetContent>
+            </Sheet>
             <Button 
               variant="ghost" 
               size="icon" 
