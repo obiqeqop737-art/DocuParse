@@ -20,7 +20,8 @@ import {
   Layers,
   Menu,
   ChevronLeft,
-  FileDown
+  FileDown,
+  AlertTriangle
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -33,11 +34,12 @@ import { chatWithDoc } from '@/ai/flows/chat-with-doc-flow';
 import { cn } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // 动态导入 pdfjs
 import * as pdfjsLib from 'pdfjs-dist';
 
-// 配置 PDF.js Worker - 使用更稳定的 CDN 版本
+// 配置 PDF.js Worker
 if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 }
@@ -58,7 +60,7 @@ interface Document {
   id: string;
   name: string;
   type: string;
-  status: 'processing' | 'completed' | 'error';
+  status: 'processing' | 'completed' | 'error' | 'ocr_required';
   content: string;
   date: string;
   chatHistory: Message[];
@@ -109,19 +111,18 @@ export default function DocuParsePro() {
     }
   }, [selectedDoc?.chatHistory, isChatting]);
 
-  // 优化的 PDF 文本提取函数
   const extractTextFromPDF = async (file: File): Promise<string> => {
     try {
       const arrayBuffer = await file.arrayBuffer();
       const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
       const pdf = await loadingTask.promise;
       let fullText = '';
+      let emptyPages = 0;
       
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
         
-        // 增强的文本提取算法：处理坐标偏移以识别换行和段落
         let lastY, text = '';
         const items = textContent.items as any[];
         
@@ -133,9 +134,14 @@ export default function DocuParsePro() {
           lastY = item.transform[5];
         }
         
-        // 如果提取内容为空，可能是扫描件
         const cleanedText = text.trim();
-        fullText += `\n\n--- 第 ${i} 页 ---\n\n${cleanedText || '[未检测到文本内容，请确认是否为扫描件图片]'}`;
+        if (!cleanedText) emptyPages++;
+        fullText += `\n\n--- 第 ${i} 页 ---\n\n${cleanedText || '[图像内容：请使用 OCR 扫描]'}`;
+      }
+      
+      // 如果超过 80% 的页面没有文本，判断为扫描件
+      if (emptyPages / pdf.numPages > 0.8) {
+        return "___SCAN_DETECTED___";
       }
       
       return fullText;
@@ -154,8 +160,6 @@ export default function DocuParsePro() {
       
       try {
         const fileExtension = file.name.split('.').pop()?.toLowerCase();
-        
-        // 创建初始文档对象
         const newDoc: Document = {
           id: fileId,
           name: file.name,
@@ -176,26 +180,23 @@ export default function DocuParsePro() {
           text = await file.text();
         }
 
-        if (!text || text.includes('[未检测到文本内容]')) {
+        if (text === "___SCAN_DETECTED___") {
+          setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, status: 'ocr_required' } : d));
           toast({ 
             variant: "destructive", 
-            title: "文本提取警告", 
-            description: "该 PDF 似乎是扫描件图片，DeepSeek 只能基于空内容进行猜测，建议上传文字版 PDF。" 
+            title: "检测到扫描件", 
+            description: "该 PDF 似乎是图片扫描件，DeepSeek 无法直接读取。建议使用 PaddleOCR 或 Gemini Vision 模型进行处理。" 
           });
+          continue;
         }
 
         const markdownContent = `\n\`\`\`markdown\n# 文档名: ${file.name}\n\n${text}\n\`\`\`\n`;
-        
         setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, content: markdownContent } : d));
         autoAnalyze(fileId, markdownContent);
 
       } catch (err: any) {
         setDocuments(prev => prev.filter(d => d.id !== fileId));
-        toast({ 
-          variant: "destructive", 
-          title: "文件处理失败", 
-          description: err.message || file.name 
-        });
+        toast({ variant: "destructive", title: "处理失败", description: err.message });
       }
     }
   };
@@ -205,7 +206,7 @@ export default function DocuParsePro() {
     try {
       const response = await chatWithDoc({
         documentContent: content,
-        userQuery: "请执行解析策略：识别全文章节目录并提取各章节摘要。如果文档内容为空或识别失败，请告知我。",
+        userQuery: "请执行解析策略：识别全文章节目录并提取各章节摘要。注意：如果内容中存在无法识别的符号，请忽略并尝试理解上下文。",
         rules: activeRule.content,
         history: []
       });
@@ -219,7 +220,7 @@ export default function DocuParsePro() {
       ));
     } catch (error: any) {
       setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status: 'error' } : d));
-      toast({ variant: "destructive", title: "解析失败", description: error.message });
+      toast({ variant: "destructive", title: "深度分析失败", description: error.message });
     } finally {
       setIsChatting(false);
     }
@@ -262,7 +263,7 @@ export default function DocuParsePro() {
         </div>
         <div>
           <h1 className="text-lg font-bold tracking-tight">DocuParse Pro</h1>
-          <p className="text-[10px] text-muted-foreground uppercase font-semibold">Technical Document AI</p>
+          <p className="text-[10px] text-muted-foreground uppercase font-semibold">工业级技术解析</p>
         </div>
       </div>
 
@@ -279,7 +280,7 @@ export default function DocuParsePro() {
           className="w-full justify-start gap-3 h-11 rounded-xl"
           onClick={() => setActiveTab('rules')}
         >
-          <Settings size={18} /> 解析规则库
+          <Settings size={18} /> 解析策略库
         </Button>
 
         <div className="mt-8 mb-2 px-3 flex items-center justify-between">
@@ -414,6 +415,11 @@ export default function DocuParsePro() {
                             <Loader2 size={12} className="animate-spin" /> 正在深度扫描内容...
                           </div>
                         )}
+                        {doc.status === 'ocr_required' && (
+                          <div className="mt-3 flex items-center gap-2.5 text-[10px] text-orange-500 font-bold bg-orange-50 p-2 rounded-lg border border-orange-100">
+                            <AlertTriangle size={12} /> 需要 OCR 识别扫描件
+                          </div>
+                        )}
                       </button>
                     ))
                   )}
@@ -429,6 +435,23 @@ export default function DocuParsePro() {
                 <>
                   <ScrollArea className="flex-1 px-4 md:px-12 py-8" ref={scrollRef}>
                     <div className="max-w-4xl mx-auto space-y-8">
+                      {selectedDoc.status === 'ocr_required' && (
+                        <Alert variant="destructive" className="bg-orange-50 border-orange-200 text-orange-800 rounded-3xl p-6">
+                          <AlertTriangle className="h-5 w-5 text-orange-600" />
+                          <AlertTitle className="font-black text-lg">无法直接提取文本</AlertTitle>
+                          <AlertDescription className="mt-2 text-sm leading-relaxed">
+                            该文档被检测为<strong>扫描图片</strong>。由于当前 AI 仅通过文本流交互，无法直接“阅读”图片。
+                            <br /><br />
+                            <strong>建议方案：</strong>
+                            <ul className="list-disc ml-4 mt-2 space-y-1">
+                              <li>使用私有化部署的 <strong>PaddleOCR</strong> 预处理文档。</li>
+                              <li>切换至 <strong>Gemini 1.5 Pro (Multimodal)</strong> 启用原生视觉识别。</li>
+                              <li>上传该文件的电子文字版。</li>
+                            </ul>
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                      
                       {selectedDoc.chatHistory.map((msg, i) => (
                         <div key={i} className={cn("flex gap-5", msg.role === 'user' ? "flex-row-reverse" : "flex-row")}>
                           <div className={cn(
@@ -482,7 +505,7 @@ export default function DocuParsePro() {
                       </div>
                       <div className="relative group">
                         <Textarea 
-                          placeholder="输入您的问题 (DeepSeek 已挂载文档全文)..." 
+                          placeholder={selectedDoc.status === 'ocr_required' ? "当前文档解析受阻，请输入其他问题..." : "输入您的问题 (DeepSeek 已挂载文档全文)..."}
                           className="min-h-[60px] max-h-[200px] resize-none py-5 px-6 pr-16 rounded-3xl bg-slate-50 dark:bg-slate-900/50 border-none focus-visible:ring-primary/20 text-[14px] shadow-inner"
                           value={chatInput}
                           onChange={(e) => setChatInput(e.target.value)}
