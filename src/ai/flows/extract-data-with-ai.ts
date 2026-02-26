@@ -61,10 +61,17 @@ const extractDataWithAIFlow = ai.defineFlow(
     outputSchema: ExtractDataWithAIOutputSchema,
   },
   async (input) => {
-    const { output } = await extractDataPrompt(input);
-    if (!output) {
-      throw new Error('无法提取数据：AI 未返回任何输出。');
+    try {
+      const { output } = await extractDataPrompt(input);
+      if (!output) {
+        throw new Error('AI 未能生成有效的提取结果。');
+      }
+      return output;
+    } catch (error: any) {
+      if (error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED') || error.message?.includes('quota')) {
+        throw new Error('AI 服务当前配额已耗尽或请求过于频繁，请稍后再试。');
+      }
+      throw error;
     }
-    return output;
   }
 );

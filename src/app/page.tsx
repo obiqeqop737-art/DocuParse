@@ -23,9 +23,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 import { extractDataWithAI } from '@/ai/flows/extract-data-with-ai';
 
-// 模拟数据类型
 interface Document {
   id: string;
   name: string;
@@ -43,6 +43,7 @@ interface ExtractionRule {
 }
 
 export default function DocuParsePro() {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [documents, setDocuments] = useState<Document[]>([]);
   const [rules, setRules] = useState<ExtractionRule[]>([
@@ -52,7 +53,6 @@ export default function DocuParsePro() {
   const [selectedRuleId, setSelectedRuleId] = useState<string>(rules[0]?.id || '');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // 统计
   const processedCount = documents.filter(d => d.status === 'completed').length;
   const pendingCount = documents.filter(d => d.status === 'pending').length;
 
@@ -91,8 +91,12 @@ export default function DocuParsePro() {
       setDocuments(prev => prev.map(d => 
         d.id === docId ? { ...d, status: 'completed', extractedData: result } : d
       ));
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "解析失败",
+        description: error.message || "AI 服务暂时无法处理请求，请稍后再试。",
+      });
       setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status: 'error' } : d));
     } finally {
       setIsProcessing(false);
@@ -127,7 +131,6 @@ export default function DocuParsePro() {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      {/* 侧边栏 */}
       <aside className="w-64 bg-primary text-primary-foreground flex flex-col border-r border-primary/20">
         <div className="p-6 flex items-center gap-2">
           <div className="bg-accent text-primary p-2 rounded-lg">
@@ -179,9 +182,7 @@ export default function DocuParsePro() {
         </div>
       </aside>
 
-      {/* 主内容区 */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* 页眉 */}
         <header className="h-16 border-b bg-white/50 backdrop-blur-md flex items-center justify-between px-8">
           <div className="flex items-center gap-4">
             <h2 className="text-lg font-semibold text-primary capitalize">
@@ -211,7 +212,6 @@ export default function DocuParsePro() {
           </div>
         </header>
 
-        {/* 视口区 */}
         <div className="flex-1 overflow-auto p-8">
           {activeTab === 'dashboard' && (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
