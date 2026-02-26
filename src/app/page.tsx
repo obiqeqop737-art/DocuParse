@@ -150,9 +150,8 @@ export default function DocuParsePro() {
     if (!isChatting || !selectedDoc) return false;
     const history = selectedDoc.chatHistory;
     if (history.length === 0) return true;
-    // 如果最后一条消息不是 model，或者虽然是 model 但还是空的，则认为在研读中
     const lastMsg = history[history.length - 1];
-    return lastMsg.role !== 'model';
+    return lastMsg.role !== 'model' || lastMsg.content === '';
   }, [isChatting, selectedDoc]);
 
   // 匿名登录
@@ -214,9 +213,13 @@ export default function DocuParsePro() {
       toast({ title: "模型链路连通", description: "DeepSeek-V3 响应正常。" });
       recordUsage('Chat', 1, 'API_call', { model: 'DeepSeek-V3', test: true });
 
+      // 使用 16x16 像素的 JPEG 测试图片
       const testImage = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAQABADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc6R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXiJmqjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/9oAMBAAIRAxEAPwD5/ooooA//2Q==";
       const ocrResult = await performOCR({ images: [{ pageIndex: 0, dataUri: testImage }] });
-      if (ocrResult.results[0].text.includes('失败')) throw new Error(ocrResult.results[0].text);
+      const ocrText = ocrResult.results[0].text;
+      if (ocrText.includes('失败')) {
+        throw new Error(`视觉模型返回了错误: ${ocrText}`);
+      }
       toast({ title: "视觉模型测试成功", description: "PaddleOCR-VL-1.5 响应正常。" });
 
     } catch (error: any) {
@@ -341,7 +344,6 @@ export default function DocuParsePro() {
       const decoder = new TextDecoder();
       let fullAnswer = "";
 
-      // 预先添加一条空消息用于流式填充
       setDocuments(prev => prev.map(d => d.id === docId ? { ...d, chatHistory: [{ role: 'model', content: '' }] } : d));
 
       while (reader) {
@@ -405,7 +407,6 @@ export default function DocuParsePro() {
       const decoder = new TextDecoder();
       let fullAnswer = "";
 
-      // 在流接收到第一个数据包前，界面会显示“研读中”
       setDocuments(prev => prev.map(d => d.id === selectedDoc.id ? { 
         ...d, 
         chatHistory: [...currentHistory, { role: 'model', content: '' }] 
@@ -485,7 +486,7 @@ export default function DocuParsePro() {
         <div className="bg-primary text-primary-foreground p-2 rounded-lg shadow-lg shadow-primary/20 shrink-0">
           <BookOpen size={20} />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h1 className="text-lg font-bold tracking-tight truncate">DocuParse Pro</h1>
           <p className="text-[10px] text-muted-foreground uppercase font-semibold truncate">全能文档 AI 助理</p>
         </div>
@@ -527,7 +528,7 @@ export default function DocuParsePro() {
             )}
           >
             <span className="shrink-0">{rule.icon}</span>
-            <span className="truncate">{rule.name}</span>
+            <span className="truncate flex-1">{rule.name}</span>
           </button>
         ))}
       </nav>
@@ -550,7 +551,7 @@ export default function DocuParsePro() {
       </aside>
       <main className="flex-1 flex flex-col min-w-0 bg-background relative overflow-hidden">
         <header className="h-16 px-6 border-b flex items-center justify-between bg-white dark:bg-slate-900 sticky top-0 z-20 shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="md:hidden shrink-0"><Menu size={20} /></Button>
@@ -560,20 +561,20 @@ export default function DocuParsePro() {
             <Button variant="ghost" size="icon" className="hidden md:flex text-muted-foreground hover:text-primary shrink-0" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
               <ChevronLeft size={20} className={cn("transition-transform", !isSidebarOpen && "rotate-180")} />
             </Button>
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
               <span className="font-extrabold text-sm hidden sm:inline-block tracking-tight text-slate-700 dark:text-slate-200 shrink-0">
                 {activeTab === 'chat' ? '文档分析控制台' : activeTab === 'rules' ? '解析策略配置' : '用量统计面板'}
               </span>
               {selectedDoc && activeTab === 'chat' && (
-                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 rounded-lg py-1 px-3 min-w-0 max-w-[120px] sm:max-w-[180px]">
+                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 rounded-lg py-1 px-3 min-w-0 flex-1 max-w-[240px]">
                   {selectedDoc.type === 'PDF' ? <FileDown size={12} className="mr-1.5 shrink-0" /> : <FileText size={12} className="mr-1.5 shrink-0" />}
                   <span className="truncate">{selectedDoc.name}</span>
                 </Badge>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-4 shrink-0">
-            <div className="hidden sm:flex items-center gap-2.5 px-4 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
+          <div className="flex items-center gap-4 shrink-0 ml-4">
+            <div className="hidden lg:flex items-center gap-2.5 px-4 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
               <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" />
               <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 truncate">DeepSeek-V3 流式已就绪</span>
             </div>
@@ -611,7 +612,7 @@ export default function DocuParsePro() {
                             {['XLSX', 'XLS', 'CSV'].includes(doc.type) && <FileSpreadsheet size={18} />}
                             {['DOCX', 'TXT', 'PPTX'].includes(doc.type) && <FileText size={18} />}
                           </div>
-                          <div className="min-w-0 flex-1">
+                          <div className="min-w-0 flex-1 overflow-hidden">
                             <p className="font-bold text-[13px] truncate text-slate-800 dark:text-slate-200">{doc.name}</p>
                             <div className="flex items-center gap-2 mt-0.5 min-w-0">
                               <p className="text-[10px] text-muted-foreground font-medium shrink-0">{doc.date}</p>
@@ -661,7 +662,7 @@ export default function DocuParsePro() {
                     <div className="max-w-4xl mx-auto flex flex-col gap-4">
                       <div className="relative">
                         <Textarea placeholder="输入您的问题 (DeepSeek-V3 流式已就绪)..." className="min-h-[50px] sm:min-h-[60px] max-h-[200px] resize-none py-4 sm:py-5 px-5 sm:px-6 pr-14 sm:pr-16 rounded-2xl sm:rounded-3xl bg-slate-50 dark:bg-slate-900/50 border-none focus-visible:ring-primary/20 text-[13px] sm:text-[14px] shadow-inner" value={chatInput} onChange={(e) => setChatInput(e.target.value)} />
-                        <Button size="icon" className="absolute right-2.5 sm:right-3 bottom-2.5 sm:bottom-3 h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shadow-lg shadow-primary/30 transition-transform active:scale-90" onClick={handleSendMessage} disabled={!chatInput.trim() || isChatting || selectedDoc.status !== 'completed'}>
+                        <Button size="icon" className="absolute right-2.5 sm:right-3 bottom-2.5 sm:bottom-3 h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shadow-lg shadow-primary/30 transition-transform active:scale-90" onClick={handleSendMessage} disabled={!chatInput.trim() || isChatting || selectedDoc?.status !== 'completed'}>
                           <Send size={18} className="sm:size-5" />
                         </Button>
                       </div>
@@ -815,4 +816,3 @@ export default function DocuParsePro() {
     </div>
   );
 }
-
