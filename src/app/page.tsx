@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -59,7 +60,7 @@ const DEFAULT_RULES: Rule[] = [
     id: '1', 
     name: '全能架构解析', 
     icon: <Layers size={16} />,
-    content: '作为技术文档专家，请系统性地解析该文件。首先，请精准识别并按顺序例举出文档的所有章节目录。其次，提取全文各个章节的核心技术信息、管理要求或物流标准。最后，针对每个章节给出精炼的摘要分析，包括关键参数、执行要求及合规风险。' 
+    content: '作为技术文档专家，请系统性地解析该文件。首先，请精准识别并按顺序例举出文档的所有章节目录。其次，提取全文各个章节的核心技术信息、管理要求或物流标准。最后，针对每个章节给出精炼的摘要分析。' 
   },
   { 
     id: '2', 
@@ -105,20 +106,23 @@ export default function DocuParsePro() {
 
     for (const file of Array.from(files)) {
       try {
-        const content = await file.text();
+        const text = await file.text();
+        // 模拟 Markdown 转换逻辑，将文本内容包裹在代码块中
+        const markdownContent = `\n\`\`\`markdown\n# 文档名: ${file.name}\n\n${text}\n\`\`\`\n`;
+        
         const newDoc: Document = {
           id: Math.random().toString(36).substring(2, 9),
           name: file.name,
           type: file.name.split('.').pop()?.toUpperCase() || 'UNKNOWN',
           status: 'processing',
-          content: content,
+          content: markdownContent,
           date: new Date().toLocaleDateString(),
           chatHistory: []
         };
 
         setDocuments(prev => [newDoc, ...prev]);
         setSelectedDocId(newDoc.id);
-        autoAnalyze(newDoc, content);
+        autoAnalyze(newDoc, markdownContent);
       } catch (err) {
         toast({ variant: "destructive", title: "文件读取失败", description: file.name });
       }
@@ -130,7 +134,7 @@ export default function DocuParsePro() {
     try {
       const response = await chatWithDoc({
         documentContent: content,
-        userQuery: "请执行解析规则：识别目录并提取各章节摘要。",
+        userQuery: "请执行全能解析规则：识别目录并提取各章节摘要。",
         rules: activeRule.content,
         history: []
       });
@@ -230,7 +234,7 @@ export default function DocuParsePro() {
       <div className="p-4 border-t">
         <label className="w-full cursor-pointer flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white p-3 rounded-xl transition-all shadow-md active:scale-95">
           <Upload size={18} /> <span className="text-sm font-semibold">上传新文件</span>
-          <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.pdf,.docx" />
+          <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt" />
         </label>
       </div>
     </div>
@@ -379,7 +383,7 @@ export default function DocuParsePro() {
                           <div className="bg-muted/50 border p-4 rounded-2xl rounded-tl-none shadow-sm flex flex-col gap-2 max-w-[85%]">
                             <div className="flex items-center gap-2">
                               <Loader2 size={14} className="animate-spin text-primary" />
-                              <span className="text-xs font-semibold">分析引擎深度研读中...</span>
+                              <span className="text-xs font-semibold">DeepSeek-V3 深度研读中...</span>
                             </div>
                           </div>
                         </div>
@@ -403,7 +407,7 @@ export default function DocuParsePro() {
                       </div>
                       <div className="relative group">
                         <Textarea 
-                          placeholder="输入您的问题..." 
+                          placeholder="输入您的问题 (DeepSeek-V3 已挂载文档上下文)..." 
                           className="min-h-[50px] max-h-[150px] resize-none py-4 px-5 pr-14 rounded-2xl bg-muted/30 border-muted focus-visible:ring-primary/20 text-sm"
                           value={chatInput}
                           onChange={(e) => setChatInput(e.target.value)}
@@ -433,12 +437,12 @@ export default function DocuParsePro() {
                   </div>
                   <h3 className="text-xl font-bold">开始文档对话</h3>
                   <p className="text-sm text-muted-foreground mt-2 max-w-xs">
-                    请从左侧选择一个文档或上传新文件，系统将基于当前挂载的规则进行深度解析。
+                    请从左侧选择一个文档或上传新文件，系统将基于 DeepSeek-V3 引擎进行深度解析。
                   </p>
                   <Button variant="outline" className="mt-6 rounded-full px-8 py-6 h-auto" asChild>
                     <label className="cursor-pointer">
                       <Upload className="mr-2" size={16} /> 上传文件
-                      <input type="file" multiple className="hidden" onChange={handleFileUpload} />
+                      <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt" />
                     </label>
                   </Button>
                 </div>
@@ -454,7 +458,7 @@ export default function DocuParsePro() {
                 <div>
                   <h3 className="text-2xl font-bold tracking-tight">解析策略库</h3>
                   <p className="text-muted-foreground text-sm mt-1">
-                    定义的规则将作为 System Prompt 注入私有化 AI 引擎
+                    定义的规则将作为 System Prompt 注入硅基流动 AI 引擎
                   </p>
                 </div>
                 <Button onClick={() => setIsAddingRule(true)} className="gap-2 rounded-xl">

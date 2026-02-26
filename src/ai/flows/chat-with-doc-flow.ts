@@ -1,8 +1,8 @@
 
 'use server';
 /**
- * @fileOverview 文档对话 AI 流程。
- * 集成了“解析规则”作为系统背景提示词，支持多轮对话。
+ * @fileOverview 硅基流动 (SiliconFlow) 文档对话 AI 流程。
+ * 优化了 Token 消耗：文档内容仅在 System Prompt 中发送一次。
  */
 
 import { ai } from '@/ai/genkit';
@@ -35,44 +35,56 @@ const chatWithDocFlow = ai.defineFlow(
     outputSchema: ChatWithDocOutputSchema,
   },
   async (input) => {
-    const CUSTOM_API_URL = process.env.CUSTOM_AI_API_URL || 'https://your-internal-api.com/v1/chat/completions';
-    const CUSTOM_API_KEY = process.env.CUSTOM_AI_API_KEY || '';
+    // 硅基流动配置
+    const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
+    const SILICON_FLOW_API_KEY = 'sk-orcwdodraxjcyrllecfaaukwuuepdysjqeeslnaarzhhjeey';
+    const MODEL_ID = 'deepseek-ai/DeepSeek-V3';
+
+    // 构造系统提示词：包含解析规则和文档内容
+    // 这是优化 Token 的关键：文档只在这里出现一次
+    const systemPrompt = `你是一个工厂技术文档专家。请严格遵循以下解析规则和文档背景来回答用户问题。
+
+### 解析规则
+${input.rules}
+
+### 文档内容 (Markdown 格式)
+${input.documentContent}
+
+请注意：在后续对话中，我会保持对上述文档的记忆。如果用户提问与文档无关，请委婉告知。`;
 
     const messages = [
-      { 
-        role: "system", 
-        content: `你是一个工厂技术文档专家。
-请严格遵循以下解析规则来处理文档内容：
-"""
-${input.rules}
-"""
-
-文档内容如下：
-"""
-${input.documentContent}
-"""` 
-      },
-      ...(input.history || []).map(h => ({ role: h.role === 'model' ? 'assistant' : 'user', content: h.content })),
+      { role: "system", content: systemPrompt },
+      // 历史记录中仅包含纯文本对话，不包含重复的文档内容
+      ...(input.history || []).map(h => ({ 
+        role: h.role === 'model' ? 'assistant' : 'user', 
+        content: h.content 
+      })),
       { role: "user", content: input.userQuery }
     ];
 
     try {
-      const response = await fetch(CUSTOM_API_URL, {
+      const response = await fetch(SILICON_FLOW_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${CUSTOM_API_KEY}`,
+          'Authorization': `Bearer ${SILICON_FLOW_API_KEY}`,
         },
         body: JSON.stringify({
-          model: "your-custom-model",
+          model: MODEL_ID,
           messages: messages,
-          temperature: 0.3, // 保持低随机性以确保技术准确性
+          temperature: 0.3,
+          max_tokens: 2048,
+          stream: false
         }),
       });
 
-      if (!response.ok) throw new Error(`API 错误: ${response.status}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`硅基流动 API 错误 (${response.status}): ${errorData.message || '未知错误'}`);
+      }
+
       const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || 'AI 未能生成回答。';
+      const content = data.choices?.[0]?.message?.content || 'AI 未能生成有效回答。';
       
       return { answer: content };
     } catch (error: any) {
