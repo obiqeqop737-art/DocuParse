@@ -213,7 +213,7 @@ export default function DocuParsePro() {
       toast({ title: "模型链路连通", description: "DeepSeek-V3 响应正常。" });
       recordUsage('Chat', 1, 'API_call', { model: 'DeepSeek-V3', test: true });
 
-      // 使用 16x16 像素的 JPEG 测试图片
+      // 使用标准的 16x16 JPEG 图片，PaddleOCR 更容易识别
       const testImage = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAQABADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc6R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXiJmqjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/9oAMBAAIRAxEAPwD5/ooooA//2Q==";
       const ocrResult = await performOCR({ images: [{ pageIndex: 0, dataUri: testImage }] });
       const ocrText = ocrResult.results[0].text;
@@ -261,7 +261,9 @@ export default function DocuParsePro() {
       if (imagesToOCR.length > 0) {
         setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, status: 'ocr_scanning' } : d));
         const ocrResponse = await performOCR({ images: imagesToOCR });
-        ocrResponse.results.forEach(res => { pagesData[res.pageIndex] = res.text; });
+        ocrResponse.results.forEach(res => {
+          pagesData[res.pageIndex] = res.text;
+        });
         recordUsage('OCR', imagesToOCR.length, 'pages', { filename: file.name, pages: imagesToOCR.length });
       }
 
@@ -312,10 +314,16 @@ export default function DocuParsePro() {
         setDocuments(prev => [newDoc, ...prev]);
         setSelectedDocId(fileId);
 
-        let finalContent = fileExtension === 'pdf' ? await processPDF(file, fileId) : await processOfficeFile(file, fileExtension);
+        let finalContent = "";
+        if (fileExtension === 'pdf') {
+          finalContent = await processPDF(file, fileId);
+        } else {
+          finalContent = await processOfficeFile(file, fileExtension);
+        }
 
         const markdownContent = `\n# 文档内容: ${file.name}\n\n${finalContent}\n`;
         setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, content: markdownContent, status: 'completed' } : d));
+        
         autoAnalyze(fileId, markdownContent);
       } catch (err: any) {
         setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, status: 'error' } : d));
@@ -486,12 +494,12 @@ export default function DocuParsePro() {
         <div className="bg-primary text-primary-foreground p-2 rounded-lg shadow-lg shadow-primary/20 shrink-0">
           <BookOpen size={20} />
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 overflow-hidden">
           <h1 className="text-lg font-bold tracking-tight truncate">DocuParse Pro</h1>
           <p className="text-[10px] text-muted-foreground uppercase font-semibold truncate">全能文档 AI 助理</p>
         </div>
       </div>
-      <nav className="flex-1 px-3 space-y-1 overflow-y-auto no-scrollbar min-h-0">
+      <nav className="flex-1 px-4 space-y-1 overflow-y-auto no-scrollbar min-w-0">
         <Button 
           variant={activeTab === 'chat' ? 'secondary' : 'ghost'} 
           className="w-full justify-start gap-3 h-11 rounded-xl"
@@ -513,8 +521,8 @@ export default function DocuParsePro() {
         >
           <BarChart3 size={18} /> 流量统计后台
         </Button>
-        <div className="mt-8 mb-2 px-3 flex items-center justify-between">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">活跃解析策略</p>
+        <div className="mt-8 mb-2 px-3 flex items-center justify-between min-w-0">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">活跃解析策略</p>
         </div>
         {rules.map(rule => (
           <button 
@@ -545,7 +553,7 @@ export default function DocuParsePro() {
     <div className="flex h-screen bg-muted/30 overflow-hidden font-sans">
       <aside className={cn(
         "hidden md:flex flex-col border-r transition-all duration-300 bg-white dark:bg-slate-900 shrink-0",
-        isSidebarOpen ? "w-64" : "w-0 overflow-hidden"
+        isSidebarOpen ? "w-80 min-w-[320px] max-w-[320px]" : "w-0 overflow-hidden"
       )}>
         <NavContent />
       </aside>
@@ -566,7 +574,7 @@ export default function DocuParsePro() {
                 {activeTab === 'chat' ? '文档分析控制台' : activeTab === 'rules' ? '解析策略配置' : '用量统计面板'}
               </span>
               {selectedDoc && activeTab === 'chat' && (
-                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 rounded-lg py-1 px-3 min-w-0 flex-1 max-w-[240px]">
+                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 rounded-lg py-1 px-3 min-w-0 flex-1 max-w-[200px]">
                   {selectedDoc.type === 'PDF' ? <FileDown size={12} className="mr-1.5 shrink-0" /> : <FileText size={12} className="mr-1.5 shrink-0" />}
                   <span className="truncate">{selectedDoc.name}</span>
                 </Badge>
@@ -576,25 +584,26 @@ export default function DocuParsePro() {
           <div className="flex items-center gap-4 shrink-0 ml-4">
             <div className="hidden lg:flex items-center gap-2.5 px-4 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
               <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" />
-              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 truncate">DeepSeek-V3 流式已就绪</span>
+              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 truncate">DeepSeek-V3 已就绪</span>
             </div>
           </div>
         </header>
 
         {activeTab === 'chat' && (
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-w-0">
+            {/* 文档选择侧边栏 */}
             <div className={cn(
-              "w-full md:w-80 md:min-w-80 md:max-w-80 border-r bg-slate-50/50 dark:bg-slate-900/50 flex flex-col shrink-0 overflow-hidden",
+              "w-full md:w-80 md:min-w-[320px] md:max-w-[320px] border-r bg-slate-50/50 dark:bg-slate-900/50 flex flex-col shrink-0 overflow-hidden",
               selectedDocId ? "hidden md:flex" : "flex"
             )}>
-              <div className="p-4 border-b bg-white dark:bg-slate-900 shrink-0">
+              <div className="p-4 border-b bg-white dark:bg-slate-900 shrink-0 min-w-0">
                 <div className="relative">
                   <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <Input placeholder="检索历史文档..." className="pl-10 h-10 text-xs rounded-xl bg-muted/40 border-none focus-visible:ring-primary/30" />
                 </div>
               </div>
-              <ScrollArea className="flex-1">
-                <div className="p-3 space-y-2.5 overflow-hidden min-w-0">
+              <ScrollArea className="flex-1 min-w-0">
+                <div className="p-4 space-y-2.5 overflow-hidden min-w-0">
                   {documents.length === 0 ? (
                     <div className="text-center py-24 opacity-30">
                       <FileSearch className="mx-auto mb-4 text-primary" size={48} />
@@ -603,25 +612,25 @@ export default function DocuParsePro() {
                   ) : (
                     documents.map(doc => (
                       <button key={doc.id} onClick={() => setSelectedDocId(doc.id)} className={cn(
-                          "w-full p-3.5 rounded-2xl border text-left transition-all duration-200 group overflow-hidden block relative min-w-0",
-                          selectedDocId === doc.id ? "border-primary bg-white dark:bg-slate-800 shadow-xl shadow-primary/5 ring-1 ring-primary/20" : "hover:bg-white dark:hover:bg-slate-800 border-transparent bg-transparent"
+                          "w-full max-w-full p-4 rounded-2xl border text-left transition-all duration-200 group flex items-start gap-4 relative min-w-0 box-border overflow-hidden",
+                          selectedDocId === doc.id ? "border-primary bg-white dark:bg-slate-800 shadow-xl shadow-primary/5 shadow-inner" : "hover:bg-white dark:hover:bg-slate-800 border-transparent bg-transparent"
                         )}>
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className={cn("p-2.5 rounded-xl transition-colors shrink-0", selectedDocId === doc.id ? "bg-primary text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500")}>
-                            {doc.type === 'PDF' && <FileDown size={18} />}
-                            {['XLSX', 'XLS', 'CSV'].includes(doc.type) && <FileSpreadsheet size={18} />}
-                            {['DOCX', 'TXT', 'PPTX'].includes(doc.type) && <FileText size={18} />}
-                          </div>
-                          <div className="min-w-0 flex-1 overflow-hidden">
-                            <p className="font-bold text-[13px] truncate text-slate-800 dark:text-slate-200">{doc.name}</p>
-                            <div className="flex items-center gap-2 mt-0.5 min-w-0">
-                              <p className="text-[10px] text-muted-foreground font-medium shrink-0">{doc.date}</p>
-                              {doc.status === 'completed' && (
-                                <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 bg-green-50 text-green-600 border-green-100 shrink-0">
-                                  <CheckCircle2 size={8} className="mr-1" /> 已解析
-                                </Badge>
-                              )}
-                            </div>
+                        <div className={cn("p-2.5 rounded-xl transition-colors shrink-0", selectedDocId === doc.id ? "bg-primary text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500")}>
+                          {doc.type === 'PDF' && <FileDown size={18} />}
+                          {['XLSX', 'XLS', 'CSV'].includes(doc.type) && <FileSpreadsheet size={18} />}
+                          {['DOCX', 'TXT', 'PPTX'].includes(doc.type) && <FileText size={18} />}
+                        </div>
+                        <div className="min-w-0 flex-1 overflow-hidden">
+                          <span className="font-bold text-[13px] block truncate text-slate-800 dark:text-slate-200 pr-2 max-w-full">
+                            {doc.name}
+                          </span>
+                          <div className="flex items-center gap-2 mt-0.5 min-w-0">
+                            <p className="text-[10px] text-muted-foreground font-medium shrink-0">{doc.date}</p>
+                            {doc.status === 'completed' && (
+                              <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 bg-green-50 text-green-600 border-green-100 shrink-0">
+                                <CheckCircle2 size={8} className="mr-1" /> 已解析
+                              </Badge>
+                            )}
                           </div>
                         </div>
                       </button>
@@ -630,6 +639,8 @@ export default function DocuParsePro() {
                 </div>
               </ScrollArea>
             </div>
+
+            {/* 主对话区 */}
             <div className={cn("flex-1 flex flex-col bg-white dark:bg-slate-950 overflow-hidden relative min-w-0", !selectedDocId && "hidden md:flex")}>
               {selectedDoc ? (
                 <>
@@ -686,6 +697,7 @@ export default function DocuParsePro() {
           </div>
         )}
 
+        {/* 策略库 */}
         {activeTab === 'rules' && (
           <ScrollArea className="flex-1 p-4 sm:p-6 md:p-12 bg-slate-50/30">
             <div className="max-w-6xl mx-auto">
@@ -700,9 +712,9 @@ export default function DocuParsePro() {
                 {rules.map(rule => (
                   <Card key={rule.id} className={cn("transition-all border-2 duration-300 rounded-[1.5rem] sm:rounded-[2rem]", selectedRuleId === rule.id ? "border-primary bg-primary/5 shadow-xl shadow-primary/5" : "hover:border-primary/20 border-slate-100")}>
                     <CardHeader>
-                      <div className="flex items-center gap-3">
-                        <div className={cn("p-2 rounded-xl", selectedRuleId === rule.id ? "bg-primary text-white" : "bg-slate-100")}>{rule.icon}</div>
-                        <CardTitle className="text-lg">{rule.name}</CardTitle>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={cn("p-2 rounded-xl shrink-0", selectedRuleId === rule.id ? "bg-primary text-white" : "bg-slate-100")}>{rule.icon}</div>
+                        <CardTitle className="text-lg truncate">{rule.name}</CardTitle>
                       </div>
                     </CardHeader>
                     <CardContent className="text-sm text-slate-600 leading-relaxed">{rule.content}</CardContent>
@@ -714,18 +726,19 @@ export default function DocuParsePro() {
           </ScrollArea>
         )}
 
+        {/* 统计后台 */}
         {activeTab === 'stats' && (
           <ScrollArea className="flex-1 p-4 sm:p-6 md:p-8 bg-slate-50/30">
             <div className="max-w-6xl mx-auto space-y-8">
               <header className="flex items-end gap-3 justify-between">
-                <div className="flex items-end gap-3">
-                  <div className="p-3 bg-primary/10 text-primary rounded-2xl"><Database size={24} /></div>
-                  <div>
-                    <h3 className="text-2xl font-black tracking-tight">流量统计后台</h3>
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">实时 AI 资源消耗概览</p>
+                <div className="flex items-end gap-3 min-w-0">
+                  <div className="p-3 bg-primary/10 text-primary rounded-2xl shrink-0"><Database size={24} /></div>
+                  <div className="min-w-0">
+                    <h3 className="text-2xl font-black tracking-tight truncate">流量统计后台</h3>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider truncate">实时 AI 资源消耗概览</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                    {isLogsLoading && <Loader2 size={18} className="animate-spin text-muted-foreground" />}
                    <Button variant="outline" size="icon" onClick={() => window.location.reload()}><RefreshCw size={16} /></Button>
                 </div>
@@ -733,24 +746,24 @@ export default function DocuParsePro() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card className="rounded-[2rem] border-none shadow-xl shadow-slate-200/50 bg-white">
                   <CardHeader className="pb-2">
-                    <CardDescription className="flex items-center gap-2"><Activity size={14} className="text-primary" /> 累计调用</CardDescription>
+                    <CardDescription className="flex items-center gap-2 truncate"><Activity size={14} className="text-primary" /> 累计调用</CardDescription>
                     <CardTitle className="text-3xl font-black">{logs?.length || 0}</CardTitle>
                   </CardHeader>
-                  <CardContent className="text-[10px] font-bold text-muted-foreground uppercase">当前账号总计请求次数</CardContent>
+                  <CardContent className="text-[10px] font-bold text-muted-foreground uppercase truncate">当前账号总计请求次数</CardContent>
                 </Card>
                 <Card className="rounded-[2rem] border-none shadow-xl shadow-slate-200/50 bg-white">
                   <CardHeader className="pb-2">
-                    <CardDescription className="flex items-center gap-2"><Sparkles size={14} className="text-purple-500" /> 语义消耗</CardDescription>
+                    <CardDescription className="flex items-center gap-2 truncate"><Sparkles size={14} className="text-purple-500" /> 语义消耗</CardDescription>
                     <CardTitle className="text-3xl font-black text-purple-600">{logs?.filter(l => l.eventType === 'AIProcessing').reduce((acc, curr) => acc + (curr.consumedAmount || 0), 0) || 0}</CardTitle>
                   </CardHeader>
-                  <CardContent className="text-[10px] font-bold text-muted-foreground uppercase">单位: API CALLS</CardContent>
+                  <CardContent className="text-[10px] font-bold text-muted-foreground uppercase truncate">单位: API CALLS</CardContent>
                 </Card>
                 <Card className="rounded-[2rem] border-none shadow-xl shadow-slate-200/50 bg-white">
                   <CardHeader className="pb-2">
-                    <CardDescription className="flex items-center gap-2"><Eye size={14} className="text-blue-500" /> 视觉识别</CardDescription>
+                    <CardDescription className="flex items-center gap-2 truncate"><Eye size={14} className="text-blue-500" /> 视觉识别</CardDescription>
                     <CardTitle className="text-3xl font-black text-blue-600">{logs?.filter(l => l.eventType === 'DocumentProcessed').reduce((acc, curr) => acc + (curr.consumedAmount || 0), 0) || 0}</CardTitle>
                   </CardHeader>
-                  <CardContent className="text-[10px] font-bold text-muted-foreground uppercase">单位: PAGES</CardContent>
+                  <CardContent className="text-[10px] font-bold text-muted-foreground uppercase truncate">单位: PAGES</CardContent>
                 </Card>
               </div>
               {logs && logs.length > 0 ? (
