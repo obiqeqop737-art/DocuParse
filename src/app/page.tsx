@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   FileText, 
   Upload, 
@@ -9,12 +9,14 @@ import {
   Plus, 
   ChevronRight, 
   CheckCircle2, 
-  Clock, 
+  MessageSquare, 
   Download,
   AlertCircle,
-  ArrowRight,
-  Database,
-  Loader2
+  Send,
+  Loader2,
+  Trash2,
+  Search,
+  BookOpen
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -26,6 +28,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { extractDataWithAI } from '@/ai/flows/extract-data-with-ai';
+import { chatWithDoc } from '@/ai/flows/chat-with-doc-flow';
+import { cn } from "@/lib/utils";
+
+interface Message {
+  role: 'user' | 'model';
+  content: string;
+}
 
 interface Document {
   id: string;
@@ -33,46 +42,45 @@ interface Document {
   type: string;
   status: 'pending' | 'processing' | 'completed' | 'error';
   content: string;
-  date: string;
+  summary?: string;
   extractedData?: Record<string, string>;
-}
-
-interface ExtractionRule {
-  id: string;
-  name: string;
-  rules: string;
+  date: string;
+  chatHistory: Message[];
 }
 
 export default function DocuParsePro() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('documents');
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [rules, setRules] = useState<ExtractionRule[]>([
-    { id: '1', name: '标准工厂规范', rules: '提取文档标题、修订号、作者、发布部门和材料要求。' },
-    { id: '2', name: '维护日志规则', rules: '提取设备 ID、服务日期、技术人员姓名、更换部件和下次服务日期。' }
-  ]);
-  const [selectedRuleId, setSelectedRuleId] = useState<string>(rules[0]?.id || '');
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [chatInput, setChatInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isChatting, setIsChatting] = useState(false);
+  
+  // 默认解析规则
+  const [customRule, setCustomRule] = useState('提取文档标题、主要结论、关键技术参数、潜在风险点和后续建议。');
+  
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const processedCount = documents.filter(d => d.status === 'completed').length;
-  const pendingCount = documents.filter(d => d.status === 'pending').length;
+  const selectedDoc = documents.find(d => d.id === selectedDocId);
 
-  // 改进：真正读取上传文件的内容（演示支持 .txt）
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [selectedDoc?.chatHistory]);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
     const newDocs: Document[] = [];
-
     for (const file of Array.from(files)) {
-      let content = `[无法预览此文件类型的详细内容: ${file.name}]`;
-      
-      // 如果是纯文本文件，读取其实际内容
+      let content = "";
       if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
         content = await file.text();
       } else {
-        // 对于加密或二进制文件，此处应调用解密/解析逻辑
-        content = `文件名: ${file.name}\n文件大小: ${file.size} 字节\n由于文件已加密或格式特殊，需专用解析器。`;
+        content = `[文件预览受限: ${file.name}]\n这是一个非文本格式或加密文件。系统已准备好接受解密流。`;
       }
 
       newDocs.push({
@@ -82,451 +90,343 @@ export default function DocuParsePro() {
         status: 'pending',
         content: content,
         date: new Date().toLocaleDateString(),
+        chatHistory: []
       });
     }
 
     setDocuments(prev => [...newDocs, ...prev]);
-    setActiveTab('documents');
-    toast({
-      title: "上传成功",
-      description: `已添加 ${files.length} 个文档到库中。`,
-    });
+    toast({ title: "上传成功", description: `已添加 ${files.length} 个文档。` });
   };
 
   const processDocument = async (docId: string) => {
     const doc = documents.find(d => d.id === docId);
-    const rule = rules.find(r => r.id === selectedRuleId);
-    
-    if (!doc || !rule) return;
+    if (!doc) return;
 
     setIsProcessing(true);
     setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status: 'processing' } : d));
 
     try {
-      // 调用自定义 AI 流程
       const result = await extractDataWithAI({
         documentContent: doc.content,
-        extractionRules: rule.rules
+        extractionRules: customRule
       });
 
       setDocuments(prev => prev.map(d => 
-        d.id === docId ? { ...d, status: 'completed', extractedData: result } : d
+        d.id === docId ? { 
+          ...d, 
+          status: 'completed', 
+          extractedData: result,
+          summary: result['摘要'] || result['主要结论'] || Object.values(result)[0] || '解析完成，请开始对话。'
+        } : d
       ));
 
-      toast({
-        title: "解析完成",
-        description: `文档 "${doc.name}" 已成功提取数据。`,
-      });
+      toast({ title: "解析完成", description: `文档 "${doc.name}" 已生成摘要。` });
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "解析失败",
-        description: error.message || "AI 服务响应错误。",
-      });
+      toast({ variant: "destructive", title: "解析失败", description: error.message });
       setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status: 'error' } : d));
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const exportData = (doc: Document, format: 'json' | 'csv') => {
-    if (!doc.extractedData) return;
-    
-    let content = '';
-    let fileName = `${doc.name.split('.')[0]}_提取结果.${format}`;
-    let type = '';
+  const handleSendMessage = async () => {
+    if (!chatInput.trim() || !selectedDoc || isChatting) return;
 
-    if (format === 'json') {
-      content = JSON.stringify(doc.extractedData, null, 2);
-      type = 'application/json';
-    } else {
-      const headers = Object.keys(doc.extractedData).join(',');
-      const values = Object.values(doc.extractedData).join(',');
-      content = `${headers}\n${values}`;
-      type = 'text/csv';
+    const userMsg: Message = { role: 'user', content: chatInput };
+    setDocuments(prev => prev.map(d => 
+      d.id === selectedDoc.id ? { ...d, chatHistory: [...d.chatHistory, userMsg] } : d
+    ));
+    setChatInput('');
+    setIsChatting(true);
+
+    try {
+      const response = await chatWithDoc({
+        documentContent: selectedDoc.content,
+        userQuery: chatInput,
+        history: selectedDoc.chatHistory
+      });
+
+      const modelMsg: Message = { role: 'model', content: response.answer };
+      setDocuments(prev => prev.map(d => 
+        d.id === selectedDoc.id ? { ...d, chatHistory: [...d.chatHistory, modelMsg] } : d
+      ));
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "发送失败", description: error.message });
+    } finally {
+      setIsChatting(false);
     }
-
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      <aside className="w-64 bg-primary text-primary-foreground flex flex-col border-r border-primary/20">
-        <div className="p-6 flex items-center gap-2">
-          <div className="bg-accent text-primary p-2 rounded-lg">
-            <Database size={24} />
+    <div className="flex h-screen bg-neutral-50 overflow-hidden text-neutral-900">
+      {/* 侧边导航 */}
+      <aside className="w-20 lg:w-64 bg-white border-r flex flex-col transition-all duration-300">
+        <div className="p-6 flex items-center gap-3">
+          <div className="bg-primary text-white p-2 rounded-xl shadow-lg shadow-primary/20">
+            <BookOpen size={24} />
           </div>
-          <h1 className="text-xl font-bold tracking-tight">DocuParse <span className="text-accent">Pro</span></h1>
+          <h1 className="text-xl font-bold tracking-tight hidden lg:block">DocuParse</h1>
         </div>
         
         <nav className="flex-1 px-4 space-y-2 mt-4">
           <Button 
-            variant={activeTab === 'dashboard' ? 'secondary' : 'ghost'} 
-            className="w-full justify-start gap-3" 
-            onClick={() => setActiveTab('dashboard')}
-          >
-            <LayoutDashboard size={20} /> 仪表盘
-          </Button>
-          <Button 
             variant={activeTab === 'documents' ? 'secondary' : 'ghost'} 
-            className="w-full justify-start gap-3"
+            className={cn("w-full justify-start gap-3", activeTab === 'documents' && "bg-neutral-100")}
             onClick={() => setActiveTab('documents')}
           >
-            <FileText size={20} /> 文档库
+            <FileText size={20} /> <span className="hidden lg:inline">文档库</span>
           </Button>
           <Button 
-            variant={activeTab === 'rules' ? 'secondary' : 'ghost'} 
+            variant={activeTab === 'settings' ? 'secondary' : 'ghost'} 
             className="w-full justify-start gap-3"
-            onClick={() => setActiveTab('rules')}
+            onClick={() => setActiveTab('settings')}
           >
-            <Settings size={20} /> 规则编辑器
+            <Settings size={20} /> <span className="hidden lg:inline">解析设置</span>
           </Button>
         </nav>
 
-        <div className="p-4 mt-auto">
-          <Card className="bg-primary/40 border-primary/20 text-primary-foreground">
-            <CardContent className="p-4">
-              <p className="text-xs opacity-70 mb-2">使用摘要</p>
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-sm">已处理</span>
-                <span className="text-sm font-bold">{processedCount}</span>
-              </div>
-              <div className="h-1.5 w-full bg-primary/30 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-accent transition-all duration-500" 
-                  style={{ width: `${Math.min((processedCount / 20) * 100, 100)}%` }} 
-                />
-              </div>
-            </CardContent>
-          </Card>
+        <div className="p-4 mt-auto border-t">
+          <label className="cursor-pointer group">
+            <div className="flex items-center justify-center lg:justify-start gap-3 bg-primary hover:bg-primary/90 text-white p-3 rounded-xl transition-all shadow-md">
+              <Upload size={20} /> <span className="hidden lg:inline font-medium">上传文档</span>
+            </div>
+            <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.pdf,.docx" />
+          </label>
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 border-b bg-white/50 backdrop-blur-md flex items-center justify-between px-8">
+      {/* 主内容区 */}
+      <main className="flex-1 flex flex-col min-w-0">
+        <header className="h-16 bg-white border-b flex items-center justify-between px-8 z-10">
+          <h2 className="text-lg font-semibold text-neutral-700">
+            {activeTab === 'documents' ? '文件目录与解析' : '全局解析规则'}
+          </h2>
           <div className="flex items-center gap-4">
-            <h2 className="text-lg font-semibold text-primary capitalize">
-              {activeTab === 'dashboard' ? '仪表盘' : activeTab === 'documents' ? '文档库' : '规则编辑器'}
-            </h2>
-            <Separator orientation="vertical" className="h-6" />
-            <Badge variant="outline" className="text-muted-foreground border-muted-foreground/20">
-              私有化部署模式
-            </Badge>
-          </div>
-          <div className="flex items-center gap-3">
-             <div className="relative">
-                <Label htmlFor="file-upload" className="cursor-pointer">
-                  <div className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-primary-foreground px-4 py-2 rounded-md font-medium text-sm transition-colors">
-                    <Upload size={16} /> 上传新文档
-                  </div>
-                </Label>
-                <input 
-                  id="file-upload" 
-                  type="file" 
-                  multiple 
-                  className="hidden" 
-                  onChange={handleFileUpload} 
-                  accept=".pdf,.docx,.txt"
-                />
+             <div className="relative hidden md:block">
+               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+               <Input placeholder="搜索文档..." className="pl-10 w-64 bg-neutral-100 border-none h-9 text-sm" />
              </div>
+             <Badge variant="secondary" className="bg-green-50 text-green-700 hover:bg-green-50 border-green-100">AI 已就绪</Badge>
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-8">
-          {activeTab === 'dashboard' && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="border-none shadow-sm bg-white">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">总文件数</CardTitle>
-                    <FileText className="h-4 w-4 text-primary" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold">{documents.length}</div>
-                    <p className="text-xs text-muted-foreground mt-1">本地库存储</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-none shadow-sm bg-white">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">自定义 API 状态</CardTitle>
-                    <CheckCircle2 className="h-4 w-4 text-accent" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold">已连接</div>
-                    <p className="text-xs text-muted-foreground mt-1">数据在内网环境处理</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-none shadow-sm bg-white">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">待处理任务</CardTitle>
-                    <Clock className="h-4 w-4 text-orange-500" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold">{pendingCount}</div>
-                    <p className="text-xs text-muted-foreground mt-1">等待用户发起解析</p>
-                  </CardContent>
-                </Card>
+        <div className="flex-1 flex overflow-hidden">
+          {activeTab === 'documents' && (
+            <>
+              {/* 文档列表 */}
+              <div className="w-full md:w-1/3 border-r bg-white overflow-y-auto">
+                <div className="p-4 space-y-3">
+                  {documents.length === 0 ? (
+                    <div className="text-center py-20 opacity-40">
+                      <FileText className="mx-auto mb-4" size={48} />
+                      <p className="text-sm">暂无文档，请点击上传</p>
+                    </div>
+                  ) : (
+                    documents.map(doc => (
+                      <div 
+                        key={doc.id} 
+                        onClick={() => setSelectedDocId(doc.id)}
+                        className={cn(
+                          "p-4 rounded-xl border transition-all cursor-pointer group relative",
+                          selectedDocId === doc.id ? "border-primary bg-primary/5 shadow-sm" : "hover:bg-neutral-50 border-transparent bg-white shadow-sm border-neutral-200"
+                        )}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-3">
+                            <div className={cn("p-2 rounded-lg", selectedDocId === doc.id ? "bg-primary text-white" : "bg-neutral-100 text-neutral-500")}>
+                              <FileText size={18} />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-sm truncate max-w-[120px]">{doc.name}</p>
+                              <p className="text-[10px] text-neutral-400 uppercase">{doc.type}</p>
+                            </div>
+                          </div>
+                          {doc.status === 'completed' ? (
+                            <CheckCircle2 size={16} className="text-green-500" />
+                          ) : doc.status === 'processing' ? (
+                            <Loader2 size={16} className="animate-spin text-primary" />
+                          ) : null}
+                        </div>
+                        {doc.summary && (
+                          <p className="text-xs text-neutral-500 line-clamp-2 leading-relaxed mt-2">{doc.summary}</p>
+                        )}
+                        <div className="flex items-center justify-between mt-3">
+                           <span className="text-[10px] text-neutral-400">{doc.date}</span>
+                           {doc.status === 'pending' && (
+                             <Button size="sm" variant="ghost" className="h-7 text-xs text-primary hover:text-primary hover:bg-primary/10" onClick={(e) => { e.stopPropagation(); processDocument(doc.id); }}>
+                               解析摘要
+                             </Button>
+                           )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <Card className="border-none shadow-sm bg-white overflow-hidden">
-                  <CardHeader>
-                    <CardTitle className="text-lg">最近文档</CardTitle>
-                    <CardDescription>最新添加到库中的文件。</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <ScrollArea className="h-[300px]">
-                      <div className="px-6 pb-6">
-                        {documents.length === 0 ? (
-                          <div className="text-center py-12 text-muted-foreground">
-                            <Upload className="mx-auto h-8 w-8 mb-4 opacity-20" />
-                            <p>尚未上传任何文档。</p>
-                          </div>
-                        ) : (
+              {/* 文档详情与对话 */}
+              <div className="flex-1 flex flex-col bg-white overflow-hidden">
+                {selectedDoc ? (
+                  <div className="flex-1 flex flex-col overflow-hidden">
+                    <div className="p-6 border-b flex items-center justify-between bg-neutral-50/50">
+                      <div>
+                        <h3 className="text-lg font-bold">{selectedDoc.name}</h3>
+                        <p className="text-xs text-neutral-500">上传于 {selectedDoc.date}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" className="h-8 gap-2" onClick={() => {
+                          setDocuments(prev => prev.filter(d => d.id !== selectedDoc.id));
+                          setSelectedDocId(null);
+                        }}>
+                          <Trash2 size={14} /> 移除
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 flex overflow-hidden">
+                      {/* 摘要视图 */}
+                      <div className="w-1/2 p-6 overflow-y-auto border-r bg-white">
+                        <div className="space-y-6">
+                          <section>
+                            <h4 className="text-sm font-bold flex items-center gap-2 mb-4">
+                              <CheckCircle2 size={16} className="text-primary" /> 文档摘要
+                            </h4>
+                            {selectedDoc.status === 'completed' ? (
+                              <div className="prose prose-sm max-w-none text-neutral-600 leading-relaxed">
+                                {selectedDoc.summary}
+                              </div>
+                            ) : (
+                              <div className="py-12 text-center bg-neutral-50 rounded-xl border border-dashed border-neutral-200">
+                                <p className="text-sm text-neutral-400">解析后即可查看摘要</p>
+                                <Button size="sm" className="mt-4" onClick={() => processDocument(selectedDoc.id)}>立即解析</Button>
+                              </div>
+                            )}
+                          </section>
+
+                          {selectedDoc.extractedData && (
+                            <section>
+                              <h4 className="text-sm font-bold flex items-center gap-2 mb-4">
+                                <Settings size={16} className="text-primary" /> 提取数据
+                              </h4>
+                              <div className="grid gap-3">
+                                {Object.entries(selectedDoc.extractedData).map(([k, v]) => (
+                                  <div key={k} className="p-3 bg-neutral-50 rounded-lg border border-neutral-100">
+                                    <p className="text-[10px] font-bold text-neutral-400 uppercase mb-1">{k}</p>
+                                    <p className="text-sm font-medium">{v || '-'}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </section>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 对话界面 */}
+                      <div className="flex-1 flex flex-col bg-neutral-50/30">
+                        <div className="p-4 border-b bg-white text-xs font-semibold text-neutral-500 flex items-center gap-2">
+                          <MessageSquare size={14} /> 深度对话解析
+                        </div>
+                        <ScrollArea className="flex-1 p-6" ref={scrollRef}>
                           <div className="space-y-4">
-                            {documents.slice(0, 5).map(doc => (
-                              <div key={doc.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/5 transition-colors cursor-pointer group" onClick={() => setActiveTab('documents')}>
-                                <div className="flex items-center gap-3">
-                                  <div className="bg-primary/10 p-2 rounded-md text-primary">
-                                    <FileText size={18} />
-                                  </div>
-                                  <div>
-                                    <p className="font-medium text-sm">{doc.name}</p>
-                                    <p className="text-xs text-muted-foreground">{doc.date} • {doc.type.toUpperCase()}</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  {doc.status === 'completed' ? (
-                                    <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none">就绪</Badge>
-                                  ) : doc.status === 'processing' ? (
-                                    <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none animate-pulse">解析中...</Badge>
-                                  ) : (
-                                    <Badge variant="outline">等待中</Badge>
-                                  )}
-                                  <ChevronRight size={16} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            {selectedDoc.chatHistory.length === 0 && (
+                              <div className="text-center py-20 opacity-30">
+                                <MessageSquare size={48} className="mx-auto mb-4" />
+                                <p className="text-sm">针对文档内容向 AI 提问...</p>
+                              </div>
+                            )}
+                            {selectedDoc.chatHistory.map((msg, i) => (
+                              <div key={i} className={cn("flex", msg.role === 'user' ? "justify-end" : "justify-start")}>
+                                <div className={cn(
+                                  "max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed shadow-sm",
+                                  msg.role === 'user' ? "bg-primary text-white rounded-br-none" : "bg-white border rounded-bl-none text-neutral-700"
+                                )}>
+                                  {msg.content}
                                 </div>
                               </div>
                             ))}
+                            {isChatting && (
+                              <div className="flex justify-start">
+                                <div className="bg-white border p-3 rounded-2xl rounded-bl-none shadow-sm">
+                                  <Loader2 size={16} className="animate-spin text-primary" />
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </ScrollArea>
+                        <div className="p-4 bg-white border-t">
+                          <div className="flex gap-2 relative">
+                            <Textarea 
+                              placeholder="询问关于文档的内容..." 
+                              className="min-h-[44px] max-h-[120px] resize-none py-3 pr-12 rounded-xl bg-neutral-100 border-none focus-visible:ring-1 focus-visible:ring-primary/20"
+                              value={chatInput}
+                              onChange={(e) => setChatInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleSendMessage();
+                                }
+                              }}
+                            />
+                            <Button 
+                              size="icon" 
+                              className="absolute right-1 bottom-1 h-9 w-9 rounded-lg" 
+                              onClick={handleSendMessage}
+                              disabled={!chatInput.trim() || isChatting || selectedDoc.status !== 'completed'}
+                            >
+                              <Send size={18} />
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-none shadow-sm bg-primary text-primary-foreground overflow-hidden">
-                  <div className="absolute inset-0 opacity-10 pointer-events-none">
-                    <div className="w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-accent via-transparent to-transparent"></div>
-                  </div>
-                  <CardHeader>
-                    <CardTitle className="text-lg text-accent">私有化 AI 引擎</CardTitle>
-                    <CardDescription className="text-primary-foreground/70">
-                      通过内部网关安全地处理敏感工厂文档。
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4 relative z-10">
-                    <div className="bg-white/10 backdrop-blur-md rounded-lg p-4 border border-white/10 space-y-2">
-                      <div className="flex items-center gap-2 text-xs font-semibold text-accent uppercase tracking-wider">
-                         <div className="w-2 h-2 rounded-full bg-accent animate-ping" /> 系统状态
-                      </div>
-                      <p className="text-sm font-light">
-                        已配置自定义 API 接口。解析逻辑已剥离云端服务，优先保证数据安全。
-                      </p>
                     </div>
-                    <Button variant="secondary" className="w-full gap-2 group" onClick={() => setActiveTab('rules')}>
-                      配置自定义规则 <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                    </Button>
-                  </CardContent>
-                  <CardFooter className="pt-0">
-                    <p className="text-[10px] text-primary-foreground/50">当前解析引擎：自定义内部模型</p>
-                  </CardFooter>
-                </Card>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'documents' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-500">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-2xl font-bold text-primary">文档库</h3>
-                  <p className="text-muted-foreground">管理并安全解析您的工厂文件。</p>
-                </div>
-                <div className="flex gap-2">
-                  <div className="w-64">
-                    <Label className="sr-only">提取规则</Label>
-                    <select 
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                      value={selectedRuleId}
-                      onChange={(e) => setSelectedRuleId(e.target.value)}
-                    >
-                      {rules.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                    </select>
                   </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-6">
-                {documents.map(doc => (
-                  <Card key={doc.id} className="border-none shadow-sm hover:shadow-md transition-shadow duration-300">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                      <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-lg ${doc.status === 'completed' ? 'bg-accent/20 text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>
-                          <FileText size={24} />
-                        </div>
-                        <div className="max-w-md">
-                          <CardTitle className="text-lg truncate">{doc.name}</CardTitle>
-                          <div className="flex gap-4 text-xs text-muted-foreground mt-1">
-                            <span>{doc.type.toUpperCase()} 格式</span>
-                            <span>•</span>
-                            <span>{doc.date}</span>
-                            <span>•</span>
-                            <span className="italic truncate">{doc.content.substring(0, 30)}...</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {doc.status === 'pending' && (
-                          <Button 
-                            onClick={() => processDocument(doc.id)} 
-                            disabled={isProcessing}
-                            className="bg-primary text-white"
-                          >
-                            发起解析
-                          </Button>
-                        )}
-                        {doc.status === 'processing' && (
-                          <Button disabled className="bg-primary/50 cursor-wait">
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 解析中
-                          </Button>
-                        )}
-                        {doc.status === 'completed' && (
-                          <>
-                            <Button variant="outline" size="sm" onClick={() => exportData(doc, 'json')}>
-                              <Download className="mr-2 h-4 w-4" /> JSON
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => exportData(doc, 'csv')}>
-                              <Download className="mr-2 h-4 w-4" /> CSV
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </CardHeader>
-                    {doc.extractedData && (
-                      <CardContent className="pt-0">
-                        <Separator className="mb-6" />
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {Object.entries(doc.extractedData).map(([key, value]) => (
-                            <div key={key} className="bg-muted/30 p-4 rounded-lg border border-transparent hover:border-accent/20 transition-colors">
-                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">{key}</p>
-                              <p className="text-sm font-medium text-primary line-clamp-2">{value || <span className="italic text-muted-foreground font-normal">未找到</span>}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    )}
-                  </Card>
-                ))}
-                
-                {documents.length === 0 && (
-                  <div className="text-center py-20 border-2 border-dashed rounded-xl bg-white/50">
-                    <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4 opacity-30" />
-                    <h4 className="text-lg font-medium text-primary">等待文档上传</h4>
-                    <p className="text-sm text-muted-foreground mb-6">点击右上角按钮开始。</p>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-neutral-300">
+                    <FileText size={64} className="mb-4 opacity-20" />
+                    <p className="text-lg">请从左侧选择一个文档开始</p>
                   </div>
                 )}
               </div>
-            </div>
+            </>
           )}
 
-          {activeTab === 'rules' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-500 max-w-4xl mx-auto">
-              <div>
-                <h3 className="text-2xl font-bold text-primary">提取规则集</h3>
-                <p className="text-muted-foreground">定义自定义 AI 应该在加密或常规文档中寻找哪些特定字段。</p>
-              </div>
+          {activeTab === 'settings' && (
+            <div className="flex-1 p-8 max-w-2xl mx-auto space-y-8">
+              <header>
+                <h3 className="text-2xl font-bold">解析规则设置</h3>
+                <p className="text-neutral-500">定义 AI 在“解析摘要”时应该遵循的默认逻辑。</p>
+              </header>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="border-none shadow-sm flex flex-col">
-                  <CardHeader>
-                    <CardTitle className="text-lg">已保存模板</CardTitle>
-                    <CardDescription>管理您的解析逻辑。</CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-1">
-                    <ScrollArea className="h-[400px]">
-                      <div className="space-y-3">
-                        {rules.map(rule => (
-                          <div 
-                            key={rule.id} 
-                            onClick={() => setSelectedRuleId(rule.id)}
-                            className={`p-4 rounded-lg border cursor-pointer transition-all ${selectedRuleId === rule.id ? 'border-accent bg-accent/5 ring-1 ring-accent' : 'hover:bg-muted'}`}
-                          >
-                            <div className="flex justify-between items-center mb-1">
-                              <h4 className="font-semibold text-primary">{rule.name}</h4>
-                              <Settings size={14} className="text-muted-foreground" />
-                            </div>
-                            <p className="text-xs text-muted-foreground line-clamp-2">{rule.rules}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </CardContent>
-                  <CardFooter className="pt-0">
-                    <Button variant="outline" className="w-full gap-2" onClick={() => {
-                      const id = Math.random().toString(36).substr(2, 9);
-                      const newRule = { id, name: '新的提取规则', rules: '描述提取规则...' };
-                      setRules([...rules, newRule]);
-                      setSelectedRuleId(id);
-                    }}>
-                      <Plus size={16} /> 创建新规则
-                    </Button>
-                  </CardFooter>
-                </Card>
-
-                <Card className="border-none shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="text-lg">编辑规则配置</CardTitle>
-                    <CardDescription>使用自然语言指导 AI 提取数据。</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>模板名称</Label>
-                      <Input 
-                        value={rules.find(r => r.id === selectedRuleId)?.name || ''} 
-                        onChange={(e) => setRules(prev => prev.map(r => r.id === selectedRuleId ? { ...r, name: e.target.value } : r))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>指令描述</Label>
-                      <Textarea 
-                        rows={8}
-                        placeholder="例如：提取设备编号、故障描述、维修时间..."
-                        value={rules.find(r => r.id === selectedRuleId)?.rules || ''}
-                        onChange={(e) => setRules(prev => prev.map(r => r.id === selectedRuleId ? { ...r, rules: e.target.value } : r))}
-                        className="resize-none"
-                      />
-                    </div>
-                    <div className="bg-accent/10 p-4 rounded-lg border border-accent/20">
-                      <div className="flex items-start gap-3">
-                        <AlertCircle className="text-accent shrink-0 mt-0.5" size={18} />
-                        <p className="text-xs text-primary leading-relaxed">
-                          <strong>注意：</strong> 如果文档包含机密数值，请在规则中注明提取后的脱敏处理。
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="justify-end gap-2">
-                    <Button variant="ghost">重置</Button>
-                    <Button className="bg-primary text-white">更新模板</Button>
-                  </CardFooter>
-                </Card>
-              </div>
+              <Card className="border-none shadow-md">
+                <CardHeader>
+                  <CardTitle className="text-lg">默认提取规则</CardTitle>
+                  <CardDescription>这些指令将作为解析每个文档的基础。</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>核心指令</Label>
+                    <Textarea 
+                      rows={10}
+                      value={customRule}
+                      onChange={(e) => setCustomRule(e.target.value)}
+                      className="resize-none"
+                    />
+                  </div>
+                  <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 flex gap-3">
+                    <AlertCircle size={20} className="text-primary shrink-0" />
+                    <p className="text-xs text-primary/80 leading-relaxed">
+                      提示：你可以要求 AI 采用特定的格式（如 JSON）或关注特定的技术细节。
+                    </p>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-end gap-2">
+                   <Button variant="ghost">恢复默认</Button>
+                   <Button onClick={() => {
+                     toast({ title: "设置已更新", description: "新的解析规则将应用于后续解析任务。" });
+                     setActiveTab('documents');
+                   }}>保存更改</Button>
+                </CardFooter>
+              </Card>
             </div>
           )}
         </div>
