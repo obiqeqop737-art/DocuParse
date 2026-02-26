@@ -1,7 +1,8 @@
+
 'use server';
 /**
  * @fileOverview 文档对话 AI 流程。
- * 使用自定义 API 接口处理基于文档内容的问答。
+ * 集成了“解析规则”作为系统背景提示词，支持多轮对话。
  */
 
 import { ai } from '@/ai/genkit';
@@ -10,6 +11,7 @@ import { z } from 'genkit';
 const ChatWithDocInputSchema = z.object({
   documentContent: z.string().describe('文档全文内容。'),
   userQuery: z.string().describe('用户的问题。'),
+  rules: z.string().describe('当前挂载的解析规则（系统提示词）。'),
   history: z.array(z.object({
     role: z.enum(['user', 'model']),
     content: z.string()
@@ -39,8 +41,13 @@ const chatWithDocFlow = ai.defineFlow(
     const messages = [
       { 
         role: "system", 
-        content: `你是一个专业的技术文档助手。请根据以下文档内容回答用户的问题。如果文档中没有相关信息，请诚实回答。
-文档内容：
+        content: `你是一个工厂技术文档专家。
+请严格遵循以下解析规则来处理文档内容：
+"""
+${input.rules}
+"""
+
+文档内容如下：
 """
 ${input.documentContent}
 """` 
@@ -59,11 +66,11 @@ ${input.documentContent}
         body: JSON.stringify({
           model: "your-custom-model",
           messages: messages,
-          temperature: 0.7,
+          temperature: 0.3, // 保持低随机性以确保技术准确性
         }),
       });
 
-      if (!response.ok) throw new Error(`API Error: ${response.status}`);
+      if (!response.ok) throw new Error(`API 错误: ${response.status}`);
       const data = await response.json();
       const content = data.choices?.[0]?.message?.content || 'AI 未能生成回答。';
       
