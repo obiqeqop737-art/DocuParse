@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview 硅基流动 (SiliconFlow) 视觉 OCR 流程。
@@ -36,11 +37,12 @@ const ocrFlow = ai.defineFlow(
   async (input) => {
     const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
     const SILICON_FLOW_API_KEY = 'sk-orcwdodraxjcyrllecfaaukwuuepdysjqeeslnaarzhhjeey';
+    // 严格使用用户要求的 Qwen/Qwen3-VL-8B-Instruct 模型
     const MODEL_ID = 'Qwen/Qwen3-VL-8B-Instruct'; 
 
     const results: { pageIndex: number; text: string }[] = [];
 
-    // 逐页发送请求，避免请求体过大及超时
+    // 逐页发送请求，避免请求体过大及单次请求超时
     for (const item of input.images) {
       try {
         const response = await fetch(SILICON_FLOW_API_URL, {
@@ -66,8 +68,8 @@ const ocrFlow = ai.defineFlow(
         });
 
         if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(`OCR API 错误: ${response.status} - ${error.message || '未知错误'}`);
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(`OCR API 错误: ${response.status} - ${errorData.message || '未知错误'}`);
         }
 
         const data = await response.json();

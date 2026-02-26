@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -47,6 +48,9 @@ import remarkGfm from 'remark-gfm';
 import * as pdfjsLib from 'pdfjs-dist';
 import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
+
+// 配置 Server Action 超时时间为 120 秒，确保 OCR 视觉识别有充足时间
+export const maxDuration = 120;
 
 if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
@@ -121,7 +125,6 @@ export default function DocuParsePro() {
   const testApiConnectivity = async () => {
     setIsTestingApi(true);
     try {
-      // 1. 测试 DeepSeek-V3.2
       const dsResult = await chatWithDoc({
         documentContent: "API Test Context",
         userQuery: "请回复：DeepSeek-V3.2 连接正常。",
@@ -134,7 +137,6 @@ export default function DocuParsePro() {
         description: dsResult.answer,
       });
 
-      // 2. 测试 Qwen3-VL (发送一个微小的占位图)
       const tinyWhitePixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==";
       const ocrResult = await performOCR({
         images: [{ pageIndex: 0, dataUri: tinyWhitePixel }]
@@ -198,7 +200,9 @@ export default function DocuParsePro() {
         const ocrResponse = await performOCR({ images: imagesToOCR });
         
         ocrResponse.results.forEach(res => {
-          pagesData[res.pageIndex].text = res.text;
+          if (pagesData[res.pageIndex]) {
+            pagesData[res.pageIndex].text = res.text;
+          }
         });
       }
 
