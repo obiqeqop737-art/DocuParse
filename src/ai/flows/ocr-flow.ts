@@ -69,7 +69,8 @@ const ocrFlow = ai.defineFlow(
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(`OCR API 错误: ${response.status} - ${errorData.message || '未知错误'}`);
+          const errorMsg = errorData.error?.message || errorData.message || '未知错误';
+          throw new Error(`OCR API 错误 (${response.status}): ${errorMsg}`);
         }
 
         const data = await response.json();

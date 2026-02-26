@@ -125,37 +125,42 @@ export default function DocuParsePro() {
   const testApiConnectivity = async () => {
     setIsTestingApi(true);
     try {
+      // 1. 测试语义模型 DeepSeek-V3.2
       const dsResult = await chatWithDoc({
         documentContent: "API Test Context",
-        userQuery: "请回复：DeepSeek-V3.2 连接正常。",
+        userQuery: "请简短回复：DeepSeek-V3.2 已就绪。",
         rules: "None",
         history: []
       });
       
       toast({
-        title: "DeepSeek-V3.2 通信成功",
+        title: "语义模型测试成功",
         description: dsResult.answer,
       });
 
+      // 2. 测试视觉模型 Qwen3-VL-8B
+      // 使用 1像素的白色 PNG 图片进行连通性测试
       const tinyWhitePixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==";
       const ocrResult = await performOCR({
         images: [{ pageIndex: 0, dataUri: tinyWhitePixel }]
       });
 
-      if (ocrResult.results[0].text.includes('失败')) {
-        throw new Error("Qwen3-VL 响应异常");
+      const ocrText = ocrResult.results[0].text;
+      if (ocrText.includes('失败')) {
+        throw new Error(`视觉模型返回了错误: ${ocrText}`);
       }
 
       toast({
-        title: "Qwen3-VL-8B 通信成功",
-        description: "视觉识别引擎响应正常。",
+        title: "视觉模型测试成功",
+        description: "Qwen/Qwen3-VL-8B-Instruct 响应正常。",
       });
 
     } catch (error: any) {
+      console.error('API Test Failed:', error);
       toast({
         variant: "destructive",
         title: "API 连接失败",
-        description: error.message || "请检查硅基流动 API 密钥或模型 ID 是否正确。",
+        description: error.message || "请检查模型 ID 是否在硅基流动可用列表中。",
       });
     } finally {
       setIsTestingApi(false);
@@ -176,6 +181,7 @@ export default function DocuParsePro() {
         const textContent = await page.getTextContent();
         let pageText = (textContent.items as any[]).map(item => item.str).join(' ').trim();
         
+        // 如果页面文字过少（可能是扫描件），则渲染为图片进行 OCR
         if (pageText.length < 50) {
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
@@ -186,7 +192,7 @@ export default function DocuParsePro() {
             await page.render({ canvasContext: context, viewport }).promise;
             const dataUri = canvas.toDataURL('image/jpeg', 0.85);
             imagesToOCR.push({ pageIndex: i - 1, dataUri });
-            pagesData.push({ text: "" });
+            pagesData.push({ text: "" }); // 占位
           } else {
             pagesData.push({ text: pageText });
           }
@@ -195,6 +201,7 @@ export default function DocuParsePro() {
         }
       }
 
+      // 批量处理需要 OCR 的页面
       if (imagesToOCR.length > 0) {
         setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, status: 'ocr_scanning' } : d));
         const ocrResponse = await performOCR({ images: imagesToOCR });
@@ -271,6 +278,7 @@ export default function DocuParsePro() {
         const markdownContent = `\n# 文档内容: ${file.name}\n\n${finalContent}\n`;
         setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, content: markdownContent, status: 'completed' } : d));
         
+        // 自动触发初始分析
         autoAnalyze(fileId, markdownContent);
 
       } catch (err: any) {
@@ -563,7 +571,7 @@ export default function DocuParsePro() {
                           <div className="bg-slate-50 dark:bg-slate-900 border p-4 sm:p-5 rounded-2xl sm:rounded-3xl rounded-tl-none shadow-sm flex flex-col gap-3 max-w-[85%] min-w-0">
                             <div className="flex items-center gap-3 min-w-0">
                               <Loader2 size={16} className="animate-spin text-primary shrink-0" />
-                              <span className="text-[12px] sm:text-[13px] font-bold text-slate-700 dark:text-slate-300 truncate">DeepSeek-V3.2 深度研读中...</span>
+                              <span className="text-[12px] sm:text-[13px] font-bold text-slate-700 dark:text-slate-300 truncate">AI 深度研读中...</span>
                             </div>
                             <div className="h-1 w-32 sm:w-48 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                               <div className="h-full bg-primary animate-progress-scan w-1/3 rounded-full" />
@@ -590,7 +598,7 @@ export default function DocuParsePro() {
                       </div>
                       <div className="relative">
                         <Textarea 
-                          placeholder="输入您的问题 (DeepSeek-V3.2 已挂载全文)..."
+                          placeholder="输入您的问题 (DeepSeek-V3.2 已就绪)..."
                           className="min-h-[50px] sm:min-h-[60px] max-h-[200px] resize-none py-4 sm:py-5 px-5 sm:px-6 pr-14 sm:pr-16 rounded-2xl sm:rounded-3xl bg-slate-50 dark:bg-slate-900/50 border-none focus-visible:ring-primary/20 text-[13px] sm:text-[14px] shadow-inner"
                           value={chatInput}
                           onChange={(e) => setChatInput(e.target.value)}
@@ -610,7 +618,7 @@ export default function DocuParsePro() {
                           <Send size={18} className="sm:size-5" />
                         </Button>
                       </div>
-                      <p className="text-[10px] text-center text-muted-foreground font-medium truncate">数据经过硅基流动加密传输，确保工厂信息安全</p>
+                      <p className="text-[10px] text-center text-muted-foreground font-medium truncate">数据经过硅基流动加密传输</p>
                     </div>
                   </footer>
                 </>
