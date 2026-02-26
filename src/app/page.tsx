@@ -25,7 +25,9 @@ import {
   Eye,
   CheckCircle2,
   Table as TableIcon,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Activity,
+  Zap
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -102,6 +104,7 @@ export default function DocuParsePro() {
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState('');
   const [isChatting, setIsChatting] = useState(false);
+  const [isTestingApi, setIsTestingApi] = useState(false);
   
   const [rules, setRules] = useState<Rule[]>(DEFAULT_RULES);
   const [selectedRuleId, setSelectedRuleId] = useState<string>(DEFAULT_RULES[0].id);
@@ -115,6 +118,48 @@ export default function DocuParsePro() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [selectedDoc?.chatHistory, isChatting]);
+
+  const testApiConnectivity = async () => {
+    setIsTestingApi(true);
+    try {
+      // 1. 测试 DeepSeek-V3.2
+      const dsResult = await chatWithDoc({
+        documentContent: "API Test Context",
+        userQuery: "请回复：DeepSeek-V3.2 连接正常。",
+        rules: "None",
+        history: []
+      });
+      
+      toast({
+        title: "DeepSeek-V3.2 通信成功",
+        description: dsResult.answer,
+      });
+
+      // 2. 测试 Qwen3-VL (发送一个微小的占位图)
+      const tinyWhitePixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==";
+      const ocrResult = await performOCR({
+        images: [{ pageIndex: 0, dataUri: tinyWhitePixel }]
+      });
+
+      if (ocrResult.results[0].text.includes('失败')) {
+        throw new Error("Qwen3-VL 响应异常");
+      }
+
+      toast({
+        title: "Qwen3-VL-32B 通信成功",
+        description: "视觉识别引擎响应正常。",
+      });
+
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "API 连接失败",
+        description: error.message || "请检查硅基流动 API 密钥或模型 ID 是否正确。",
+      });
+    } finally {
+      setIsTestingApi(false);
+    }
+  };
 
   const processPDF = async (file: File, fileId: string): Promise<string> => {
     try {
@@ -130,7 +175,6 @@ export default function DocuParsePro() {
         const textContent = await page.getTextContent();
         let pageText = (textContent.items as any[]).map(item => item.str).join(' ').trim();
         
-        // 如果文本内容极少，认为是扫描件，触发 OCR
         if (pageText.length < 50) {
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
@@ -152,7 +196,6 @@ export default function DocuParsePro() {
 
       if (imagesToOCR.length > 0) {
         setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, status: 'ocr_scanning' } : d));
-        // 严格使用 Qwen/Qwen3-VL-32B-Instruct
         const ocrResponse = await performOCR({ images: imagesToOCR });
         
         ocrResponse.results.forEach(res => {
@@ -181,7 +224,6 @@ export default function DocuParsePro() {
       let fullContent = "";
       workbook.SheetNames.forEach(name => {
         const worksheet = workbook.Sheets[name];
-        // 将 Excel 转换为 Markdown 友好的表格格式
         const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
         const mdTable = json.map((row: any) => `| ${row.join(' | ')} |`).join('\n');
         fullContent += `\n### 工作表: ${name} ###\n\n${mdTable}\n`;
@@ -226,7 +268,6 @@ export default function DocuParsePro() {
         const markdownContent = `\n# 文档内容: ${file.name}\n\n${finalContent}\n`;
         setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, content: markdownContent, status: 'completed' } : d));
         
-        // 自动触发首次分析
         autoAnalyze(fileId, markdownContent);
 
       } catch (err: any) {
@@ -239,7 +280,6 @@ export default function DocuParsePro() {
   const autoAnalyze = async (docId: string, content: string) => {
     setIsChatting(true);
     try {
-      // 严格使用 deepseek-ai/DeepSeek-V3.2
       const response = await chatWithDoc({
         documentContent: content,
         userQuery: "请执行全能架构解析：精准识别文档所有章节目录，并提取各章节的核心技术要求、合规标准或物流细节。请以清晰的 Markdown 结构呈现。",
@@ -349,7 +389,6 @@ export default function DocuParsePro() {
 
   return (
     <div className="flex h-screen bg-muted/30 overflow-hidden font-sans">
-      {/* PC 侧边栏 */}
       <aside className={cn(
         "hidden md:flex flex-col border-r transition-all duration-300 bg-white dark:bg-slate-900 shrink-0",
         isSidebarOpen ? "w-64" : "w-0 overflow-hidden"
@@ -358,7 +397,6 @@ export default function DocuParsePro() {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 bg-background relative overflow-hidden">
-        {/* 顶部导航 */}
         <header className="h-16 px-6 border-b flex items-center justify-between bg-white dark:bg-slate-900 sticky top-0 z-20 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <Sheet>
@@ -406,7 +444,6 @@ export default function DocuParsePro() {
 
         {activeTab === 'chat' && (
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-w-0">
-            {/* 中间文档列表列 */}
             <div className={cn(
               "w-full md:w-80 md:min-w-80 md:max-w-80 border-r bg-slate-50/50 dark:bg-slate-900/50 flex flex-col shrink-0 overflow-hidden",
               selectedDocId ? "hidden md:flex" : "flex"
@@ -476,7 +513,6 @@ export default function DocuParsePro() {
               </ScrollArea>
             </div>
 
-            {/* 右侧聊天区 */}
             <div className={cn(
               "flex-1 flex flex-col bg-white dark:bg-slate-950 overflow-hidden relative min-w-0",
               !selectedDocId && "hidden md:flex"
@@ -607,6 +643,15 @@ export default function DocuParsePro() {
                     选中的策略将作为“深度提示词”注入 AI，指导其阅读维度
                   </p>
                 </div>
+                <Button 
+                  onClick={testApiConnectivity} 
+                  disabled={isTestingApi}
+                  variant="outline"
+                  className="rounded-xl border-primary text-primary hover:bg-primary hover:text-white transition-all gap-2 h-11 px-6 shadow-sm"
+                >
+                  {isTestingApi ? <Loader2 size={16} className="animate-spin" /> : <Activity size={16} />}
+                  <span className="font-bold tracking-tight">API 连通性自检</span>
+                </Button>
               </header>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
