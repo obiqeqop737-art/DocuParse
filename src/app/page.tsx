@@ -209,7 +209,6 @@ export default function DocuParsePro() {
     setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status: 'processing' } : d));
     
     try {
-      // 模拟文件读取或实际执行
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
       const file = Array.from(fileInput.files || []).find(f => f.name === doc.name);
       
@@ -237,7 +236,6 @@ export default function DocuParsePro() {
       const fullContent = `\n# 文档内容: ${doc.name}\n\n${finalContent}\n`;
       setDocuments(prev => prev.map(d => d.id === docId ? { ...d, content: fullContent, status: 'completed' } : d));
       
-      // 执行自动分析
       setIsChatting(true);
       const response = await fetch('/api/chat/stream', {
         method: 'POST',
@@ -393,13 +391,11 @@ export default function DocuParsePro() {
 
   return (
     <div className="flex h-screen bg-[#f8fafc] overflow-hidden">
-      {/* 桌面端侧边栏 */}
       <aside className={cn("hidden lg:block transition-all duration-500 shrink-0", isSidebarOpen ? "w-80" : "w-0")}>
         <SidebarContent />
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 relative">
-        {/* 背景光晕 */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-400/10 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2 -z-10" />
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-purple-400/5 blur-[100px] rounded-full translate-y-1/2 -translate-x-1/2 -z-10" />
 
@@ -429,7 +425,6 @@ export default function DocuParsePro() {
 
         {activeTab === 'chat' && (
           <div className="flex-1 flex overflow-hidden">
-            {/* 左侧文档列表 */}
             <div className={cn("w-80 border-r border-white/20 bg-white/20 flex flex-col shrink-0 transition-all", selectedDocId && "hidden lg:flex")}>
               <div className="p-6 shrink-0">
                 <div className="relative">
@@ -438,14 +433,14 @@ export default function DocuParsePro() {
                 </div>
               </div>
               <ScrollArea className="flex-1">
-                <div className="px-4 pb-10 space-y-3">
+                <div className="pb-10 space-y-3 flex flex-col items-center">
                   {documents.length === 0 ? (
                     <div className="py-32 text-center opacity-20"><FileSearch size={48} className="mx-auto mb-4" /><p className="text-xs font-black uppercase">等待解析文档</p></div>
                   ) : (
                     documents.map(d => (
-                      <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-full p-4 rounded-3xl border transition-all text-left flex items-start gap-4 group relative", selectedDocId === d.id ? "bg-white border-blue-200 shadow-2xl shadow-blue-600/10 ring-1 ring-blue-100" : "bg-transparent border-transparent hover:bg-white/50")}>
-                        <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-colors shrink-0", selectedDocId === d.id ? "bg-blue-600 text-white" : "bg-white text-slate-400 shadow-sm")}>
-                          {d.type === 'PDF' ? <FileDown size={20} /> : <FileText size={20} />}
+                      <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-[calc(100%-24px)] mx-auto p-3.5 rounded-2xl border transition-all text-left flex items-start gap-3 group relative overflow-hidden", selectedDocId === d.id ? "bg-white border-blue-600 shadow-xl shadow-blue-600/5" : "bg-transparent border-transparent hover:bg-white/40")}>
+                        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-colors shrink-0", selectedDocId === d.id ? "bg-blue-600 text-white" : "bg-white text-slate-400 shadow-sm")}>
+                          {d.type === 'PDF' ? <FileDown size={18} /> : <FileText size={18} />}
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="font-black text-sm text-slate-800 truncate pr-2">{d.name}</p>
@@ -461,7 +456,6 @@ export default function DocuParsePro() {
               </ScrollArea>
             </div>
 
-            {/* 对话区域 */}
             <div className={cn("flex-1 flex flex-col bg-white/30 relative", !selectedDocId && "hidden lg:flex")}>
               {selectedDoc ? (
                 <>
@@ -532,7 +526,6 @@ export default function DocuParsePro() {
           </div>
         )}
 
-        {/* 策略库页面 */}
         {activeTab === 'rules' && (
           <ScrollArea className="flex-1 p-10 bg-white/20">
             <div className="max-w-6xl mx-auto">
@@ -556,7 +549,6 @@ export default function DocuParsePro() {
           </ScrollArea>
         )}
 
-        {/* 统计后台页面 */}
         {activeTab === 'stats' && (
           <ScrollArea className="flex-1 p-10 bg-white/20">
             <div className="max-w-6xl mx-auto space-y-10">
@@ -650,4 +642,3 @@ export default function DocuParsePro() {
     </div>
   );
 }
-
