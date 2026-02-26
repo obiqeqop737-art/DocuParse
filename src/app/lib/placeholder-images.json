@@ -1,0 +1,16 @@
+{
+  "placeholderImages": [
+    {
+      "id": "hero-dashboard",
+      "description": "Abstract technical blueprint representation",
+      "imageUrl": "https://picsum.photos/seed/docu1/1200/400",
+      "imageHint": "technical blueprint"
+    },
+    {
+      "id": "file-icon-placeholder",
+      "description": "Document analysis visual",
+      "imageUrl": "https://picsum.photos/seed/docu2/200/200",
+      "imageHint": "document paper"
+    }
+  ]
+}
