@@ -44,6 +44,7 @@ const ocrFlow = ai.defineFlow(
 
     for (const item of input.images) {
       try {
+        // 确保 dataUri 格式正确，PaddleOCR 偏好标准的 OpenAI Vision 格式
         const response = await fetch(SILICON_FLOW_API_URL, {
           method: 'POST',
           headers: {
