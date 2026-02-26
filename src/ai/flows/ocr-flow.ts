@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview 硅基流动 (SiliconFlow) 视觉 OCR 流程。
- * 严格使用 Qwen/Qwen3-VL-32B-Instruct 模型进行视觉识别。
+ * 严格使用 Qwen/Qwen3-VL-8B-Instruct 模型进行视觉识别。
  */
 
 import { ai } from '@/ai/genkit';
@@ -36,7 +36,7 @@ const ocrFlow = ai.defineFlow(
   async (input) => {
     const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
     const SILICON_FLOW_API_KEY = 'sk-orcwdodraxjcyrllecfaaukwuuepdysjqeeslnaarzhhjeey';
-    const MODEL_ID = 'Qwen/Qwen3-VL-32B-Instruct'; 
+    const MODEL_ID = 'Qwen/Qwen3-VL-8B-Instruct'; 
 
     const results: { pageIndex: number; text: string }[] = [];
 

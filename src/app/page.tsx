@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -146,7 +145,7 @@ export default function DocuParsePro() {
       }
 
       toast({
-        title: "Qwen3-VL-32B 通信成功",
+        title: "Qwen3-VL-8B 通信成功",
         description: "视觉识别引擎响应正常。",
       });
 
@@ -437,7 +436,7 @@ export default function DocuParsePro() {
           <div className="flex items-center gap-4 shrink-0">
             <div className="hidden sm:flex items-center gap-2.5 px-4 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
               <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" />
-              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">DeepSeek-V3.2 + Qwen3-VL 活跃</span>
+              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">DeepSeek-V3.2 + Qwen3-VL-8B 活跃</span>
             </div>
           </div>
         </header>
@@ -503,7 +502,7 @@ export default function DocuParsePro() {
                         {doc.status === 'ocr_scanning' && (
                           <div className="mt-3 flex items-center gap-2.5 text-[10px] text-blue-500 font-bold bg-blue-50 p-2 rounded-lg border border-blue-100 overflow-hidden">
                             <Eye size={12} className="animate-pulse shrink-0" /> 
-                            <span className="truncate">Qwen3-VL 视觉引擎识别中...</span>
+                            <span className="truncate">Qwen3-VL-8B 视觉引擎识别中...</span>
                           </div>
                         )}
                       </button>
