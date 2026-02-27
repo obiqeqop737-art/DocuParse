@@ -363,7 +363,7 @@ export default function DocuParsePro() {
                 key={d.id} 
                 onClick={() => setSelectedDocId(d.id)} 
                 className={cn(
-                  "w-full h-12 flex items-center gap-3 px-3 rounded-xl transition-all text-left relative group min-w-0 overflow-hidden shrink-0", 
+                  "w-full h-12 flex items-center gap-3 px-4 rounded-xl transition-all text-left relative group min-w-0 overflow-hidden shrink-0", 
                   selectedDocId === d.id 
                     ? "bg-primary/15 text-primary" 
                     : "hover:bg-black/5 dark:hover:bg-white/5"
