@@ -6,7 +6,7 @@ import {
   FileText, Upload, MessageSquare, Send, Loader2, Search, BookOpen, 
   Sparkles, Layers, Menu, ChevronLeft, FileDown,
   AlertCircle, PlayCircle, Trash2, FileSpreadsheet, Presentation, Star, ShoppingBag,
-  Mic, Target, Sun, Moon, BarChart3, Clock, Truck, Music
+  Target, Sun, Moon, BarChart3, Clock, Truck, Music
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -393,14 +393,14 @@ export default function DocuParsePro() {
         {activeTab === 'chat' && (
           <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
             <div className={cn("w-full lg:w-[300px] border-b lg:border-b-0 lg:border-r border-black/5 flex flex-col shrink-0 bg-white/5 p-4", !selectedDocId && "flex-1 lg:flex-none", selectedDocId && "hidden lg:flex")}>
-              <div className="p-4">
+              <div className="p-4 px-6">
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 opacity-20" size={18} />
                   <Input placeholder="检索本地文档..." className="pl-12 h-12 bg-black/5 border-none rounded-xl text-[13px] font-bold" />
                 </div>
               </div>
               <ScrollArea className="flex-1 pb-10">
-                <div className="space-y-3 px-4 py-4">
+                <div className="space-y-3 px-6 py-4">
                   {localDocs.map(d => (
                     <button 
                       key={d.id} 
@@ -408,23 +408,23 @@ export default function DocuParsePro() {
                       className={cn(
                         "w-full h-16 flex items-center gap-3 px-4 rounded-2xl transition-all text-left relative group min-w-0 overflow-hidden", 
                         selectedDocId === d.id 
-                          ? "bg-primary/15 text-primary shadow-sm" 
+                          ? "bg-primary/15 text-primary" 
                           : "hover:bg-black/5 dark:hover:bg-white/5"
                       )}
                     >
+                      {selectedDocId === d.id && (
+                        <div className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-primary rounded-full" />
+                      )}
                       <div className={cn(
                         "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-colors", 
                         selectedDocId === d.id ? "bg-primary text-white" : "bg-primary/10 text-primary"
                       )}>
-                        {['MP3','WAV','M4A','OGG'].includes(d.type) ? <Music size={18} /> : d.type === 'PDF' ? <FileText size={18} /> : <FileText size={18} />}
+                        {['MP3','WAV','M4A','OGG'].includes(d.type) ? <Music size={18} /> : <FileText size={18} />}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-[13px] truncate">{d.name}</p>
+                      <div className="flex-1 min-w-0 pr-2">
+                        <p className="font-bold text-[13px] truncate block w-full">{d.name}</p>
                         <p className="text-[10px] font-black opacity-40 uppercase tracking-widest truncate">{d.status}</p>
                       </div>
-                      {selectedDocId === d.id && (
-                        <div className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-primary rounded-full" />
-                      )}
                     </button>
                   ))}
                   {localDocs.length === 0 && (
