@@ -7,7 +7,7 @@ import {
   Sparkles, ShieldCheck, Truck, Layers, Menu, ChevronLeft, FileDown, Eye, 
   CheckCircle2, FileSearch, Database, Activity, Clock, BarChart3, PieChart as PieChartIcon,
   RefreshCw, AlertCircle, PlayCircle, Trash2, FileSpreadsheet, Presentation, Star, ShoppingBag, User as UserIcon,
-  Mic, MicOff
+  Mic, MicOff, Target
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -120,6 +120,9 @@ export default function DocuParsePro() {
     return [...SYSTEM_STRATEGIES, ...marketplaceStrategies];
   }, [marketplaceStrategies]);
 
+  // 当前挂载的策略对象
+  const currentStrategy = useMemo(() => allStrategies.find(s => s.id === selectedRuleId) || SYSTEM_STRATEGIES[0], [allStrategies, selectedRuleId]);
+
   // 4. 数据获取：用户配置（收藏夹）
   const userProfileRef = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
@@ -170,8 +173,6 @@ export default function DocuParsePro() {
       return;
     }
 
-    const currentStrategy = allStrategies.find(s => s.id === selectedRuleId) || SYSTEM_STRATEGIES[0];
-    
     updateDocumentNonBlocking(doc(db, 'users', user.uid, 'documents', docId), { status: 'processing' });
 
     try {
@@ -255,7 +256,6 @@ export default function DocuParsePro() {
     setIsChatting(true);
 
     try {
-      const currentStrategy = allStrategies.find(s => s.id === selectedRuleId) || SYSTEM_STRATEGIES[0];
       const res = await fetch('/api/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -339,18 +339,36 @@ export default function DocuParsePro() {
         </div>
       </div>
       
-      <nav className="flex-1 px-4 space-y-2 mt-4">
-        <button onClick={() => setActiveTab('chat')} className={cn("w-full flex items-center gap-3.5 px-5 py-4 rounded-2xl transition-all font-black text-[13px] tracking-wide", activeTab === 'chat' ? "bg-blue-600 text-white shadow-xl shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
-          <MessageSquare size={20} /> 智能对话
-        </button>
-        <button onClick={() => setActiveTab('marketplace')} className={cn("w-full flex items-center gap-3.5 px-5 py-4 rounded-2xl transition-all font-black text-[13px] tracking-wide", activeTab === 'marketplace' ? "bg-blue-600 text-white shadow-xl shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
-          <ShoppingBag size={20} /> 策略广场
-        </button>
-        <button onClick={() => setActiveTab('stats')} className={cn("w-full flex items-center gap-3.5 px-5 py-4 rounded-2xl transition-all font-black text-[13px] tracking-wide", activeTab === 'stats' ? "bg-blue-600 text-white shadow-xl shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
-          <BarChart3 size={20} /> 统计看板
-        </button>
+      <nav className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto no-scrollbar">
+        <div className="pb-4 px-5">
+           <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">主菜单</p>
+           <div className="space-y-2">
+              <button onClick={() => setActiveTab('chat')} className={cn("w-full flex items-center gap-3.5 px-5 py-4 rounded-2xl transition-all font-black text-[13px] tracking-wide", activeTab === 'chat' ? "bg-blue-600 text-white shadow-xl shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
+                <MessageSquare size={20} /> 智能对话
+              </button>
+              <button onClick={() => setActiveTab('marketplace')} className={cn("w-full flex items-center gap-3.5 px-5 py-4 rounded-2xl transition-all font-black text-[13px] tracking-wide", activeTab === 'marketplace' ? "bg-blue-600 text-white shadow-xl shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
+                <ShoppingBag size={20} /> 策略广场
+              </button>
+              <button onClick={() => setActiveTab('stats')} className={cn("w-full flex items-center gap-3.5 px-5 py-4 rounded-2xl transition-all font-black text-[13px] tracking-wide", activeTab === 'stats' ? "bg-blue-600 text-white shadow-xl shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
+                <BarChart3 size={20} /> 统计看板
+              </button>
+           </div>
+        </div>
 
-        <div className="pt-10 pb-4 px-5 flex items-center justify-between">
+        <div className="pt-6 pb-4 px-5">
+          <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">当前挂载策略</p>
+          <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-center gap-3 animate-in fade-in slide-in-from-left-2">
+            <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+              <Target size={20} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[12px] font-black text-slate-800 truncate">{currentStrategy.name}</p>
+              <p className="text-[10px] font-black text-blue-600/60 uppercase">解析引擎已就绪</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-6 pb-4 px-5 flex items-center justify-between">
           <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">数据安全</p>
           <Badge variant="outline" className="text-[10px] font-black bg-green-50 text-green-600 border-none px-2 h-6 flex items-center gap-1.5">
             <ShieldCheck size={12} /> {user?.uid ? '已隔离' : '加载中'}
