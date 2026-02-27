@@ -63,8 +63,8 @@ const SYSTEM_STRATEGIES = [
   {
     id: 'speech-expert',
     name: '语音文件转译专家',
-    description: '根据 ASR 内容输出精准校准的原文本，并引导提问。',
-    content: '你是一个语音文件转译专家。请根据输入的 ASR (语音转文字) 内容，首先输出校准后的完整原文本，确保修正口语化冗余、语气词及同音错别字，使语意逻辑严密、标点准确。随后，请在回复的末尾增加一句引导语：“以上是为您校准后的文本，您可以针对内容细节向我提问。”',
+    description: '输出精准校准的原文本，并引导提问。',
+    content: '你是一个语音文件转译专家。请根据输入的 ASR 内容，首先输出校准后的完整原文本，确保修正口语化冗余、语气词及同音错别字，使语意逻辑严密、标点准确。随后，请在回复的末尾增加一句引导语：“以上是为您校准后的文本，您可以针对内容细节向我提问。”',
     authorName: '系统预设',
     starCount: 888
   },
@@ -325,7 +325,7 @@ export default function DocuParsePro() {
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-white/70 dark:bg-slate-950/70 backdrop-blur-2xl rounded-r-[2.5rem] overflow-hidden p-2 border-r border-white/20">
+    <div className="flex flex-col h-full bg-white/70 dark:bg-slate-950/70 backdrop-blur-2xl rounded-r-[2.5rem] overflow-hidden p-2 border-r border-white/20 shadow-2xl">
       <div className="p-8 pb-4 flex items-center gap-4">
         <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-primary/30">
           <BookOpen size={24} />
@@ -522,31 +522,31 @@ export default function DocuParsePro() {
             <div className="max-w-[1400px] mx-auto p-12 lg:p-24 pb-40">
               <div className="mb-20 text-center">
                 <p className="opacity-30 font-black uppercase tracking-[0.6em] text-xs">Global Extraction Strategy</p>
+                <h3 className="text-4xl font-black mt-4 tracking-tighter">策略解析规则广场</h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-16 p-12">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 p-12">
                 {allStrategies.map(s => (
-                  <Card key={s.id} className={cn("rounded-[4rem] border-none shadow-2xl bg-white dark:bg-slate-900 transition-all hover:-translate-y-4 flex flex-col h-full overflow-hidden p-2 shadow-black/5", selectedRuleId === s.id && "ring-[10px] ring-primary shadow-primary/30")}>
-                    <CardHeader className="p-10 pb-6 relative">
-                      <div className="flex justify-between items-start mb-8">
-                        <div className={cn("w-16 h-16 rounded-[1.5rem] flex items-center justify-center text-white shadow-lg", s.id.includes('universal') ? "bg-blue-600" : s.id.includes('speech') ? "bg-amber-500" : s.id.includes('factory') ? "bg-slate-800" : "bg-indigo-600")}>
-                          {s.id.includes('speech') ? <Mic size={28} /> : <Sparkles size={28} />}
+                  <Card key={s.id} className={cn("rounded-[3rem] border-none shadow-2xl bg-white dark:bg-slate-900 transition-all hover:-translate-y-2 flex flex-col h-full overflow-hidden p-1 shadow-black/5", selectedRuleId === s.id && "ring-[10px] ring-primary shadow-primary/30")}>
+                    <CardHeader className="p-8 pb-4 relative">
+                      <div className="flex justify-between items-start mb-6">
+                        <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg", s.id.includes('universal') ? "bg-blue-600" : s.id.includes('speech') ? "bg-amber-500" : s.id.includes('factory') ? "bg-slate-800" : "bg-indigo-600")}>
+                          {s.id.includes('speech') ? <Mic size={24} /> : <Sparkles size={24} />}
                         </div>
-                        <Button variant="ghost" size="icon" className="opacity-20 hover:opacity-100"><Star size={24} /></Button>
+                        <div className="flex items-center gap-1 opacity-20 text-[11px] font-black"><Star size={12} fill="currentColor" /> {s.starCount}</div>
                       </div>
-                      <CardTitle className="text-xl font-black mb-3 text-slate-900 dark:text-white leading-tight">{s.name}</CardTitle>
-                      <CardDescription className="text-xs font-bold opacity-40 dark:opacity-60 leading-relaxed uppercase tracking-tight">{s.description}</CardDescription>
+                      <CardTitle className="text-xl font-black mb-1 text-slate-900 dark:text-white leading-tight">{s.name}</CardTitle>
+                      <CardDescription className="text-xs font-bold opacity-40 dark:opacity-60 leading-relaxed uppercase tracking-tight line-clamp-1">{s.description}</CardDescription>
                     </CardHeader>
-                    <CardContent className="px-10 pb-6 flex-1">
-                       <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem] text-[12px] font-bold opacity-60 dark:opacity-80 h-40 overflow-hidden italic border border-black/5">
+                    <CardContent className="px-8 pb-4 flex-1">
+                       <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl text-[11px] font-bold opacity-60 dark:opacity-80 h-28 overflow-hidden italic border border-black/5">
                          {s.content}
                        </div>
                     </CardContent>
-                    <CardFooter className="p-10 pt-0 flex flex-col gap-6">
-                      <div className="flex justify-between items-center w-full px-2">
+                    <CardFooter className="p-8 pt-0 flex flex-col gap-4">
+                      <div className="flex justify-between items-center w-full px-1">
                         <span className="text-[10px] font-black opacity-30 uppercase tracking-widest">{s.authorName}</span>
-                        <div className="flex items-center gap-1 opacity-20 text-[10px] font-black"><Star size={10} fill="currentColor" /> {s.starCount}</div>
                       </div>
-                      <Button onClick={() => setSelectedRuleId(s.id)} className={cn("w-full h-16 rounded-[1.5rem] font-black text-sm uppercase tracking-widest transition-all", selectedRuleId === s.id ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200")}>
+                      <Button onClick={() => setSelectedRuleId(s.id)} className={cn("w-full h-14 rounded-2xl font-black text-sm uppercase tracking-widest transition-all", selectedRuleId === s.id ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200")}>
                         {selectedRuleId === s.id ? '当前挂载' : '载入引擎'}
                       </Button>
                     </CardFooter>
