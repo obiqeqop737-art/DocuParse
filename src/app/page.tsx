@@ -409,7 +409,7 @@ export default function DocuParsePro() {
 
         {activeTab === 'chat' && (
           <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-            <div className={cn("w-full lg:w-[300px] border-b lg:border-b-0 lg:border-r border-black/5 flex flex-col shrink-0 bg-white/5 p-2", !selectedDocId && "flex-1 lg:flex-none", selectedDocId && "hidden lg:flex")}>
+            <div className={cn("w-full lg:w-[300px] border-b lg:border-b-0 lg:border-r border-black/5 flex flex-col shrink-0 bg-white/5 p-4", !selectedDocId && "flex-1 lg:flex-none", selectedDocId && "hidden lg:flex")}>
               <div className="p-4">
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 opacity-20" size={18} />
@@ -417,14 +417,14 @@ export default function DocuParsePro() {
                 </div>
               </div>
               <ScrollArea className="flex-1 pb-10">
-                <div className="space-y-3 p-2">
+                <div className="space-y-4 px-2 py-4">
                   {localDocs.map(d => (
-                    <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-full p-6 rounded-[1.8rem] border transition-all text-left flex items-start gap-4", selectedDocId === d.id ? "bg-primary text-white shadow-xl shadow-primary/20 border-primary" : "bg-black/5 dark:bg-white/5 border-transparent hover:bg-black/10")}>
+                    <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-full p-6 rounded-[1.8rem] border transition-all text-left flex items-start gap-4 overflow-hidden", selectedDocId === d.id ? "bg-primary text-white shadow-xl shadow-primary/20 border-primary" : "bg-black/5 dark:bg-white/5 border-transparent hover:bg-black/10")}>
                       <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm", selectedDocId === d.id ? "bg-white/20" : "bg-primary/10 text-primary")}>
                         {d.type === 'PDF' ? <FileText size={18} /> : d.type.includes('XL') ? <FileSpreadsheet size={18} /> : <FileText size={18} />}
                       </div>
-                      <div className="min-w-0">
-                        <p className="font-bold text-[13px] truncate">{d.name}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-[13px] truncate block w-full">{d.name}</p>
                         <p className="text-[11px] opacity-40 mt-1 font-bold uppercase tracking-widest">{d.status}</p>
                       </div>
                     </button>
