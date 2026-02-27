@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -78,7 +79,7 @@ const SYSTEM_STRATEGIES = [
     id: 'speech-expert',
     name: '语音文件转译专家',
     description: '使用 TeleAI/TeleSpeechASR 模型，专注于语音内容的精准提取。',
-    content: '你是一个语音文件转译专家。请对语音转写文本进行精准校对、提炼要点并翻译为规范的格式。',
+    content: '你是一个语音文件转译专家。请根据输入的 ASR (语音转文字) 内容，首先输出校准后的完整原文本，确保修正冗余词汇、语气词及错别字，使语意连贯且标点准确。随后，请在回复的末尾增加一句引导语，例如：“以上是为您校准后的文本，您可以针对内容细节向我提问。”',
     authorName: '系统预设',
     starCount: 666
   }
@@ -200,7 +201,7 @@ export default function DocuParsePro() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           documentContent: fullContent, 
-          userQuery: `请执行[${currentStrategy.name}]：分析并输出概览与脉络。`, 
+          userQuery: `请执行[${currentStrategy.name}]：分析并输出。`, 
           rules: currentStrategy.content, 
           history: [] 
         })
@@ -322,21 +323,21 @@ export default function DocuParsePro() {
       <nav className="flex-1 px-4 mt-8 space-y-6 overflow-y-auto no-scrollbar">
         <div>
           <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.3em] mb-4 pl-4">功能主菜单</p>
-          <div className="space-y-2 p-1"> {/* 增加 p-1 防止阴影被遮挡 */}
-            <button onClick={() => setActiveTab('chat')} className={cn("w-full h-14 flex items-center gap-4 px-6 rounded-2xl transition-all font-bold text-sm", activeTab === 'chat' ? "bg-primary text-white shadow-lg" : "opacity-60 hover:bg-black/5 hover:opacity-100")}>
+          <div className="space-y-2 p-2"> {/* 增加 p-2 确保选中态 ring 不被遮挡 */}
+            <button onClick={() => setActiveTab('chat')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-2xl transition-all font-bold text-sm", activeTab === 'chat' ? "bg-primary text-white shadow-lg ring-4 ring-primary/20" : "opacity-60 hover:bg-black/5 hover:opacity-100")}>
               <MessageSquare size={18} /> 智能对话工作站
             </button>
-            <button onClick={() => setActiveTab('marketplace')} className={cn("w-full h-14 flex items-center gap-4 px-6 rounded-2xl transition-all font-bold text-sm", activeTab === 'marketplace' ? "bg-primary text-white shadow-lg" : "opacity-60 hover:bg-black/5 hover:opacity-100")}>
+            <button onClick={() => setActiveTab('marketplace')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-2xl transition-all font-bold text-sm", activeTab === 'marketplace' ? "bg-primary text-white shadow-lg ring-4 ring-primary/20" : "opacity-60 hover:bg-black/5 hover:opacity-100")}>
               <ShoppingBag size={18} /> 全局策略广场
             </button>
-            <button onClick={() => setActiveTab('stats')} className={cn("w-full h-14 flex items-center gap-4 px-6 rounded-2xl transition-all font-bold text-sm", activeTab === 'stats' ? "bg-primary text-white shadow-lg" : "opacity-60 hover:bg-black/5 hover:opacity-100")}>
+            <button onClick={() => setActiveTab('stats')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-2xl transition-all font-bold text-sm", activeTab === 'stats' ? "bg-primary text-white shadow-lg ring-4 ring-primary/20" : "opacity-60 hover:bg-black/5 hover:opacity-100")}>
               <BarChart3 size={18} /> 引擎数据看板
             </button>
           </div>
         </div>
 
         <div>
-          <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.3em] mb-4 pl-4">当前挂载引擎</p>
+          <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">当前挂载引擎</p>
           <div className="p-4 bg-primary/10 rounded-2xl border border-primary/20 flex items-center gap-3">
             <div className="w-10 h-10 bg-primary text-white rounded-xl flex items-center justify-center shrink-0 shadow-md">
               <Target size={20} />
@@ -357,7 +358,7 @@ export default function DocuParsePro() {
            </div>
            <Switch checked={theme === 'dark'} onCheckedChange={(v) => setTheme(v ? 'dark' : 'light')} />
         </div>
-        <label className="w-full h-14 flex items-center justify-center gap-2 bg-primary text-white rounded-2xl transition-all shadow-xl cursor-pointer hover:bg-primary/90 font-black text-sm uppercase">
+        <label className="w-full h-16 flex items-center justify-center gap-2 bg-primary text-white rounded-2xl transition-all shadow-xl cursor-pointer hover:bg-primary/90 font-black text-sm uppercase">
           <Upload size={20} /> 上传技术文件
           <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.pdf,.docx,.doc,.xlsx,.xls,.csv" />
         </label>
@@ -398,10 +399,16 @@ export default function DocuParsePro() {
                 </div>
               </div>
               <ScrollArea className="flex-1 px-4 pb-10">
-                <div className="space-y-3 p-1"> {/* 增加 p-1 防止阴影被遮挡 */}
+                <div className="space-y-3 p-1">
                   {documents.map(d => (
                     <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-full p-4 rounded-2xl border transition-all text-left flex items-start gap-4", selectedDocId === d.id ? "bg-primary text-white shadow-xl border-primary" : "bg-black/5 border-transparent hover:bg-black/10")}>
-                      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", selectedDocId === d.id ? "bg-white/20" : "bg-black/5 text-primary")}><FileText size={18} /></div>
+                      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", selectedDocId === d.id ? "bg-white/20" : "bg-black/5 text-primary")}>
+                        {d.type === 'PDF' && <FileText size={18} />}
+                        {(d.type === 'DOCX' || d.type === 'DOC') && <FileText size={18} className="text-blue-500" />}
+                        {(d.type === 'XLSX' || d.type === 'XLS' || d.type === 'CSV') && <FileSpreadsheet size={18} className="text-emerald-500" />}
+                        {d.type === 'PPTX' && <Presentation size={18} className="text-orange-500" />}
+                        {!['PDF', 'DOCX', 'DOC', 'XLSX', 'XLS', 'CSV', 'PPTX'].includes(d.type) && <FileText size={18} />}
+                      </div>
                       <div className="min-w-0">
                         <p className="font-bold text-[13px] truncate">{d.name}</p>
                         <p className="text-[11px] opacity-40 mt-1 font-bold">{new Date(d.createdAt).toLocaleDateString()}</p>
@@ -474,18 +481,18 @@ export default function DocuParsePro() {
 
         {activeTab === 'marketplace' && (
           <ScrollArea className="flex-1 px-8 lg:px-16 py-12 bg-white/10">
-            <div className="max-w-[1400px] mx-auto p-6"> {/* 增加 p-6 确保环绕的高亮边框有展示空间 */}
+            <div className="max-w-[1400px] mx-auto p-6"> {/* 增加 p-6 确保 ring-8 发光阴影有足够显示空间 */}
               <div className="mb-16">
                 <h3 className="text-4xl font-black tracking-tight mb-2 uppercase">规则广场</h3>
                 <p className="opacity-40 font-bold uppercase tracking-[0.4em] text-xs">Global Strategy Collection</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-10">
                 {allStrategies.map(s => (
-                  <Card key={s.id} className={cn("rounded-[2.5rem] border-none shadow-xl bg-white transition-all hover:-translate-y-2 flex flex-col h-full overflow-hidden", selectedRuleId === s.id && "ring-[6px] ring-primary shadow-2xl shadow-primary/20")}>
+                  <Card key={s.id} className={cn("rounded-[2.5rem] border-none shadow-xl bg-white transition-all hover:-translate-y-2 flex flex-col h-full overflow-hidden", selectedRuleId === s.id && "ring-8 ring-primary shadow-2xl shadow-primary/30")}>
                     <CardHeader className="p-6">
                       <div className="flex justify-between items-start mb-6">
-                        <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg", s.id.includes('universal') ? "bg-blue-600" : "bg-slate-800")}>
-                          <Sparkles size={24} />
+                        <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg", s.id.includes('universal') ? "bg-blue-600" : s.id.includes('speech') ? "bg-red-500" : "bg-slate-800")}>
+                          {s.id.includes('speech') ? <Mic size={24} /> : <Sparkles size={24} />}
                         </div>
                         <Button variant="ghost" size="icon" className="opacity-20 hover:opacity-100 hover:text-amber-500"><Star size={20} /></Button>
                       </div>
