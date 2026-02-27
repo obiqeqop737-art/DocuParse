@@ -115,7 +115,7 @@ export default function DocuParsePro() {
     }
   }, [user, auth, isUserLoading]);
 
-  // 云端策略广场 - 增加 user 依赖，防止权限错误
+  // 云端策略广场
   const marketQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(collection(db, 'extractionStrategies'), where('isPublic', '==', true));
@@ -155,7 +155,7 @@ export default function DocuParsePro() {
       uploadedFilesRef.current.set(docId, file);
       setLocalDocs(prev => [newDoc, ...prev]);
       setSelectedDocId(docId);
-      setActiveTab('chat'); // 立即切换到聊天终端
+      setActiveTab('chat'); 
       
       toast({
         title: "文件接收成功",
@@ -329,9 +329,9 @@ export default function DocuParsePro() {
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full tech-glass rounded-r-[2.5rem] overflow-hidden p-2">
+    <div className="flex flex-col h-full bg-white/70 dark:bg-slate-950/70 backdrop-blur-2xl rounded-r-[2.5rem] overflow-hidden p-2 border-r border-white/20">
       <div className="p-8 pb-4 flex items-center gap-4">
-        <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg">
+        <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-primary/30">
           <BookOpen size={24} />
         </div>
         <div>
@@ -342,12 +342,12 @@ export default function DocuParsePro() {
       
       <nav className="flex-1 px-4 mt-8 space-y-8 overflow-y-auto no-scrollbar">
         <div>
-          <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">功能主菜单</p>
+          <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">主功能菜单</p>
           <div className="space-y-2">
-            <button onClick={() => setActiveTab('chat')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-2xl transition-all font-bold text-[13px] border border-transparent", activeTab === 'chat' ? "bg-primary text-white shadow-xl ring-8 ring-primary/20" : "opacity-60 hover:bg-black/5 hover:opacity-100")}>
+            <button onClick={() => setActiveTab('chat')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-[1.8rem] transition-all font-bold text-[13px] border border-transparent", activeTab === 'chat' ? "bg-primary text-white shadow-xl shadow-primary/20" : "opacity-60 hover:bg-black/5 dark:hover:bg-white/5 hover:opacity-100")}>
               <MessageSquare size={18} /> 智能对话终端
             </button>
-            <button onClick={() => setActiveTab('marketplace')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-2xl transition-all font-bold text-[13px] border border-transparent", activeTab === 'marketplace' ? "bg-primary text-white shadow-xl ring-8 ring-primary/20" : "opacity-60 hover:bg-black/5 hover:opacity-100")}>
+            <button onClick={() => setActiveTab('marketplace')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-[1.8rem] transition-all font-bold text-[13px] border border-transparent", activeTab === 'marketplace' ? "bg-primary text-white shadow-xl shadow-primary/20" : "opacity-60 hover:bg-black/5 dark:hover:bg-white/5 hover:opacity-100")}>
               <ShoppingBag size={18} /> 规则策略广场
             </button>
           </div>
@@ -356,7 +356,7 @@ export default function DocuParsePro() {
         <div>
           <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">当前挂载引擎</p>
           <div className="p-4 mx-2 bg-primary/10 rounded-2xl border border-primary/20 flex items-center gap-3 shadow-inner">
-            <div className="w-10 h-10 bg-primary text-white rounded-xl flex items-center justify-center shrink-0 shadow-md animate-pulse">
+            <div className="w-10 h-10 bg-primary text-white rounded-xl flex items-center justify-center shrink-0 shadow-md">
               <Target size={20} />
             </div>
             <div className="min-w-0">
@@ -368,15 +368,15 @@ export default function DocuParsePro() {
       </nav>
 
       <div className="p-6 pb-10 space-y-4">
-        <div className="flex items-center justify-between px-4 py-3 bg-black/5 rounded-2xl border border-black/5">
+        <div className="flex items-center justify-between px-6 py-4 bg-black/5 dark:bg-white/5 rounded-[1.8rem] border border-black/5">
            <div className="flex items-center gap-2">
               {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
               <span className="text-[11px] font-black uppercase tracking-widest">{theme === 'dark' ? 'Dark' : 'Light'}</span>
            </div>
            <Switch checked={theme === 'dark'} onCheckedChange={(v) => setTheme(v ? 'dark' : 'light')} />
         </div>
-        <label className="w-full h-16 flex items-center justify-center gap-2 bg-primary text-white rounded-2xl transition-all shadow-xl cursor-pointer hover:bg-primary/90 font-black text-sm uppercase tracking-widest">
-          <Upload size={20} /> 上传解析文件
+        <label className="w-full h-16 flex items-center justify-center gap-2 bg-primary text-white rounded-[1.8rem] transition-all shadow-xl shadow-primary/20 cursor-pointer hover:bg-primary/90 font-black text-sm uppercase tracking-widest">
+          <Upload size={20} /> 上传文件
           <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.pdf,.docx,.doc,.xlsx,.xls,.csv" />
         </label>
       </div>
@@ -416,13 +416,13 @@ export default function DocuParsePro() {
               <div className="p-4">
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 opacity-20" size={18} />
-                  <Input placeholder="检索本地文档..." className="pl-12 h-12 bg-black/5 border-none rounded-xl text-[13px] font-bold focus:ring-2 focus:ring-primary/20" />
+                  <Input placeholder="检索本地文档..." className="pl-12 h-12 bg-black/5 border-none rounded-xl text-[13px] font-bold" />
                 </div>
               </div>
               <ScrollArea className="flex-1 pb-10">
                 <div className="space-y-3 p-2">
                   {localDocs.map(d => (
-                    <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-full p-4 rounded-2xl border transition-all text-left flex items-start gap-4", selectedDocId === d.id ? "bg-primary text-white shadow-xl border-primary ring-8 ring-primary/20" : "bg-black/5 border-transparent hover:bg-black/10")}>
+                    <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-full p-6 rounded-[1.8rem] border transition-all text-left flex items-start gap-4", selectedDocId === d.id ? "bg-primary text-white shadow-xl shadow-primary/20 border-primary" : "bg-black/5 dark:bg-white/5 border-transparent hover:bg-black/10")}>
                       <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm", selectedDocId === d.id ? "bg-white/20" : "bg-primary/10 text-primary")}>
                         {d.type === 'PDF' ? <FileText size={18} /> : d.type.includes('XL') ? <FileSpreadsheet size={18} /> : <FileText size={18} />}
                       </div>
@@ -442,7 +442,7 @@ export default function DocuParsePro() {
               </ScrollArea>
             </div>
 
-            <div className={cn("flex-1 flex flex-col relative bg-white/20", !selectedDocId && "hidden lg:flex")}>
+            <div className={cn("flex-1 flex flex-col relative bg-white/10", !selectedDocId && "hidden lg:flex")}>
               {selectedDocId && !selectedDoc ? (
                 <div className="flex-1 flex flex-col items-center justify-center animate-pulse">
                   <Loader2 className="animate-spin text-primary mb-4" size={40} />
@@ -456,7 +456,7 @@ export default function DocuParsePro() {
                   </div>
                   {selectedDoc.status === 'pending_confirm' || selectedDoc.status === 'processing' ? (
                     <div className="flex-1 flex items-center justify-start p-10 lg:p-20">
-                      <Card className="max-w-md w-full rounded-[3rem] shadow-2xl p-10 text-center border-none bg-white/90 dark:bg-slate-900/90">
+                      <Card className="max-w-md w-full rounded-[3.5rem] shadow-2xl p-10 text-center border-none bg-white dark:bg-slate-900 shadow-primary/5">
                         <div className="w-20 h-20 bg-primary/10 text-primary rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
                           {selectedDoc.status === 'processing' ? <Loader2 className="animate-spin" size={40} /> : <AlertCircle size={40} />}
                         </div>
@@ -465,7 +465,7 @@ export default function DocuParsePro() {
                           {selectedDoc.status === 'processing' ? '正在提取文档核心语义' : `准备分析: ${selectedDoc.name}`}
                         </CardDescription>
                         {selectedDoc.status === 'pending_confirm' && (
-                          <Button onClick={() => startAnalysis(selectedDoc.id)} disabled={isExtracting} className="w-full h-16 rounded-2xl bg-primary text-lg font-black shadow-lg hover:shadow-primary/30 transition-all">
+                          <Button onClick={() => startAnalysis(selectedDoc.id)} disabled={isExtracting} className="w-full h-16 rounded-[1.8rem] bg-primary text-lg font-black shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all">
                             {isExtracting ? <Loader2 className="animate-spin mr-2" /> : <PlayCircle size={24} className="mr-2" />}
                             开启深度解析
                           </Button>
@@ -498,15 +498,15 @@ export default function DocuParsePro() {
                         <div className="max-w-3xl relative mx-auto lg:mx-0">
                           <textarea 
                             placeholder={isRecording ? "正在倾听您的指令..." : "追问文档细节..."} 
-                            className={cn("w-full min-h-[90px] bg-white dark:bg-slate-800 border-black/10 rounded-[2rem] p-6 pr-36 text-sm lg:text-[15px] font-bold focus:ring-4 focus:ring-primary/10 shadow-xl resize-none transition-all", isRecording && "ring-4 ring-red-500/20 bg-red-50/50")} 
+                            className={cn("w-full min-h-[90px] bg-white dark:bg-slate-800 border border-black/10 rounded-[2rem] p-6 pr-36 text-sm lg:text-[15px] font-bold focus:ring-4 focus:ring-primary/10 shadow-xl resize-none transition-all", isRecording && "ring-4 ring-red-500/20 bg-red-50/50")} 
                             value={chatInput} 
                             onChange={(e) => setChatInput(e.target.value)} 
                           />
                           <div className="absolute right-4 bottom-4 flex gap-3">
-                             <Button onClick={isRecording ? () => mediaRecorderRef.current?.stop() : startRecording} disabled={isTranscribing} variant="ghost" className={cn("w-14 h-14 rounded-2xl shadow-md transition-all", isRecording ? "bg-red-500 text-white animate-pulse" : "bg-black/5 hover:bg-black/10")}>
+                             <Button onClick={isRecording ? () => mediaRecorderRef.current?.stop() : startRecording} disabled={isTranscribing} variant="ghost" className={cn("w-14 h-14 rounded-2xl shadow-md transition-all", isRecording ? "bg-red-500 text-white animate-pulse" : "bg-black/5 dark:bg-white/5 hover:bg-black/10")}>
                                {isTranscribing ? <Loader2 className="animate-spin" /> : isRecording ? <MicOff size={22} /> : <Mic size={22} />}
                              </Button>
-                             <Button onClick={handleSendMessage} disabled={!chatInput.trim() || isChatting} className="w-14 h-14 rounded-2xl bg-primary shadow-xl hover:shadow-primary/40 transition-all"><Send size={22} /></Button>
+                             <Button onClick={handleSendMessage} disabled={!chatInput.trim() || isChatting} className="w-14 h-14 rounded-2xl bg-primary shadow-xl shadow-primary/20 hover:shadow-primary/40 transition-all"><Send size={22} /></Button>
                           </div>
                         </div>
                       </footer>
@@ -515,7 +515,7 @@ export default function DocuParsePro() {
                 </>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center opacity-10">
-                  <MessageSquare size={120} className="animate-float" />
+                  <MessageSquare size={120} />
                   <h3 className="text-3xl font-black mt-8 uppercase tracking-[1em]">终端已就绪</h3>
                 </div>
               )}
@@ -524,36 +524,35 @@ export default function DocuParsePro() {
         )}
 
         {activeTab === 'marketplace' && (
-          <ScrollArea className="flex-1 p-4 lg:p-12 bg-white/5">
-            <div className="max-w-[1400px] mx-auto p-4 lg:p-12">
-              <div className="mb-16 text-center">
-                <h3 className="text-4xl font-black tracking-tighter mb-2 uppercase">解析规则广场</h3>
-                <p className="opacity-40 font-bold uppercase tracking-[0.4em] text-xs">Global Extraction Strategy</p>
+          <ScrollArea className="flex-1 bg-slate-50 dark:bg-slate-950 overflow-hidden">
+            <div className="max-w-6xl mx-auto p-12 lg:p-24 pb-40">
+              <div className="mb-20 text-center">
+                <p className="opacity-30 font-black uppercase tracking-[0.6em] text-xs">Global Extraction Strategy</p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-10 p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-12 p-8">
                 {allStrategies.map(s => (
-                  <Card key={s.id} className={cn("rounded-[2.8rem] border-none shadow-xl bg-white dark:bg-slate-900/90 transition-all hover:-translate-y-3 flex flex-col h-full overflow-hidden p-1", selectedRuleId === s.id && "ring-8 ring-primary shadow-2xl shadow-primary/30")}>
-                    <CardHeader className="p-8">
-                      <div className="flex justify-between items-start mb-6">
-                        <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg", s.id.includes('universal') ? "bg-blue-600" : s.id.includes('speech') ? "bg-amber-500" : "bg-slate-800")}>
-                          {s.id.includes('speech') ? <Mic size={24} /> : <Sparkles size={24} />}
+                  <Card key={s.id} className={cn("rounded-[4rem] border-none shadow-2xl bg-white dark:bg-slate-900 transition-all hover:-translate-y-4 flex flex-col h-full overflow-hidden p-2 shadow-black/5", selectedRuleId === s.id && "ring-[10px] ring-primary shadow-primary/30")}>
+                    <CardHeader className="p-10 pb-6 relative">
+                      <div className="flex justify-between items-start mb-8">
+                        <div className={cn("w-16 h-16 rounded-[1.5rem] flex items-center justify-center text-white shadow-lg", s.id.includes('universal') ? "bg-blue-600" : s.id.includes('speech') ? "bg-amber-500" : s.id.includes('factory') ? "bg-slate-800" : "bg-indigo-600")}>
+                          {s.id.includes('speech') ? <Mic size={28} /> : <Sparkles size={28} />}
                         </div>
-                        <Button variant="ghost" size="icon" className="opacity-20 hover:opacity-100"><Star size={20} /></Button>
+                        <Button variant="ghost" size="icon" className="opacity-20 hover:opacity-100"><Star size={24} /></Button>
                       </div>
-                      <CardTitle className="text-base font-black mb-2">{s.name}</CardTitle>
-                      <CardDescription className="text-[11px] font-bold opacity-60 dark:opacity-60 leading-snug h-8 line-clamp-2 uppercase tracking-tight">{s.description}</CardDescription>
+                      <CardTitle className="text-lg font-black mb-3 text-slate-900 dark:text-white leading-tight">{s.name}</CardTitle>
+                      <CardDescription className="text-xs font-bold opacity-40 dark:opacity-60 leading-relaxed uppercase tracking-tight">{s.description}</CardDescription>
                     </CardHeader>
-                    <CardContent className="px-8 pb-4 flex-1">
-                       <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl text-[10px] font-bold opacity-60 dark:opacity-70 line-clamp-5 h-28 italic border border-black/5">
+                    <CardContent className="px-10 pb-6 flex-1">
+                       <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem] text-[11px] font-bold opacity-60 dark:opacity-80 line-clamp-6 italic border border-black/5">
                          {s.content}
                        </div>
                     </CardContent>
-                    <CardFooter className="p-8 pt-0 flex flex-col gap-4">
-                      <div className="flex justify-between items-center w-full px-1">
+                    <CardFooter className="p-10 pt-0 flex flex-col gap-6">
+                      <div className="flex justify-between items-center w-full px-2">
                         <span className="text-[10px] font-black opacity-30 uppercase tracking-widest">{s.authorName}</span>
                         <div className="flex items-center gap-1 opacity-20 text-[10px] font-black"><Star size={10} fill="currentColor" /> {s.starCount}</div>
                       </div>
-                      <Button onClick={() => setSelectedRuleId(s.id)} className={cn("w-full h-12 rounded-xl font-black text-xs uppercase tracking-widest transition-all", selectedRuleId === s.id ? "bg-primary text-white shadow-md" : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200")}>
+                      <Button onClick={() => setSelectedRuleId(s.id)} className={cn("w-full h-16 rounded-[1.5rem] font-black text-sm uppercase tracking-widest transition-all", selectedRuleId === s.id ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200")}>
                         {selectedRuleId === s.id ? '当前挂载' : '载入引擎'}
                       </Button>
                     </CardFooter>
@@ -573,8 +572,6 @@ export default function DocuParsePro() {
         .prose td { @apply p-4 border-t border-slate-100 text-[13px] font-bold opacity-70; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .tech-glass { @apply backdrop-blur-xl border border-white/20 transition-all duration-300; background: rgba(255, 255, 255, 0.7); }
-        .dark .tech-glass { background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); }
       `}</style>
     </div>
   );
