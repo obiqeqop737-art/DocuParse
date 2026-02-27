@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -323,7 +323,7 @@ export default function DocuParsePro() {
       <nav className="flex-1 px-4 mt-8 space-y-6 overflow-y-auto no-scrollbar">
         <div>
           <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.3em] mb-4 pl-4">功能主菜单</p>
-          <div className="space-y-2 p-2"> {/* 增加 p-2 确保选中态 ring 不被遮挡 */}
+          <div className="space-y-2 p-1">
             <button onClick={() => setActiveTab('chat')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-2xl transition-all font-bold text-sm", activeTab === 'chat' ? "bg-primary text-white shadow-lg ring-4 ring-primary/20" : "opacity-60 hover:bg-black/5 hover:opacity-100")}>
               <MessageSquare size={18} /> 智能对话工作站
             </button>
@@ -338,7 +338,7 @@ export default function DocuParsePro() {
 
         <div>
           <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">当前挂载引擎</p>
-          <div className="p-4 bg-primary/10 rounded-2xl border border-primary/20 flex items-center gap-3">
+          <div className="p-4 mx-2 bg-primary/10 rounded-2xl border border-primary/20 flex items-center gap-3">
             <div className="w-10 h-10 bg-primary text-white rounded-xl flex items-center justify-center shrink-0 shadow-md">
               <Target size={20} />
             </div>
@@ -373,12 +373,18 @@ export default function DocuParsePro() {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 relative">
-        <header className="h-20 px-8 flex items-center justify-between border-b border-black/5 sticky top-0 shrink-0 bg-white/5 backdrop-blur-md">
+        <header className="h-20 px-8 flex items-center justify-between border-b border-black/5 sticky top-0 shrink-0 bg-white/5 backdrop-blur-md z-30">
           <div className="flex items-center gap-4">
             <div className="lg:hidden">
               <Sheet>
                 <SheetTrigger asChild><Button variant="ghost" size="icon"><Menu size={24} /></Button></SheetTrigger>
-                <SheetContent side="left" className="p-0 w-[300px] border-none bg-transparent"><SidebarContent /></SheetContent>
+                <SheetContent side="left" className="p-0 w-[300px] border-none bg-transparent">
+                  <div className="sr-only">
+                    <SheetTitle>导航菜单</SheetTitle>
+                    <SheetDescription>通过此侧边栏管理您的文档和策略</SheetDescription>
+                  </div>
+                  <SidebarContent />
+                </SheetContent>
               </Sheet>
             </div>
             <Button variant="ghost" size="icon" className="hidden lg:flex opacity-40 hover:opacity-100" onClick={() => setIsSidebarOpen(!isSidebarOpen)}><ChevronLeft className={cn("transition-transform", !isSidebarOpen && "rotate-180")} size={24} /></Button>
@@ -481,14 +487,14 @@ export default function DocuParsePro() {
 
         {activeTab === 'marketplace' && (
           <ScrollArea className="flex-1 px-8 lg:px-16 py-12 bg-white/10">
-            <div className="max-w-[1400px] mx-auto p-6"> {/* 增加 p-6 确保 ring-8 发光阴影有足够显示空间 */}
+            <div className="max-w-[1400px] mx-auto p-6">
               <div className="mb-16">
                 <h3 className="text-4xl font-black tracking-tight mb-2 uppercase">规则广场</h3>
                 <p className="opacity-40 font-bold uppercase tracking-[0.4em] text-xs">Global Strategy Collection</p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-10">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-10 p-2">
                 {allStrategies.map(s => (
-                  <Card key={s.id} className={cn("rounded-[2.5rem] border-none shadow-xl bg-white transition-all hover:-translate-y-2 flex flex-col h-full overflow-hidden", selectedRuleId === s.id && "ring-8 ring-primary shadow-2xl shadow-primary/30")}>
+                  <Card key={s.id} className={cn("rounded-[2.5rem] border-none shadow-xl bg-white dark:bg-slate-900/80 dark:border dark:border-white/10 transition-all hover:-translate-y-2 flex flex-col h-full overflow-hidden", selectedRuleId === s.id && "ring-8 ring-primary shadow-2xl shadow-primary/30")}>
                     <CardHeader className="p-6">
                       <div className="flex justify-between items-start mb-6">
                         <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg", s.id.includes('universal') ? "bg-blue-600" : s.id.includes('speech') ? "bg-red-500" : "bg-slate-800")}>
@@ -496,20 +502,20 @@ export default function DocuParsePro() {
                         </div>
                         <Button variant="ghost" size="icon" className="opacity-20 hover:opacity-100 hover:text-amber-500"><Star size={20} /></Button>
                       </div>
-                      <CardTitle className="text-base font-black mb-2">{s.name}</CardTitle>
-                      <CardDescription className="text-[11px] font-bold opacity-40 leading-snug h-8 line-clamp-2 uppercase">{s.description}</CardDescription>
+                      <CardTitle className="text-base font-black mb-2 text-foreground">{s.name}</CardTitle>
+                      <CardDescription className="text-[11px] font-bold opacity-40 dark:opacity-60 leading-snug h-8 line-clamp-2 uppercase text-muted-foreground">{s.description}</CardDescription>
                     </CardHeader>
                     <CardContent className="px-6 pb-4 flex-1">
-                       <div className="bg-slate-50 p-4 rounded-2xl text-[10px] font-bold opacity-40 line-clamp-5 h-28 italic border border-slate-100">
+                       <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl text-[10px] font-bold opacity-40 dark:opacity-60 line-clamp-5 h-28 italic border border-slate-100 dark:border-white/5 text-foreground">
                          {s.content}
                        </div>
                     </CardContent>
                     <CardFooter className="p-6 pt-0 flex flex-col gap-4">
                       <div className="flex justify-between items-center w-full px-1">
-                        <span className="text-[10px] font-black opacity-30 uppercase">{s.authorName}</span>
-                        <div className="flex items-center gap-1 opacity-20 text-[10px] font-black"><Star size={10} fill="currentColor" /> {s.starCount}</div>
+                        <span className="text-[10px] font-black opacity-30 dark:opacity-50 uppercase text-muted-foreground">{s.authorName}</span>
+                        <div className="flex items-center gap-1 opacity-20 dark:opacity-40 text-[10px] font-black text-foreground"><Star size={10} fill="currentColor" /> {s.starCount}</div>
                       </div>
-                      <Button onClick={() => setSelectedRuleId(s.id)} className={cn("w-full h-12 rounded-xl font-black text-xs uppercase tracking-widest transition-all", selectedRuleId === s.id ? "bg-primary text-white" : "bg-slate-100 text-slate-400 hover:bg-slate-200")}>
+                      <Button onClick={() => setSelectedRuleId(s.id)} className={cn("w-full h-12 rounded-xl font-black text-xs uppercase tracking-widest transition-all", selectedRuleId === s.id ? "bg-primary text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700")}>
                         {selectedRuleId === s.id ? 'Using Now' : 'Mount Engine'}
                       </Button>
                     </CardFooter>
