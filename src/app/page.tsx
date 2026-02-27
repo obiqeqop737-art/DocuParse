@@ -413,7 +413,7 @@ export default function DocuParsePro() {
       <nav className="flex-1 px-4 space-y-6 mt-6 overflow-y-auto no-scrollbar">
         <div className="px-4">
            <p className="text-[11px] font-black text-white/30 uppercase tracking-[0.3em] mb-5 pl-4">导航菜单</p>
-           <div className="space-y-3">
+           <div className="space-y-3 p-1"> {/* 增加 p-1 防止阴影裁剪 */}
               <button onClick={() => setActiveTab('chat')} className={cn("w-full flex items-center gap-4 px-6 py-4.5 rounded-[1.5rem] transition-all font-black text-[14px] tracking-wide", activeTab === 'chat' ? "bg-white/10 text-white shadow-xl border border-white/20" : "text-white/40 hover:bg-white/5 hover:text-white")}>
                 <MessageSquare size={20} /> 智能对话
               </button>
@@ -502,7 +502,7 @@ export default function DocuParsePro() {
                 </div>
               </div>
               <ScrollArea className="flex-1 px-6">
-                <div className="space-y-4 pb-20">
+                <div className="space-y-4 pb-20 p-1"> {/* 增加 p-1 防止阴影裁剪 */}
                   {documents.length === 0 ? (
                     <div className="py-32 text-center opacity-10"><FileSearch size={64} className="mx-auto mb-6" /><p className="text-[12px] font-black tracking-[0.3em] uppercase">等待数据载入</p></div>
                   ) : (
@@ -598,9 +598,9 @@ export default function DocuParsePro() {
                 </div>
                 <Badge className="bg-blue-600/10 text-blue-400 font-black px-6 py-3 text-[14px] border border-blue-500/20 rounded-2xl backdrop-blur-md">已载入 {allStrategies.length} 个深度专家</Badge>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 lg:gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8 lg:gap-10 p-4"> {/* 增加 p-4 防止高亮边框裁剪 */}
                 {allStrategies.map(s => (
-                  <Card key={s.id} className={cn("rounded-[2.8rem] border-white/10 shadow-2xl bg-white/5 backdrop-blur-3xl hover:bg-white/10 transition-all duration-500 hover:-translate-y-2 group flex flex-col h-full overflow-hidden", selectedRuleId === s.id && "ring-4 ring-blue-600 shadow-blue-600/20")}>
+                  <Card key={s.id} className={cn("rounded-[2.8rem] border-white/10 shadow-2xl bg-white/5 backdrop-blur-3xl hover:bg-white/10 transition-all duration-500 hover:-translate-y-2 group flex flex-col h-full overflow-hidden", selectedRuleId === s.id && "ring-8 ring-blue-600 shadow-2xl shadow-blue-600/40")}>
                     <CardHeader className="p-8">
                       <div className="flex items-start justify-between mb-6">
                         <div className={cn("w-14 h-14 lg:w-16 lg:h-16 rounded-[1.8rem] flex items-center justify-center shadow-inner transition-transform group-hover:scale-110", s.id.includes('expert') ? "bg-blue-600 text-white" : "bg-white/10 text-white/40")}>
