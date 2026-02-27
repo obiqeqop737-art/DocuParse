@@ -185,10 +185,10 @@ export default function DocuParsePro() {
         const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
         const imagesToOCR: { pageIndex: number; dataUri: string }[] = [];
         
-        // PDF 视觉化重构：将每一页转为图片进行 OCR，确保内容完整性
+        // PDF 视觉化重构：强制所有 PDF 页光栅化为高清图片再 OCR，确保内容无遗漏
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: 2.0 }); // 提升缩放比例以获得更好的 OCR 精度
+          const viewport = page.getViewport({ scale: 2.0 }); 
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
           canvas.height = viewport.height;
