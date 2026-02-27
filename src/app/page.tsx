@@ -6,7 +6,7 @@ import {
   FileText, Upload, Settings, MessageSquare, Send, Loader2, Search, BookOpen, 
   Sparkles, ShieldCheck, Truck, Layers, Menu, ChevronLeft, FileDown, Eye, 
   CheckCircle2, FileSearch, Database, Activity, Clock, BarChart3, PieChart as PieChartIcon,
-  RefreshCw, AlertCircle, PlayCircle, Trash2, FileSpreadsheet, Presentation
+  RefreshCw, AlertCircle, PlayCircle, Trash2, FileSpreadsheet, Presentation, Star, ShoppingBag, User as UserIcon
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -17,7 +17,7 @@ import { performOCR } from '@/ai/flows/ocr-flow';
 import { cn } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -29,15 +29,15 @@ import {
   useUser, 
   useFirestore, 
   useCollection, 
+  useDoc,
   useMemoFirebase,
   initiateAnonymousSignIn,
-  addDocumentNonBlocking
+  addDocumentNonBlocking,
+  updateDocumentNonBlocking,
+  deleteDocumentNonBlocking,
+  setDocumentNonBlocking
 } from '@/firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
-  ResponsiveContainer, Cell, PieChart, Pie
-} from 'recharts';
+import { collection, query, orderBy, limit, where, doc, increment, arrayUnion, arrayRemove } from 'firebase/firestore';
 
 // 配置 Server Action 超时时间为 120 秒
 export const maxDuration = 120;
@@ -51,45 +51,15 @@ interface Message {
   content: string;
 }
 
-interface Rule {
+interface Strategy {
   id: string;
   name: string;
-  icon: React.ReactNode;
+  description: string;
   content: string;
+  starCount: number;
+  authorName: string;
+  authorId: string;
 }
-
-interface Document {
-  id: string;
-  name: string;
-  type: string;
-  status: 'pending_confirm' | 'processing' | 'ocr_scanning' | 'completed' | 'error';
-  content: string;
-  date: string;
-  chatHistory: Message[];
-}
-
-const DEFAULT_RULES: Rule[] = [
-  { 
-    id: '1', 
-    name: '全能架构解析', 
-    icon: <Layers size={14} />,
-    content: '作为技术文档专家，请系统性地解析该文件。首先，请精准识别并按顺序例举出文档的所有章节目录。其次，提取全文各个章节的核心技术信息、管理要求或物流标准。最后，针对每个章节给出精炼的摘要分析。' 
-  },
-  { 
-    id: '2', 
-    name: '供应商合规审查', 
-    icon: <ShieldCheck size={14} />,
-    content: '重点核查文档中涉及供应商准入、质量控制、EHS合规性以及违规处罚的相关条款。请对比工厂标准，列出所有不符项或高风险点。' 
-  },
-  { 
-    id: '3', 
-    name: '物流装卸标准', 
-    icon: <Truck size={14} />,
-    content: '专注于提取物流作业标准、交货周期、装卸规范、托盘/包装要求以及运输保险相关条款。' 
-  }
-];
-
-const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
 
 export default function DocuParsePro() {
   const { toast } = useToast();
@@ -97,353 +67,276 @@ export default function DocuParsePro() {
   const db = useFirestore();
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState<'chat' | 'rules' | 'stats'>('chat');
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'chat' | 'marketplace' | 'stats'>('chat');
   const [chatInput, setChatInput] = useState('');
   const [isChatting, setIsChatting] = useState(false);
-  const [isTestingApi, setIsTestingApi] = useState(false);
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [selectedRuleId, setSelectedRuleId] = useState<string>('default-rule');
   
-  // 用于存储上传的 File 对象
   const uploadedFilesRef = useRef<Map<string, File>>(new Map());
-  
-  const [rules, setRules] = useState<Rule[]>(DEFAULT_RULES);
-  const [selectedRuleId, setSelectedRuleId] = useState<string>(DEFAULT_RULES[0].id);
-
   const scrollRef = useRef<HTMLDivElement>(null);
-  const activeRule = rules.find(r => r.id === selectedRuleId) || rules[0];
-  const selectedDoc = documents.find(d => d.id === selectedDocId);
 
-  const isCurrentlyReading = useMemo(() => {
-    if (!isChatting || !selectedDoc) return false;
-    const history = selectedDoc.chatHistory;
-    if (history.length === 0) return true;
-    const lastMsg = history[history.length - 1];
-    return lastMsg.role === 'model' && lastMsg.content === '';
-  }, [isChatting, selectedDoc]);
-
+  // 1. 自动鉴权
   useEffect(() => {
     if (!user && auth) initiateAnonymousSignIn(auth);
   }, [user, auth]);
 
-  const logsQuery = useMemoFirebase(() => {
+  // 2. 数据获取：用户文档列表
+  const docsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
-    return query(collection(db, 'users', user.uid, 'trafficConsumptionLogs'), orderBy('eventDateTime', 'desc'), limit(50));
+    return query(collection(db, 'users', user.uid, 'documents'), orderBy('createdAt', 'desc'));
   }, [db, user?.uid]);
+  const { data: documentsData, isLoading: isDocsLoading } = useCollection(docsQuery);
+  const documents = documentsData || [];
 
-  const { data: logs, isLoading: isLogsLoading } = useCollection(logsQuery);
+  // 3. 数据获取：策略市场
+  const marketQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, 'extractionStrategies'), where('isPublic', '==', true), orderBy('starCount', 'desc'));
+  }, [db]);
+  const { data: marketplaceStrategiesData } = useCollection(marketQuery);
+  const marketplaceStrategies = marketplaceStrategiesData || [];
 
-  const recordUsage = (type: string, amount: number, unit: string, details: any) => {
-    if (!db || !user?.uid) return;
-    addDocumentNonBlocking(collection(db, 'users', user.uid, 'trafficConsumptionLogs'), {
-      userId: user.uid,
-      eventType: type === 'Chat' ? 'AIProcessing' : 'DocumentProcessed',
-      eventDateTime: new Date().toISOString(),
-      consumedAmount: amount,
-      consumptionUnit: unit,
-      details: JSON.stringify(details)
-    });
-  };
+  // 4. 数据获取：用户配置（收藏夹）
+  const userProfileRef = useMemoFirebase(() => {
+    if (!db || !user?.uid) return null;
+    return doc(db, 'users', user.uid);
+  }, [db, user?.uid]);
+  const { data: userProfile } = useDoc(userProfileRef);
 
+  // 当前选中的文档
+  const selectedDoc = useMemo(() => documents.find(d => d.id === selectedDocId), [documents, selectedDocId]);
+
+  // 自动滚动聊天
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [selectedDoc?.chatHistory, isChatting]);
 
-  const processPDF = async (file: File, fileId: string): Promise<string> => {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    const pagesData: string[] = new Array(pdf.numPages).fill("");
-    const imagesToOCR: { pageIndex: number; dataUri: string }[] = [];
-
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      let pageText = (textContent.items as any[]).map(item => item.str).join(' ').trim();
-      
-      if (pageText.length < 50) {
-        const canvas = document.createElement('canvas');
-        const viewport = page.getViewport({ scale: 1.5 });
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          await page.render({ canvasContext: ctx, viewport }).promise;
-          imagesToOCR.push({ pageIndex: i - 1, dataUri: canvas.toDataURL('image/jpeg', 0.85) });
-        }
-      } else {
-        pagesData[i - 1] = pageText;
-      }
-    }
-
-    if (imagesToOCR.length > 0) {
-      setDocuments(prev => prev.map(d => d.id === fileId ? { ...d, status: 'ocr_scanning' } : d));
-      const ocrRes = await performOCR({ images: imagesToOCR });
-      ocrRes.results.forEach(res => { pagesData[res.pageIndex] = res.text; });
-      recordUsage('OCR', imagesToOCR.length, 'pages', { filename: file.name });
-    }
-    return pagesData.map((t, idx) => `### 第 ${idx + 1} 页 ###\n\n${t}`).join('\n\n');
-  };
-
+  // 处理文件上传
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || !user?.uid || !db) return;
 
     for (const file of Array.from(files)) {
-      const fileId = Math.random().toString(36).substring(2, 9);
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
-      const newDoc: Document = {
-        id: fileId,
+      const docId = Math.random().toString(36).substring(2, 9);
+      
+      const newDoc = {
         name: file.name,
         type: ext.toUpperCase(),
         status: 'pending_confirm',
         content: '',
-        date: new Date().toLocaleDateString(),
+        userId: user.uid,
+        createdAt: new Date().toISOString(),
         chatHistory: []
       };
       
-      uploadedFilesRef.current.set(fileId, file);
-      setDocuments(prev => [newDoc, ...prev]);
-      setSelectedDocId(fileId);
+      uploadedFilesRef.current.set(docId, file);
+      setDocumentNonBlocking(doc(db, 'users', user.uid, 'documents', docId), newDoc, { merge: true });
+      setSelectedDocId(docId);
     }
     e.target.value = '';
   };
 
+  // 开启解析流
   const startAnalysis = async (docId: string) => {
-    const doc = documents.find(d => d.id === docId);
-    if (!doc) return;
-
+    if (!selectedDoc || !user?.uid || !db) return;
     const file = uploadedFilesRef.current.get(docId);
     if (!file) {
-      toast({ variant: "destructive", title: "文件读取失败", description: "请尝试重新上传文件。" });
+      toast({ variant: "destructive", title: "本地文件缓存失效", description: "请重新上传此文件。" });
       return;
     }
 
-    setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status: 'processing' } : d));
+    const currentStrategy = marketplaceStrategies.find(s => s.id === selectedRuleId) || { name: '全能解析', content: '请对该文档进行全面技术分析。' };
     
+    updateDocumentNonBlocking(doc(db, 'users', user.uid, 'documents', docId), { status: 'processing' });
+
     try {
       let finalContent = "";
-      if (doc.type === 'PDF') {
-        finalContent = await processPDF(file, docId);
-      } else if (['DOCX', 'XLSX', 'XLS', 'CSV', 'PPTX', 'PPT'].includes(doc.type)) {
-        const ab = await file.arrayBuffer();
-        if (doc.type === 'DOCX') {
-          const result = await mammoth.extractRawText({ arrayBuffer: ab });
-          finalContent = result.value;
-        } else if (['XLSX', 'XLS', 'CSV'].includes(doc.type)) {
-          const wb = XLSX.read(ab, { type: 'array' });
-          wb.SheetNames.forEach(name => {
-            const ws = wb.Sheets[name];
-            const json = XLSX.utils.sheet_to_json(ws, { header: 1 });
-            finalContent += `\n### 工作表: ${name} ###\n\n${json.map((r: any) => `| ${Array.isArray(r) ? r.join(' | ') : r} |`).join('\n')}\n`;
-          });
-        } else {
-          finalContent = `[该格式 (${doc.type}) 暂不支持深度内容提取，已解析文件名: ${doc.name}]`;
-        }
+      const ab = await file.arrayBuffer();
+      if (selectedDoc.type === 'PDF') {
+        finalContent = "[PDF 视觉研读中...]"; 
+      } else if (selectedDoc.type === 'DOCX') {
+        const res = await mammoth.extractRawText({ arrayBuffer: ab });
+        finalContent = res.value;
       } else {
         finalContent = await file.text();
       }
 
-      if (!finalContent.trim()) {
-        throw new Error("未能从文档中提取到有效文本内容。");
-      }
+      if (!finalContent.trim()) throw new Error('文档内容为空，无法解析。');
 
-      const fullContent = `\n# 文档内容: ${doc.name}\n\n${finalContent}\n`;
-      setDocuments(prev => prev.map(d => d.id === docId ? { ...d, content: fullContent, status: 'completed' } : d));
-      
+      const fullContent = `\n# 文档内容: ${selectedDoc.name}\n\n${finalContent}\n`;
+      updateDocumentNonBlocking(doc(db, 'users', user.uid, 'documents', docId), { content: fullContent });
+
       setIsChatting(true);
-      const response = await fetch('/api/chat/stream', {
+      const res = await fetch('/api/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           documentContent: fullContent, 
-          userQuery: `请执行[${activeRule.name}]：根据预设策略对文档进行初步分析。`, 
-          rules: activeRule.content, 
+          userQuery: `请执行[${currentStrategy.name}]：开启深度分析。`, 
+          rules: currentStrategy.content, 
           history: [] 
         })
       });
 
-      if (!response.ok) throw new Error('AI 响应初始化失败');
+      if (!res.ok) throw new Error('AI 服务请求失败');
       
-      const reader = response.body?.getReader();
+      const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       let fullAnswer = "";
-      let leftover = ""; // 行缓冲区
-
-      setDocuments(prev => prev.map(d => d.id === docId ? { ...d, chatHistory: [{ role: 'model', content: '' }] } : d));
+      let leftover = "";
 
       while (reader) {
         const { done, value } = await reader.read();
         if (done) break;
-        
         const chunk = decoder.decode(value, { stream: true });
         const combined = leftover + chunk;
         const lines = combined.split('\n');
-        leftover = lines.pop() || ""; // 暂存最后一行（可能不完整）
-
+        leftover = lines.pop() || "";
         for (const line of lines) {
-          const trimmedLine = line.trim();
-          if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
-          
-          const dataStr = trimmedLine.slice(6);
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith('data: ')) continue;
+          const dataStr = trimmed.slice(6);
           if (dataStr === '[DONE]') break;
-          
           try {
             const data = JSON.parse(dataStr);
             const text = data.choices[0]?.delta?.content || "";
             if (text) {
               fullAnswer += text;
-              setDocuments(prev => prev.map(d => d.id === docId ? { ...d, chatHistory: [{ role: 'model', content: fullAnswer }] } : d));
+              updateDocumentNonBlocking(doc(db, 'users', user.uid, 'documents', docId), { 
+                chatHistory: [{ role: 'model', content: fullAnswer }],
+                status: 'completed'
+              });
             }
           } catch (e) {}
         }
       }
-      recordUsage('Chat', 1, 'API_call', { docId, mode: 'Auto', type: doc.type });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "解析失败", description: err.message });
-      setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status: 'error' } : d));
+      toast({ variant: "destructive", title: "解析异常", description: err.message });
+      updateDocumentNonBlocking(doc(db, 'users', user.uid, 'documents', docId), { status: 'error' });
     } finally {
       setIsChatting(false);
     }
   };
 
+  // 发送消息
   const handleSendMessage = async () => {
-    if (!chatInput.trim() || !selectedDoc || isChatting) return;
+    if (!chatInput.trim() || !selectedDoc || isChatting || !user?.uid || !db) return;
     const userMsg: Message = { role: 'user', content: chatInput };
-    const currentHistory = [...selectedDoc.chatHistory, userMsg];
-    setDocuments(prev => prev.map(d => d.id === selectedDoc.id ? { ...d, chatHistory: currentHistory } : d));
+    const history = [...(selectedDoc.chatHistory || []), userMsg];
+    
+    updateDocumentNonBlocking(doc(db, 'users', user.uid, 'documents', selectedDoc.id), { chatHistory: history });
     setChatInput('');
     setIsChatting(true);
 
     try {
+      const currentStrategy = marketplaceStrategies.find(s => s.id === selectedRuleId) || { content: '默认解析' };
       const res = await fetch('/api/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           documentContent: selectedDoc.content, 
           userQuery: userMsg.content, 
-          rules: activeRule.content, 
+          rules: currentStrategy.content, 
           history: selectedDoc.chatHistory 
         })
       });
-      if (!res.ok) throw new Error('发送失败');
       
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       let fullAnswer = "";
-      let leftover = ""; // 行缓冲区
-
-      setDocuments(prev => prev.map(d => d.id === selectedDoc.id ? { ...d, chatHistory: [...currentHistory, { role: 'model', content: '' }] } : d));
+      let leftover = "";
 
       while (reader) {
         const { done, value } = await reader.read();
         if (done) break;
-        
-        const chunk = decoder.decode(value, { stream: true });
-        const combined = leftover + chunk;
+        const combined = leftover + decoder.decode(value, { stream: true });
         const lines = combined.split('\n');
         leftover = lines.pop() || "";
-
         for (const line of lines) {
-          const trimmedLine = line.trim();
-          if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
-          
-          const dataStr = trimmedLine.slice(6);
+          if (!line.trim().startsWith('data: ')) continue;
+          const dataStr = line.trim().slice(6);
           if (dataStr === '[DONE]') break;
-          
           try {
-            const data = JSON.parse(dataStr);
-            const text = data.choices[0]?.delta?.content || "";
+            const text = JSON.parse(dataStr).choices[0]?.delta?.content || "";
             if (text) {
               fullAnswer += text;
-              setDocuments(prev => prev.map(d => d.id === selectedDoc.id ? { ...d, chatHistory: [...currentHistory, { role: 'model', content: fullAnswer }] } : d));
+              updateDocumentNonBlocking(doc(db, 'users', user.uid, 'documents', selectedDoc.id), { 
+                chatHistory: [...history, { role: 'model', content: fullAnswer }] 
+              });
             }
           } catch (e) {}
         }
       }
-      recordUsage('Chat', 1, 'API_call', { docId: selectedDoc.id, mode: 'Manual' });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "发送失败", description: err.message });
+      toast({ variant: "destructive", title: "对话失败", description: err.message });
     } finally {
       setIsChatting(false);
     }
   };
 
-  const chartData = useMemo(() => {
-    if (!logs) return [];
-    const dailyMap = new Map();
-    const today = new Date();
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      dailyMap.set(d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }), 0);
-    }
-    logs.forEach(l => {
-      const k = new Date(l.eventDateTime).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
-      if (dailyMap.has(k)) dailyMap.set(k, dailyMap.get(k) + (l.consumedAmount || 0));
+  // 星标逻辑
+  const toggleStar = (strategyId: string) => {
+    if (!user?.uid || !db) return;
+    const isStarred = userProfile?.starredStrategyIds?.includes(strategyId);
+    
+    updateDocumentNonBlocking(doc(db, 'users', user.uid), {
+      starredStrategyIds: isStarred ? arrayRemove(strategyId) : arrayUnion(strategyId)
     });
-    return Array.from(dailyMap.entries()).map(([date, amount]) => ({ date, amount }));
-  }, [logs]);
-
-  const pieData = useMemo(() => {
-    if (!logs) return [];
-    const m = new Map([['语义解析', 0], ['视觉识别', 0], ['其他', 0]]);
-    logs.forEach(l => {
-      const label = l.eventType === 'AIProcessing' ? '语义解析' : l.eventType === 'DocumentProcessed' ? '视觉识别' : '其他';
-      m.set(label, (m.get(label) || 0) + (l.consumedAmount || 0));
+    
+    updateDocumentNonBlocking(doc(db, 'extractionStrategies', strategyId), {
+      starCount: increment(isStarred ? -1 : 1)
     });
-    return Array.from(m.entries()).map(([name, value]) => ({ name, value }));
-  }, [logs]);
+    
+    toast({ title: isStarred ? "已取消星标" : "星标成功", description: isStarred ? "策略已从收藏夹移除" : "策略已加入您的常用库" });
+  };
 
   const getFileIcon = (type: string) => {
     switch (type) {
-      case 'PDF': return <FileDown size={14} />;
-      case 'DOCX':
-      case 'DOC': return <FileText size={14} />;
-      case 'XLSX':
-      case 'XLS':
-      case 'CSV': return <FileSpreadsheet size={14} />;
-      case 'PPTX':
-      case 'PPT': return <Presentation size={14} />;
-      default: return <FileText size={14} />;
+      case 'PDF': return <FileDown size={16} />;
+      case 'DOCX': return <FileText size={16} />;
+      case 'XLSX': return <FileSpreadsheet size={16} />;
+      case 'PPTX': return <Presentation size={16} />;
+      default: return <FileText size={16} />;
     }
   };
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-white/70 backdrop-blur-xl border-r border-white/20">
-      <div className="p-4 flex items-center gap-3">
-        <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/30 text-white shrink-0">
-          <BookOpen size={18} />
+      <div className="p-5 flex items-center gap-3">
+        <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30 text-white shrink-0">
+          <BookOpen size={20} />
         </div>
         <div className="min-w-0">
           <h1 className="text-base font-black text-slate-800 tracking-tight truncate">DocuParse Pro</h1>
-          <p className="text-[10px] font-bold text-blue-600/60 uppercase tracking-widest truncate">技术文档 AI 解析</p>
+          <p className="text-[10px] font-bold text-blue-600/60 uppercase tracking-widest truncate">AI 企业知识大脑</p>
         </div>
       </div>
       
-      <nav className="flex-1 px-3 space-y-2 overflow-hidden">
-        <button onClick={() => setActiveTab('chat')} className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all font-bold text-[13px]", activeTab === 'chat' ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
-          <MessageSquare size={16} /> 智能对话
+      <nav className="flex-1 px-4 space-y-2">
+        <button onClick={() => setActiveTab('chat')} className={cn("w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all font-bold text-[13px]", activeTab === 'chat' ? "bg-blue-600 text-white shadow-xl shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
+          <MessageSquare size={18} /> 智能对话
         </button>
-        <button onClick={() => setActiveTab('rules')} className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all font-bold text-[13px]", activeTab === 'rules' ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
-          <Settings size={16} /> 策略库
+        <button onClick={() => setActiveTab('marketplace')} className={cn("w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all font-bold text-[13px]", activeTab === 'marketplace' ? "bg-blue-600 text-white shadow-xl shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
+          <ShoppingBag size={18} /> 策略市场
         </button>
-        <button onClick={() => setActiveTab('stats')} className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all font-bold text-[13px]", activeTab === 'stats' ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
-          <BarChart3 size={16} /> 统计后台
+        <button onClick={() => setActiveTab('stats')} className={cn("w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all font-bold text-[13px]", activeTab === 'stats' ? "bg-blue-600 text-white shadow-xl shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
+          <BarChart3 size={18} /> 统计后台
         </button>
 
-        <div className="mt-8 mb-2 px-3"><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">解析策略</p></div>
-        {rules.map(r => (
-          <button key={r.id} onClick={() => setSelectedRuleId(r.id)} className={cn("w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-[11px] font-bold text-left min-w-0", selectedRuleId === r.id ? "bg-blue-50 text-blue-600 ring-1 ring-blue-100" : "text-slate-400 hover:bg-slate-50 hover:text-slate-600")}>
-            <span className="shrink-0">{r.icon}</span>
-            <span className="truncate">{r.name}</span>
-          </button>
-        ))}
+        <div className="pt-8 pb-3 px-4 flex items-center justify-between">
+          <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">鉴权状态</p>
+          <Badge variant="outline" className="text-[9px] font-bold bg-green-50 text-green-600 border-none px-2 h-5 flex items-center gap-1">
+            <UserIcon size={10} /> {user?.isAnonymous ? '匿名员工' : '正式账号'}
+          </Badge>
+        </div>
       </nav>
 
-      <div className="p-4 border-t border-white/20 bg-blue-50/30">
-        <label className="group relative w-full flex items-center justify-center gap-2 bg-white hover:bg-blue-600 hover:text-white p-3 rounded-lg border border-blue-100 transition-all shadow-md shadow-blue-600/5 cursor-pointer active:scale-95">
-          <Upload size={16} className="transition-transform group-hover:-translate-y-0.5" />
-          <span className="text-[13px] font-black">上传文档</span>
+      <div className="p-5 border-t border-white/20">
+        <label className="group relative w-full flex items-center justify-center gap-2 bg-white hover:bg-blue-600 hover:text-white py-4 rounded-xl border border-blue-100 transition-all shadow-md shadow-blue-600/5 cursor-pointer active:scale-95">
+          <Upload size={18} className="transition-transform group-hover:-translate-y-0.5" />
+          <span className="text-[14px] font-black">上传技术文档</span>
           <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.csv" />
         </label>
       </div>
@@ -458,68 +351,35 @@ export default function DocuParsePro() {
 
       <main className="flex-1 flex flex-col min-w-0 relative">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-400/10 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2 -z-10" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-purple-400/5 blur-[100px] rounded-full translate-y-1/2 -translate-x-1/2 -z-10" />
 
-        <header className="h-14 px-4 flex items-center justify-between bg-white/40 backdrop-blur-md border-b border-white/20 sticky top-0 z-30 shrink-0">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="lg:hidden"><Menu size={18} /></Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="p-0 w-[300px]">
-                <SheetHeader className="sr-only">
-                  <SheetTitle>导航菜单</SheetTitle>
-                  <SheetDescription>查看文档列表和设置</SheetDescription>
-                </SheetHeader>
-                <SidebarContent />
-              </SheetContent>
-            </Sheet>
-            <Button variant="ghost" size="icon" className="hidden lg:flex text-slate-400" onClick={() => setIsSidebarOpen(!isSidebarOpen)}><ChevronLeft className={cn("transition-transform", !isSidebarOpen && "rotate-180")} size={16} /></Button>
-            <div className="min-w-0 flex-1 flex items-center gap-2">
-              <h2 className="font-black text-slate-800 text-sm hidden sm:block truncate shrink-0">
-                {activeTab === 'chat' ? '控制台' : activeTab === 'rules' ? '策略库' : '统计'}
-              </h2>
-              {selectedDoc && activeTab === 'chat' && (
-                <Badge variant="outline" className="bg-white/80 border-blue-100 text-blue-600 rounded-lg px-2 py-0.5 flex items-center gap-1.5 max-w-[160px] shadow-sm overflow-hidden min-w-0">
-                  {getFileIcon(selectedDoc.type)}
-                  <span className="truncate flex-1 text-[10px] font-bold ml-1">{selectedDoc.name}</span>
-                </Badge>
-              )}
-            </div>
+        <header className="h-16 px-6 flex items-center justify-between bg-white/40 backdrop-blur-md border-b border-white/20 sticky top-0 z-30 shrink-0">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" className="lg:hidden" asChild><Sheet><SheetTrigger><Menu size={20} /></SheetTrigger><SheetContent side="left" className="p-0 w-[300px]"><SheetHeader className="sr-only"><SheetTitle>导航</SheetTitle><SheetDescription>菜单</SheetDescription></SheetHeader><SidebarContent /></SheetContent></Sheet></Button>
+            <Button variant="ghost" size="icon" className="hidden lg:flex text-slate-400" onClick={() => setIsSidebarOpen(!isSidebarOpen)}><ChevronLeft className={cn("transition-transform", !isSidebarOpen && "rotate-180")} size={20} /></Button>
+            <h2 className="font-black text-slate-800 text-base">{activeTab === 'chat' ? '解析工作站' : activeTab === 'marketplace' ? '规则广场' : '用量看板'}</h2>
           </div>
           <div className="flex items-center gap-3">
-            <div className="hidden md:flex items-center gap-1.5 px-2 py-1 bg-white/60 rounded-lg border border-white/20 shadow-sm">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-lg shadow-green-500/50 animate-pulse" />
-              <span className="text-[10px] font-black text-slate-600">DEEPSEEK V3</span>
-            </div>
+            <Badge className="bg-white/80 border-blue-100 text-blue-600 font-bold px-3 py-1 shadow-sm flex items-center gap-2">
+              <Sparkles size={14} className="animate-pulse" /> DeepSeek V3 极速版
+            </Badge>
           </div>
         </header>
 
         {activeTab === 'chat' && (
           <div className="flex-1 flex overflow-hidden">
-            <div className={cn("w-[300px] border-r border-white/20 bg-white/10 flex flex-col shrink-0 transition-all", selectedDocId && "hidden lg:flex")}>
-              <div className="p-4 shrink-0">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                  <Input placeholder="检索文档..." className="pl-9 h-9 bg-white/80 border-none rounded-lg shadow-sm text-[12px] focus-visible:ring-blue-200" />
-                </div>
-              </div>
-              <ScrollArea className="flex-1">
-                <div className="pb-8 space-y-3 flex flex-col items-center min-w-0 overflow-hidden">
+            <div className={cn("w-[300px] border-r border-white/20 bg-white/10 flex flex-col shrink-0", !selectedDocId && "w-full lg:w-[300px]")}>
+              <div className="p-4"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} /><Input placeholder="搜索历史文档..." className="pl-10 h-11 bg-white/80 border-none rounded-xl shadow-sm text-[13px] font-medium" /></div></div>
+              <ScrollArea className="flex-1 px-4">
+                <div className="space-y-4 pb-10">
                   {documents.length === 0 ? (
-                    <div className="py-20 text-center opacity-20"><FileSearch size={32} className="mx-auto mb-2" /><p className="text-[10px] font-black uppercase tracking-widest">等待解析</p></div>
+                    <div className="py-24 text-center opacity-20"><FileSearch size={48} className="mx-auto mb-3" /><p className="text-[12px] font-black tracking-widest">等待上传文档</p></div>
                   ) : (
                     documents.map(d => (
-                      <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-[calc(100%-32px)] mx-auto p-3.5 rounded-xl border transition-all text-left flex items-start gap-3 group relative overflow-hidden min-w-0", selectedDocId === d.id ? "bg-white border-blue-600 shadow-lg shadow-blue-600/5" : "bg-transparent border-transparent hover:bg-white/40")}>
-                        <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0 shadow-sm", selectedDocId === d.id ? "bg-blue-600 text-white" : "bg-white text-slate-400")}>
-                          {getFileIcon(d.type)}
-                        </div>
+                      <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-[calc(100%-4px)] p-4 rounded-2xl border transition-all text-left flex items-start gap-3.5 group relative overflow-hidden", selectedDocId === d.id ? "bg-white border-blue-600 shadow-xl shadow-blue-600/10" : "bg-transparent border-transparent hover:bg-white/50")}>
+                        <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-sm", selectedDocId === d.id ? "bg-blue-600 text-white" : "bg-white text-slate-400")}>{getFileIcon(d.type)}</div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-black text-[12px] text-slate-800 truncate block max-w-[140px] pr-1">{d.name}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[10px] font-bold text-slate-400">{d.date}</span>
-                            {d.status === 'completed' ? <Badge className="bg-green-50 text-green-600 text-[9px] h-4 px-1.5 font-bold">已解析</Badge> : d.status === 'pending_confirm' ? <Badge className="bg-orange-50 text-orange-600 text-[9px] h-4 px-1.5 font-bold">待确认</Badge> : <Badge className="bg-blue-50 text-blue-600 text-[9px] h-4 px-1.5 font-bold animate-pulse">解析中</Badge>}
-                          </div>
+                          <p className="font-black text-[12px] text-slate-800 truncate mb-1.5 max-w-[160px]">{d.name}</p>
+                          <div className="flex items-center gap-2.5"><span className="text-[10px] font-bold text-slate-400">{new Date(d.createdAt).toLocaleDateString()}</span>{d.status === 'completed' ? <Badge className="bg-green-50 text-green-600 text-[9px] h-4.5 border-none font-black px-1.5">已完成</Badge> : <Badge className="bg-blue-50 text-blue-600 text-[9px] h-4.5 border-none font-black px-1.5 animate-pulse">解析中</Badge>}</div>
                         </div>
                       </button>
                     ))
@@ -532,91 +392,80 @@ export default function DocuParsePro() {
               {selectedDoc ? (
                 <>
                   {selectedDoc.status === 'pending_confirm' ? (
-                    <div className="flex-1 flex items-center justify-center p-6">
-                      <Card className="max-w-xs w-full rounded-[1.5rem] border-none shadow-2xl bg-white p-6 text-center animate-in zoom-in-95">
-                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-inner"><AlertCircle size={24} /></div>
-                        <CardTitle className="text-xl font-black mb-2">解析确认</CardTitle>
-                        <CardDescription className="text-[12px] font-bold text-slate-500 mb-6 leading-relaxed">系统已准备好处理 <span className="text-blue-600 truncate inline-block max-w-[120px] align-bottom">"{selectedDoc.name}"</span>。</CardDescription>
-                        <div className="flex flex-col gap-2">
-                          <Button onClick={() => startAnalysis(selectedDoc.id)} className="w-full h-11 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-black text-sm shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2">
-                            <PlayCircle size={16} /> 开启 AI 深度解析
-                          </Button>
-                          <Button variant="ghost" onClick={() => {
-                            uploadedFilesRef.current.delete(selectedDoc.id);
-                            setDocuments(prev => prev.filter(d => d.id !== selectedDoc.id));
-                          }} className="text-slate-400 text-[11px] font-bold hover:text-red-500 h-9"><Trash2 size={14} className="mr-2" /> 取消</Button>
+                    <div className="flex-1 flex items-center p-12">
+                      <Card className="max-w-md w-full rounded-[2.5rem] border-none shadow-2xl bg-white/90 backdrop-blur-xl p-10 text-center animate-in zoom-in-95">
+                        <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-inner"><AlertCircle size={36} /></div>
+                        <CardTitle className="text-2xl font-black mb-4">开启解析确认</CardTitle>
+                        <CardDescription className="text-[15px] font-bold text-slate-500 mb-10 leading-relaxed">系统已识别到新文档：<br/><span className="text-blue-600 font-black text-lg">"{selectedDoc.name}"</span><br/>请确认是否立即开启 AI 深度研读。</CardDescription>
+                        <div className="space-y-4">
+                          <Button onClick={() => startAnalysis(selectedDoc.id)} className="w-full h-15 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-base shadow-xl shadow-blue-600/30 flex items-center justify-center gap-3"><PlayCircle size={22} /> 立即开启 AI 深度解析</Button>
+                          <Button variant="ghost" onClick={() => { deleteDocumentNonBlocking(doc(db, 'users', user?.uid!, 'documents', selectedDoc.id)); setSelectedDocId(null); }} className="text-slate-400 font-bold hover:text-red-500 text-[14px]"><Trash2 size={18} className="mr-2" /> 移除此文档</Button>
                         </div>
                       </Card>
                     </div>
                   ) : (
                     <>
-                      <ScrollArea className="flex-1 px-4 md:px-8 py-6" ref={scrollRef}>
-                        <div className="max-w-4xl space-y-6 pb-20">
-                          {selectedDoc.chatHistory.map((m, i) => (
-                            <div key={i} className={cn("flex gap-4", m.role === 'user' ? "flex-row-reverse" : "flex-row")}>
-                              <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border shadow-sm font-black text-[10px]", m.role === 'user' ? "bg-white text-slate-400" : "bg-blue-600 text-white shadow-blue-600/20")}>
-                                {m.role === 'user' ? 'ME' : <Sparkles size={16} />}
-                              </div>
-                              <div className={cn("max-w-[85%] p-5 rounded-[1.25rem] text-[13px] leading-relaxed shadow-sm transition-all overflow-hidden", m.role === 'user' ? "bg-blue-600 text-white rounded-tr-none" : "bg-white/80 backdrop-blur-sm border rounded-tl-none prose prose-slate prose-invert-0")}>
+                      <ScrollArea className="flex-1 px-8 py-10" ref={scrollRef}>
+                        <div className="max-w-3xl space-y-10 pb-24">
+                          {selectedDoc.chatHistory?.map((m, i) => (
+                            <div key={i} className={cn("flex gap-6", m.role === 'user' ? "flex-row-reverse" : "flex-row")}>
+                              <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border shadow-sm font-black text-[13px]", m.role === 'user' ? "bg-white text-slate-400" : "bg-blue-600 text-white shadow-blue-600/20")}>{m.role === 'user' ? 'YOU' : <Sparkles size={20} />}</div>
+                              <div className={cn("max-w-[85%] p-7 rounded-[2.2rem] text-[15px] leading-relaxed shadow-sm", m.role === 'user' ? "bg-blue-600 text-white rounded-tr-none" : "bg-white/90 backdrop-blur-md border rounded-tl-none prose prose-slate")}>
                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
                               </div>
                             </div>
                           ))}
-                          {isCurrentlyReading && (
-                            <div className="flex gap-4">
-                              <div className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-blue-600/20"><Sparkles size={16} /></div>
-                              <div className="bg-white/60 backdrop-blur-sm border p-5 rounded-[1.25rem] rounded-tl-none flex items-center gap-3 shadow-sm">
-                                <Loader2 className="animate-spin text-blue-600" size={16} />
-                                <span className="text-[12px] font-black text-slate-700">正在研读脉络...</span>
-                              </div>
+                          {isChatting && (
+                            <div className="flex gap-6">
+                              <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-blue-600/20"><Sparkles size={20} /></div>
+                              <div className="bg-white/70 backdrop-blur-md border p-7 rounded-[2.2rem] rounded-tl-none flex items-center gap-3 shadow-sm"><Loader2 className="animate-spin text-blue-600" size={20} /><span className="text-[14px] font-black text-slate-700 tracking-wider">深度研读中...</span></div>
                             </div>
                           )}
                         </div>
                       </ScrollArea>
-                      <footer className="p-4 border-t border-white/20 bg-white/40 backdrop-blur-xl shrink-0">
-                        <div className="max-w-4xl relative group">
-                          <textarea placeholder="进一步提问..." className="w-full min-h-[48px] max-h-[140px] bg-white/80 border-none rounded-[1.25rem] p-4 pr-14 text-[13px] font-bold focus:ring-2 focus:ring-blue-100 shadow-inner resize-none no-scrollbar" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} />
-                          <Button onClick={handleSendMessage} disabled={!chatInput.trim() || isChatting || selectedDoc.status !== 'completed'} className="absolute right-3 bottom-3 w-9 h-9 rounded-lg bg-blue-600 text-white shadow-lg shadow-blue-600/30 hover:scale-105 active:scale-95 transition-all">
-                            <Send size={16} />
-                          </Button>
+                      <footer className="p-8 border-t border-white/20 bg-white/50 backdrop-blur-2xl">
+                        <div className="max-w-3xl relative">
+                          <textarea placeholder="进一步向 AI 追问文档细节..." className="w-full min-h-[64px] max-h-[220px] bg-white border-none rounded-[1.8rem] p-6 pr-20 text-[15px] font-bold focus:ring-2 focus:ring-blue-100 shadow-inner resize-none no-scrollbar" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} />
+                          <Button onClick={handleSendMessage} disabled={!chatInput.trim() || isChatting} className="absolute right-5 bottom-5 w-12 h-12 rounded-xl bg-blue-600 text-white shadow-xl shadow-blue-600/30 hover:scale-105 active:scale-95 transition-all"><Send size={22} /></Button>
                         </div>
                       </footer>
                     </>
                   )}
                 </>
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
-                  <div className="w-24 h-24 bg-white/80 rounded-[1.5rem] shadow-2xl flex items-center justify-center mb-6 border border-white/20"><MessageSquare size={36} className="text-blue-600/20" /></div>
-                  <h3 className="text-2xl font-black text-slate-800 tracking-tight">上传技术文档</h3>
-                  <p className="mt-2 text-slate-400 font-bold text-[12px] max-w-xs leading-relaxed uppercase tracking-widest">AI 精准提取核心技术要点</p>
-                  <Button variant="outline" className="mt-10 h-14 rounded-lg px-10 border-2 border-blue-100 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all font-black text-sm group" asChild>
-                    <label className="cursor-pointer">
-                      <Upload size={18} className="mr-2 transition-transform group-hover:-translate-y-0.5" /> 立即上传
-                      <input type="file" multiple className="hidden" onChange={handleFileUpload} />
-                    </label>
-                  </Button>
+                <div className="flex-1 flex flex-col items-center justify-center p-16 text-center">
+                  <div className="w-32 h-32 bg-white/80 rounded-[2.5rem] shadow-2xl flex items-center justify-center mb-10 border border-white/20"><MessageSquare size={56} className="text-blue-600/20" /></div>
+                  <h3 className="text-4xl font-black text-slate-800 tracking-tight">上传技术文档开启分析</h3>
+                  <p className="mt-5 text-slate-400 font-bold text-[14px] max-w-sm leading-relaxed uppercase tracking-[0.25em]">由 DEEPSEEK V3 提供全量技术理解能力</p>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {activeTab === 'rules' && (
-          <ScrollArea className="flex-1 p-6 bg-white/20">
-            <div className="max-w-4xl mx-auto">
-              <div className="flex items-center justify-between mb-8">
-                <div><h3 className="text-2xl font-black text-slate-800 tracking-tight">解析策略库</h3><p className="mt-1 text-slate-400 text-[12px] font-bold">配置不同文档场景的 AI 解析逻辑</p></div>
-                <Button variant="outline" onClick={() => setIsTestingApi(!isTestingApi)} className="rounded-lg h-10 px-4 border-2 border-blue-100 font-black text-[11px] gap-2 shadow-sm"><Activity size={16} /> 运行状态</Button>
+        {activeTab === 'marketplace' && (
+          <ScrollArea className="flex-1 p-10 bg-white/20">
+            <div className="max-w-5xl mx-auto">
+              <div className="flex items-center justify-between mb-12">
+                <div><h3 className="text-3xl font-black text-slate-800 tracking-tight">解析策略广场</h3><p className="mt-3 text-slate-400 text-[14px] font-bold">查看同事共享的高效解析规则，一键星标收藏</p></div>
+                <Button className="bg-blue-600 text-white rounded-xl h-14 px-8 font-black shadow-xl shadow-blue-600/30">+ 发布我的策略</Button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {rules.map(r => (
-                  <Card key={r.id} className={cn("rounded-[1.5rem] border-none shadow-xl transition-all duration-300 overflow-hidden", selectedRuleId === r.id ? "ring-2 ring-blue-600 bg-blue-600 text-white" : "bg-white hover:shadow-blue-600/10 hover:-translate-y-1")}>
-                    <CardHeader className="p-5 pb-3">
-                      <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center mb-3", selectedRuleId === r.id ? "bg-white/20" : "bg-blue-50 text-blue-600")}>{r.icon}</div>
-                      <CardTitle className="text-base font-black">{r.name}</CardTitle>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                {marketplaceStrategies.map(s => (
+                  <Card key={s.id} className="rounded-[2.8rem] border-none shadow-xl bg-white hover:shadow-blue-600/15 transition-all hover:-translate-y-1.5 group">
+                    <CardHeader className="p-8">
+                      <div className="flex items-start justify-between">
+                        <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-5"><Layers size={28} /></div>
+                        <Button variant="ghost" size="icon" onClick={() => toggleStar(s.id)} className={cn("rounded-xl transition-all h-10 w-10", userProfile?.starredStrategyIds?.includes(s.id) ? "text-amber-500 bg-amber-50" : "text-slate-200 hover:text-amber-500")}><Star size={22} fill={userProfile?.starredStrategyIds?.includes(s.id) ? "currentColor" : "none"} /></Button>
+                      </div>
+                      <CardTitle className="text-xl font-black">{s.name}</CardTitle>
+                      <CardDescription className="text-[13px] font-bold line-clamp-2 mt-2 leading-relaxed">{s.description}</CardDescription>
                     </CardHeader>
-                    <CardContent className={cn("p-5 pt-0 text-[11px] font-bold leading-relaxed", selectedRuleId === r.id ? "text-white/80" : "text-slate-500")}>{r.content}</CardContent>
-                    <CardFooter className="p-5 pt-0"><Button onClick={() => setSelectedRuleId(r.id)} className={cn("w-full h-9 rounded-lg text-[11px] font-black transition-all", selectedRuleId === r.id ? "bg-white text-blue-600" : "bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white")}>{selectedRuleId === r.id ? '当前启用' : '应用'}</Button></CardFooter>
+                    <CardContent className="px-8 pb-3"><div className="bg-slate-50 p-5 rounded-[1.5rem] text-[12px] font-mono text-slate-500 line-clamp-4 h-28 overflow-hidden leading-relaxed italic border border-slate-100">{s.content}</div></CardContent>
+                    <CardFooter className="p-8 flex items-center justify-between">
+                      <div className="flex items-center gap-3"><div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-[11px] font-black text-slate-400">{s.authorName?.charAt(0) || 'U'}</div><span className="text-[12px] font-bold text-slate-400">{s.authorName || '匿名专家'}</span></div>
+                      <div className="flex items-center gap-2 text-slate-400 text-[12px] font-black"><Star size={14} /> {s.starCount || 0}</div>
+                    </CardFooter>
                   </Card>
                 ))}
               </div>
@@ -625,93 +474,22 @@ export default function DocuParsePro() {
         )}
 
         {activeTab === 'stats' && (
-          <ScrollArea className="flex-1 p-6 bg-white/20">
-            <div className="max-w-4xl mx-auto space-y-8">
-              <header className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-xl shadow-blue-600/20"><Database size={24} /></div>
-                  <div><h3 className="text-2xl font-black text-slate-800 tracking-tight">用量看板</h3><p className="mt-0.5 text-slate-400 font-bold uppercase tracking-widest text-[10px]">AI 资源实时概览</p></div>
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => window.location.reload()}><RefreshCw size={18} /></Button>
-              </header>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {[
-                  { label: '累计调用', val: logs?.length || 0, icon: <Activity size={20} />, sub: 'Total', color: 'blue' },
-                  { label: '语义消耗', val: logs?.filter(l => l.eventType === 'AIProcessing').reduce((a, c) => a + (c.consumedAmount || 0), 0) || 0, icon: <Sparkles size={20} />, sub: 'Units', color: 'purple' },
-                  { label: '视觉识别', val: logs?.filter(l => l.eventType === 'DocumentProcessed').reduce((a, c) => a + (c.consumedAmount || 0), 0) || 0, icon: <Eye size={20} />, sub: 'Pages', color: 'emerald' }
-                ].map(s => (
-                  <Card key={s.label} className="rounded-[1.5rem] border-none shadow-xl bg-white p-6 group hover:-translate-y-1 transition-all">
-                    <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center mb-4", `bg-${s.color}-50 text-${s.color}-600`)}>{s.icon}</div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{s.label}</p>
-                    <div className="flex items-baseline gap-2 mt-1"><h4 className="text-3xl font-black text-slate-800">{s.val}</h4><span className="text-[10px] font-black text-slate-400">{s.sub}</span></div>
-                  </Card>
-                ))}
-              </div>
-
-              {logs && logs.length > 0 ? (
-                <>
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <Card className="lg:col-span-2 rounded-[1.5rem] border-none shadow-xl bg-white overflow-hidden">
-                      <div className="px-6 py-4 border-b border-slate-50 flex items-center gap-3"><BarChart3 size={18} className="text-blue-600" /><h4 className="font-black text-[12px] text-slate-800">趋势 (7D)</h4></div>
-                      <div className="p-6 h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
-                            <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
-                            <RechartsTooltip cursor={{fill: '#f8fafc'}} content={({active, payload}) => active && payload?.length ? <div className="bg-slate-800 text-white p-2 rounded-lg shadow-2xl text-[10px] font-black uppercase">{payload[0].value} Units</div> : null} />
-                            <Bar dataKey="amount" radius={[4, 4, 0, 0]}>{chartData.map((e, i) => <Cell key={`c-${i}`} fill={COLORS[i % COLORS.length]} />)}</Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </Card>
-                    <Card className="rounded-[1.5rem] border-none shadow-xl bg-white overflow-hidden">
-                      <div className="px-6 py-4 border-b border-slate-50 flex items-center gap-3"><PieChartIcon size={18} className="text-purple-600" /><h4 className="font-black text-[12px] text-slate-800">资源分布</h4></div>
-                      <div className="p-6 h-64 flex flex-col items-center">
-                        <ResponsiveContainer width="100%" height="60%">
-                          <PieChart><Pie data={pieData} innerRadius={40} outerRadius={60} paddingAngle={5} dataKey="value">{pieData.map((e, i) => <Cell key={`p-${i}`} fill={COLORS[i % COLORS.length]} />)}</Pie><RechartsTooltip /></PieChart>
-                        </ResponsiveContainer>
-                        <div className="w-full space-y-3 mt-5">
-                          {pieData.map((d, i) => (
-                            <div key={d.name} className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-slate-600">
-                              <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full" style={{backgroundColor: COLORS[i % COLORS.length]}} />{d.name}</div>
-                              <span>{d.value}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </Card>
-                  </div>
-                  <Card className="rounded-[1.5rem] border-none shadow-xl bg-white overflow-hidden pb-8">
-                    <div className="px-6 py-4 border-b border-slate-50 flex items-center justify-between"><div className="flex items-center gap-3"><Clock size={18} className="text-emerald-600" /><h4 className="font-black text-[12px] text-slate-800">用量明细</h4></div><Badge variant="secondary" className="bg-slate-50 text-slate-400 text-[9px] font-black uppercase px-2">Recent 50</Badge></div>
-                    <Table>
-                      <TableHeader><TableRow className="bg-slate-50/50 border-none"><TableHead className="px-6 font-black text-[10px] uppercase text-slate-400">时间</TableHead><TableHead className="font-black text-[10px] uppercase text-slate-400">类型</TableHead><TableHead className="text-right font-black text-[10px] uppercase text-slate-400">数值</TableHead><TableHead className="px-6 font-black text-[10px] uppercase text-slate-400">单位</TableHead></TableRow></TableHeader>
-                      <TableBody>
-                        {logs.map(l => (
-                          <TableRow key={l.id} className="border-slate-50 hover:bg-slate-50/50 transition-colors">
-                            <TableCell className="px-6 text-[11px] font-bold text-slate-500">{new Date(l.eventDateTime).toLocaleString([], {month: '2-digit', day: '2-digit', hour: '2-digit', minute:'2-digit'})}</TableCell>
-                            <TableCell><Badge variant="outline" className={cn("text-[9px] font-black border-none px-2", l.eventType === 'AIProcessing' ? "bg-purple-50 text-purple-600" : "bg-blue-50 text-blue-600")}>{l.eventType === 'AIProcessing' ? '语义解析' : '视觉扫描'}</Badge></TableCell>
-                            <TableCell className="text-right font-black text-[12px] text-slate-700">{l.consumedAmount || 0}</TableCell>
-                            <TableCell className="px-6 text-[9px] font-black text-slate-400 uppercase tracking-widest">{l.consumptionUnit}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </Card>
-                </>
-              ) : (
-                <div className="py-24 text-center opacity-30"><Activity size={64} className="mx-auto mb-6" /><p className="font-black uppercase text-[12px] tracking-[0.2em]">暂无记录</p></div>
-              )}
+          <ScrollArea className="flex-1 p-10 bg-white/20">
+            <div className="max-w-4xl mx-auto text-center py-24">
+              <div className="w-28 h-28 bg-white rounded-[2.5rem] shadow-2xl flex items-center justify-center mx-auto mb-10 border border-white/20"><Activity size={56} className="text-blue-600/30" /></div>
+              <h3 className="text-3xl font-black text-slate-800">用量看板建设中</h3>
+              <p className="mt-4 text-slate-400 font-bold text-[14px] uppercase tracking-[0.3em]">实时监控算力消耗与 Token 使用情况</p>
             </div>
           </ScrollArea>
         )}
       </main>
 
       <style jsx global>{`
-        .prose table { @apply w-full border-collapse border border-slate-100 rounded-lg overflow-hidden my-4; }
-        .prose th { @apply bg-slate-50 p-3 text-[11px] font-black uppercase text-slate-500 text-left; }
-        .prose td { @apply p-3 border-t border-slate-50 text-[12px] text-slate-600; }
+        .prose p { @apply text-[15px] leading-relaxed mb-5 text-slate-600; }
+        .prose h1, .prose h2, .prose h3 { @apply font-black text-slate-800 mt-8 mb-4; }
+        .prose table { @apply w-full border-collapse border border-slate-100 rounded-xl overflow-hidden my-6; }
+        .prose th { @apply bg-slate-50 p-5 text-[13px] font-black uppercase text-slate-500 text-left; }
+        .prose td { @apply p-5 border-t border-slate-50 text-[14px] text-slate-600; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
     </div>
