@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -56,7 +55,7 @@ const SYSTEM_STRATEGIES = [
     id: 'universal-expert',
     name: '全能文件解析专家',
     description: '通用型深度解析。强制输出[文件概览]与[文件脉络]大纲。',
-    content: '你是一个全能文件解析专家。请对该文档进行深度研读，并严格按以下格式输出：\n\n1. [文件概览]：用三句话精准总结文档核心内容。\n2. [文件脉络]：以 Markdown 列表形式列出文档的主要章节和逻辑结构大纲。\n3. [详细解析]：根据文档内容对用户的提问进行专业解答。',
+    content: '你是一个全能文件解析专家。请对该文档进行深度研读，并严格按以下格式输出：\n\n1. [文件概览]：用三句话精准总结文档核心内容。\n2. [文件脉络]：以 Markdown 列表形式列出文档的主要章节 and 逻辑结构大纲。\n3. [详细解析]：根据文档内容对用户的提问进行专业解答。',
     authorName: '系统预设',
     starCount: 999
   },
@@ -75,14 +74,6 @@ const SYSTEM_STRATEGIES = [
     content: '你是一个精通工厂设备管理和生产流程的专家。请重点分析文档中的技术参数、物料清单(BOM)、操作标准程序(SOP)以及安全生产规范。',
     authorName: '系统预设',
     starCount: 777
-  },
-  {
-    id: 'logistics-expert',
-    name: '物流文件解析专家',
-    description: '专注于货运清单、仓储计划及交付标准的专业分析。',
-    content: '你是一个物流供应链专家。请从文档中识别出运输计划、货物明细、路由节点以及交付时间表。',
-    authorName: '系统预设',
-    starCount: 666
   }
 ];
 
@@ -92,7 +83,7 @@ export default function DocuParsePro() {
   const db = useFirestore();
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState<'chat' | 'marketplace' | 'stats'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'marketplace'>('chat');
   const [chatInput, setChatInput] = useState('');
   const [isChatting, setIsChatting] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -338,13 +329,13 @@ export default function DocuParsePro() {
       
       <nav className="flex-1 px-4 mt-8 space-y-8 overflow-y-auto no-scrollbar">
         <div>
-          <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">主功能菜单</p>
+          <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">系统主控</p>
           <div className="space-y-2 p-1">
-            <button onClick={() => setActiveTab('chat')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-[1.8rem] transition-all font-bold text-[13px] border border-transparent", activeTab === 'chat' ? "bg-primary text-white shadow-xl shadow-primary/20" : "opacity-60 hover:bg-black/5 dark:hover:bg-white/5 hover:opacity-100")}>
-              <MessageSquare size={18} /> 智能对话终端
+            <button onClick={() => setActiveTab('chat')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-[1.8rem] transition-all font-black text-[13px] border border-transparent shadow-sm", activeTab === 'chat' ? "bg-primary text-white shadow-xl shadow-primary/20" : "opacity-60 hover:bg-black/5 dark:hover:bg-white/5 hover:opacity-100")}>
+              <MessageSquare size={18} /> 智能解析终端
             </button>
-            <button onClick={() => setActiveTab('marketplace')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-[1.8rem] transition-all font-bold text-[13px] border border-transparent", activeTab === 'marketplace' ? "bg-primary text-white shadow-xl shadow-primary/20" : "opacity-60 hover:bg-black/5 dark:hover:bg-white/5 hover:opacity-100")}>
-              <ShoppingBag size={18} /> 规则策略广场
+            <button onClick={() => setActiveTab('marketplace')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-[1.8rem] transition-all font-black text-[13px] border border-transparent shadow-sm", activeTab === 'marketplace' ? "bg-primary text-white shadow-xl shadow-primary/20" : "opacity-60 hover:bg-black/5 dark:hover:bg-white/5 hover:opacity-100")}>
+              <ShoppingBag size={18} /> 解析规则广场
             </button>
           </div>
         </div>
@@ -367,7 +358,7 @@ export default function DocuParsePro() {
         <div className="flex items-center justify-between px-6 py-4 bg-black/5 dark:bg-white/5 rounded-[1.8rem] border border-black/5">
            <div className="flex items-center gap-2">
               {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
-              <span className="text-[11px] font-black uppercase tracking-widest">{theme === 'dark' ? 'Dark' : 'Light'}</span>
+              <span className="text-[11px] font-black uppercase tracking-widest">{theme === 'dark' ? 'Night' : 'Day'}</span>
            </div>
            <Switch checked={theme === 'dark'} onCheckedChange={(v) => setTheme(v ? 'dark' : 'light')} />
         </div>
@@ -392,15 +383,19 @@ export default function DocuParsePro() {
               <Sheet>
                 <SheetTrigger asChild><Button variant="ghost" size="icon"><Menu size={24} /></Button></SheetTrigger>
                 <SheetContent side="left" className="p-0 w-[300px] border-none bg-transparent">
+                  <div className="sr-only">
+                    <SheetTitle>导航菜单</SheetTitle>
+                    <SheetDescription>管理您的文档与解析策略</SheetDescription>
+                  </div>
                   <SidebarContent />
                 </SheetContent>
               </Sheet>
             </div>
             <Button variant="ghost" size="icon" className="hidden lg:flex opacity-40 hover:opacity-100" onClick={() => setIsSidebarOpen(!isSidebarOpen)}><ChevronLeft className={cn("transition-transform", !isSidebarOpen && "rotate-180")} size={24} /></Button>
-            <h2 className="font-black text-lg tracking-widest uppercase">{activeTab === 'chat' ? '解析终端' : '策略广场'}</h2>
+            <h2 className="font-black text-lg tracking-widest uppercase">{activeTab === 'chat' ? '解析终端' : '规则广场'}</h2>
           </div>
           <Badge className="bg-primary/20 border-primary/30 text-primary font-black px-4 py-1.5 rounded-xl uppercase tracking-widest text-[12px] flex items-center gap-2 shadow-sm">
-            <Sparkles size={14} /> DeepSeek V3 Pro
+            <Sparkles size={14} /> DeepSeek V3.2 Pro
           </Badge>
         </header>
 
@@ -519,7 +514,7 @@ export default function DocuParsePro() {
 
         {activeTab === 'marketplace' && (
           <ScrollArea className="flex-1 bg-slate-50 dark:bg-slate-950 overflow-hidden">
-            <div className="max-w-[1400px] mx-auto p-12 lg:p-24 pb-40">
+            <div className="max-w-[1400px] mx-auto p-12 pb-40">
               <div className="mb-20 text-center">
                 <p className="opacity-30 font-black uppercase tracking-[0.6em] text-xs">Global Extraction Strategy</p>
                 <h3 className="text-4xl font-black mt-4 tracking-tighter">策略解析规则广场</h3>

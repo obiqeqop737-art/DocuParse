@@ -1,9 +1,8 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * @fileOverview 硅基流动 (SiliconFlow) 流式对话转发接口。
- * 允许前端通过 ReadableStream 实时获取 AI 的回答。
+ * 升级模型 ID 为 deepseek-ai/DeepSeek-V3.2。
  */
 
 export const runtime = 'edge';
@@ -14,7 +13,8 @@ export async function POST(req: NextRequest) {
 
     const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
     const SILICON_FLOW_API_KEY = 'sk-orcwdodraxjcyrllecfaaukwuuepdysjqeeslnaarzhhjeey';
-    const MODEL_ID = 'deepseek-ai/DeepSeek-V3';
+    // 升级模型 ID
+    const MODEL_ID = 'deepseek-ai/DeepSeek-V3.2';
 
     const systemPrompt = `你是一个工厂技术文档专家。请严格遵循以下解析规则和文档背景来回答用户问题。
 
