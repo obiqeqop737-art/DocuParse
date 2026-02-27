@@ -465,44 +465,46 @@ export default function DocuParsePro() {
       <main className="flex-1 flex flex-col min-w-0 relative">
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-400/10 blur-[150px] rounded-full -translate-y-1/2 translate-x-1/2 -z-10" />
 
-        <header className="h-18 px-8 flex items-center justify-between bg-white/40 backdrop-blur-md border-b border-white/20 sticky top-0 z-30 shrink-0">
-          <div className="flex items-center gap-5">
-            <Button variant="ghost" size="icon" className="lg:hidden" asChild>
+        <header className="h-18 px-4 lg:px-8 flex items-center justify-between bg-white/40 backdrop-blur-md border-b border-white/20 sticky top-0 z-30 shrink-0">
+          <div className="flex items-center gap-3 lg:gap-5">
+            <div className="lg:hidden">
               <Sheet>
-                <SheetTrigger><Menu size={22} /></SheetTrigger>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon"><Menu size={22} /></Button>
+                </SheetTrigger>
                 <SheetContent side="left" className="p-0 w-[300px]">
                   <SheetHeader className="sr-only">
                     <SheetTitle>导航菜单</SheetTitle>
-                    <SheetDescription>功能导航</SheetDescription>
+                    <SheetDescription>访问应用核心功能</SheetDescription>
                   </SheetHeader>
                   <SidebarContent />
                 </SheetContent>
               </Sheet>
-            </Button>
+            </div>
             <Button variant="ghost" size="icon" className="hidden lg:flex text-slate-400 hover:bg-white" onClick={() => setIsSidebarOpen(!isSidebarOpen)}><ChevronLeft className={cn("transition-transform", !isSidebarOpen && "rotate-180")} size={22} /></Button>
-            <h2 className="font-black text-slate-800 text-lg tracking-tight">{activeTab === 'chat' ? '解析工作站' : activeTab === 'marketplace' ? '全局策略广场' : '用量监控'}</h2>
+            <h2 className="font-black text-slate-800 text-base lg:text-lg tracking-tight truncate">{activeTab === 'chat' ? '解析工作站' : activeTab === 'marketplace' ? '全局策略广场' : '用量监控'}</h2>
           </div>
-          <div className="flex items-center gap-4">
-            <Badge className="bg-white/90 border-blue-100 text-blue-600 font-black px-4 py-1.5 shadow-sm flex items-center gap-2.5 text-[12px] rounded-xl">
-              <Sparkles size={16} className="animate-pulse" /> DeepSeek V3 极速解析
+          <div className="flex items-center gap-2">
+            <Badge className="bg-white/90 border-blue-100 text-blue-600 font-black px-3 lg:px-4 py-1.5 shadow-sm flex items-center gap-2 text-[10px] lg:text-[12px] rounded-xl whitespace-nowrap">
+              <Sparkles size={14} className="animate-pulse hidden sm:block" /> DeepSeek V3 极速解析
             </Badge>
           </div>
         </header>
 
         {activeTab === 'chat' && (
-          <div className="flex-1 flex overflow-hidden">
-            <div className={cn("w-[300px] border-r border-white/20 bg-white/10 flex flex-col shrink-0", !selectedDocId && "w-full lg:w-[300px]")}>
+          <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+            <div className={cn("w-full lg:w-[300px] border-b lg:border-b-0 lg:border-r border-white/20 bg-white/10 flex flex-col shrink-0", !selectedDocId && "flex-1 lg:flex-none lg:w-[300px]", selectedDocId && "hidden lg:flex")}>
               <div className="p-5"><div className="relative"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><Input placeholder="搜索历史文档..." className="pl-12 h-12 bg-white/80 border-none rounded-2xl shadow-sm text-[13px] font-black" /></div></div>
               <ScrollArea className="flex-1 px-5">
                 <div className="space-y-4 pb-12">
                   {documents.length === 0 ? (
-                    <div className="py-32 text-center opacity-20"><FileSearch size={64} className="mx-auto mb-4" /><p className="text-[13px] font-black tracking-[0.2em] uppercase">等待文档载入</p></div>
+                    <div className="py-20 lg:py-32 text-center opacity-20"><FileSearch size={48} className="mx-auto mb-4" /><p className="text-[11px] font-black tracking-[0.2em] uppercase">等待文档载入</p></div>
                   ) : (
                     documents.map(d => (
                       <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-full p-4.5 rounded-[1.5rem] border transition-all text-left flex items-start gap-4 group relative overflow-hidden", selectedDocId === d.id ? "bg-white border-blue-600 shadow-xl shadow-blue-600/10" : "bg-transparent border-transparent hover:bg-white/60")}>
                         <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-colors", selectedDocId === d.id ? "bg-blue-600 text-white" : "bg-white text-slate-400")}>{getFileIcon(d.type)}</div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-black text-[12px] text-slate-800 truncate mb-1.5 max-w-[150px]">{d.name}</p>
+                          <p className="font-black text-[12px] text-slate-800 truncate mb-1.5">{d.name}</p>
                           <div className="flex items-center gap-3">
                             <span className="text-[10px] font-black text-slate-400">{new Date(d.createdAt).toLocaleDateString()}</span>
                             {d.status === 'completed' ? <Badge className="bg-green-50 text-green-600 text-[9px] h-5 border-none font-black px-2 rounded-lg">已完成</Badge> : <Badge className="bg-blue-50 text-blue-600 text-[9px] h-5 border-none font-black px-2 rounded-lg animate-pulse">解析中</Badge>}
@@ -518,46 +520,50 @@ export default function DocuParsePro() {
             <div className={cn("flex-1 flex flex-col bg-white/30 relative", !selectedDocId && "hidden lg:flex")}>
               {selectedDoc ? (
                 <>
+                  <div className="lg:hidden p-4 border-b flex items-center">
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedDocId(null)} className="font-black text-slate-500 gap-2"><ChevronLeft size={18} /> 返回列表</Button>
+                    <p className="ml-4 font-black text-slate-800 text-sm truncate">{selectedDoc.name}</p>
+                  </div>
                   {selectedDoc.status === 'pending_confirm' ? (
-                    <div className="flex-1 flex items-center justify-start p-16">
-                      <Card className="max-w-md w-full rounded-[2.8rem] border-none shadow-2xl bg-white/90 backdrop-blur-xl p-12 text-center animate-in zoom-in-95">
-                        <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-[2rem] flex items-center justify-center mx-auto mb-10 shadow-inner"><AlertCircle size={48} /></div>
-                        <CardTitle className="text-2xl font-black mb-6 tracking-tight">确认开启解析</CardTitle>
-                        <CardDescription className="text-[15px] font-black text-slate-500 mb-10 leading-relaxed">系统准备处理文档：<br/><span className="text-blue-600 font-black text-lg">"{selectedDoc.name}"</span><br/>AI 将为您梳理全局脉络并抓取核心细节。</CardDescription>
+                    <div className="flex-1 flex items-center justify-center p-6 lg:p-16">
+                      <Card className="max-w-md w-full rounded-[2.5rem] lg:rounded-[2.8rem] border-none shadow-2xl bg-white/90 backdrop-blur-xl p-8 lg:p-12 text-center animate-in zoom-in-95">
+                        <div className="w-16 h-16 lg:w-24 lg:h-24 bg-blue-50 text-blue-600 rounded-2xl lg:rounded-[2rem] flex items-center justify-center mx-auto mb-6 lg:mb-10 shadow-inner"><AlertCircle size={32} className="lg:hidden" /><AlertCircle size={48} className="hidden lg:block" /></div>
+                        <CardTitle className="text-xl lg:text-2xl font-black mb-4 lg:mb-6 tracking-tight">确认开启解析</CardTitle>
+                        <CardDescription className="text-sm lg:text-[15px] font-black text-slate-500 mb-8 lg:mb-10 leading-relaxed">系统准备处理文档：<br/><span className="text-blue-600 font-black text-base lg:text-lg">"{selectedDoc.name}"</span><br/>AI 将为您梳理全局脉络并抓取核心细节。</CardDescription>
                         <div className="space-y-4">
-                          <Button onClick={() => startAnalysis(selectedDoc.id)} className="w-full h-16 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-lg shadow-xl shadow-blue-600/30 flex items-center justify-center gap-3.5"><PlayCircle size={24} /> 开启 AI 深度解析</Button>
-                          <Button variant="ghost" onClick={() => { deleteDocumentNonBlocking(doc(db, 'users', user?.uid!, 'documents', selectedDoc.id)); setSelectedDocId(null); }} className="text-slate-400 font-black hover:text-red-500 text-[14px]"><Trash2 size={20} className="mr-2.5" /> 舍弃此文档</Button>
+                          <Button onClick={() => startAnalysis(selectedDoc.id)} className="w-full h-14 lg:h-16 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-base lg:text-lg shadow-xl shadow-blue-600/30 flex items-center justify-center gap-3"><PlayCircle size={22} /> 开启 AI 深度解析</Button>
+                          <Button variant="ghost" onClick={() => { deleteDocumentNonBlocking(doc(db, 'users', user?.uid!, 'documents', selectedDoc.id)); setSelectedDocId(null); }} className="text-slate-400 font-black hover:text-red-500 text-sm"><Trash2 size={18} className="mr-2" /> 舍弃此文档</Button>
                         </div>
                       </Card>
                     </div>
                   ) : (
                     <>
-                      <ScrollArea className="flex-1 px-10 py-12" ref={scrollRef}>
-                        <div className="max-w-3xl space-y-12 pb-32">
+                      <ScrollArea className="flex-1 px-6 lg:px-10 py-8 lg:py-12" ref={scrollRef}>
+                        <div className="max-w-3xl space-y-8 lg:space-y-12 pb-32">
                           {selectedDoc.chatHistory?.map((m, i) => (
-                            <div key={i} className={cn("flex gap-8", m.role === 'user' ? "flex-row-reverse" : "flex-row")}>
-                              <div className={cn("w-12 h-12 rounded-[1.25rem] flex items-center justify-center shrink-0 border shadow-sm font-black text-[14px] tracking-widest", m.role === 'user' ? "bg-white text-slate-400" : "bg-blue-600 text-white shadow-blue-600/20")}>{m.role === 'user' ? 'ME' : <Sparkles size={24} />}</div>
-                              <div className={cn("max-w-[90%] p-8 rounded-[2.5rem] text-[15px] leading-relaxed shadow-sm", m.role === 'user' ? "bg-blue-600 text-white rounded-tr-none" : "bg-white/95 backdrop-blur-md border rounded-tl-none prose prose-slate prose-sm")}>
+                            <div key={i} className={cn("flex gap-4 lg:gap-8", m.role === 'user' ? "flex-row-reverse" : "flex-row")}>
+                              <div className={cn("w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-[1.25rem] flex items-center justify-center shrink-0 border shadow-sm font-black text-[12px] lg:text-[14px] tracking-widest", m.role === 'user' ? "bg-white text-slate-400" : "bg-blue-600 text-white shadow-blue-600/20")}>{m.role === 'user' ? 'ME' : <Sparkles size={18} className="lg:hidden" />}{m.role === 'user' ? '' : <Sparkles size={24} className="hidden lg:block" />}</div>
+                              <div className={cn("max-w-[85%] lg:max-w-[90%] p-5 lg:p-8 rounded-[1.5rem] lg:rounded-[2.5rem] text-sm lg:text-[15px] leading-relaxed shadow-sm", m.role === 'user' ? "bg-blue-600 text-white rounded-tr-none" : "bg-white/95 backdrop-blur-md border rounded-tl-none prose prose-slate prose-sm")}>
                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
                               </div>
                             </div>
                           ))}
                           {isChatting && (
-                            <div className="flex gap-8">
-                              <div className="w-12 h-12 rounded-[1.25rem] bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-blue-600/20"><Sparkles size={24} /></div>
-                              <div className="bg-white/80 backdrop-blur-md border p-8 rounded-[2.5rem] rounded-tl-none flex items-center gap-4 shadow-sm"><Loader2 className="animate-spin text-blue-600" size={24} /><span className="text-[14px] font-black text-slate-700 tracking-wider">正在深度研读并构建脉络...</span></div>
+                            <div className="flex gap-4 lg:gap-8">
+                              <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-[1.25rem] bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-blue-600/20"><Sparkles size={18} /></div>
+                              <div className="bg-white/80 backdrop-blur-md border p-5 lg:p-8 rounded-[1.5rem] lg:rounded-[2.5rem] rounded-tl-none flex items-center gap-4 shadow-sm"><Loader2 className="animate-spin text-blue-600" size={18} /><span className="text-[12px] lg:text-[14px] font-black text-slate-700 tracking-wider">正在深度研读并构建脉络...</span></div>
                             </div>
                           )}
                         </div>
                       </ScrollArea>
-                      <footer className="p-10 border-t border-white/20 bg-white/60 backdrop-blur-3xl">
+                      <footer className="p-4 lg:p-10 border-t border-white/20 bg-white/60 backdrop-blur-3xl">
                         <div className="max-w-3xl relative">
-                          <textarea placeholder={isRecording ? "正在监听语音..." : "向专家追问文档细节，或点击右侧麦克风进行语音输入..."} className={cn("w-full min-h-[72px] max-h-[250px] bg-white border-none rounded-[2rem] p-7 pr-32 text-[15px] font-black focus:ring-2 focus:ring-blue-100 shadow-inner resize-none no-scrollbar placeholder:text-slate-300", isRecording && "bg-red-50/30")} value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} />
-                          <div className="absolute right-6 bottom-6 flex items-center gap-3">
-                             <Button onClick={isRecording ? stopRecording : startRecording} disabled={isTranscribing} variant="ghost" className={cn("w-14 h-14 rounded-2xl transition-all", isRecording ? "bg-red-500 text-white animate-pulse" : "bg-slate-100 text-slate-400 hover:bg-blue-50 hover:text-blue-600")}>
-                               {isTranscribing ? <Loader2 className="animate-spin" size={24} /> : isRecording ? <MicOff size={24} /> : <Mic size={24} />}
+                          <textarea placeholder={isRecording ? "正在监听语音..." : "向专家追问文档细节，或点击麦克风..."} className={cn("w-full min-h-[64px] lg:min-h-[72px] max-h-[200px] bg-white border-none rounded-2xl lg:rounded-[2rem] p-4 lg:p-7 pr-24 lg:pr-32 text-sm lg:text-[15px] font-black focus:ring-2 focus:ring-blue-100 shadow-inner resize-none no-scrollbar placeholder:text-slate-300", isRecording && "bg-red-50/30")} value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} />
+                          <div className="absolute right-3 lg:right-6 bottom-3 lg:bottom-6 flex items-center gap-2 lg:gap-3">
+                             <Button onClick={isRecording ? stopRecording : startRecording} disabled={isTranscribing} variant="ghost" className={cn("w-10 h-10 lg:w-14 lg:h-14 rounded-xl lg:rounded-2xl transition-all", isRecording ? "bg-red-500 text-white animate-pulse" : "bg-slate-100 text-slate-400 hover:bg-blue-50 hover:text-blue-600")}>
+                               {isTranscribing ? <Loader2 className="animate-spin" size={20} /> : isRecording ? <MicOff size={20} /> : <Mic size={20} />}
                              </Button>
-                             <Button onClick={handleSendMessage} disabled={!chatInput.trim() || isChatting} className="w-14 h-14 rounded-2xl bg-blue-600 text-white shadow-xl shadow-blue-600/30 hover:scale-105 active:scale-95 transition-all"><Send size={24} /></Button>
+                             <Button onClick={handleSendMessage} disabled={!chatInput.trim() || isChatting} className="w-10 h-10 lg:w-14 lg:h-14 rounded-xl lg:rounded-2xl bg-blue-600 text-white shadow-xl shadow-blue-600/30 hover:scale-105 active:scale-95 transition-all flex items-center justify-center"><Send size={20} /></Button>
                           </div>
                         </div>
                       </footer>
@@ -565,10 +571,10 @@ export default function DocuParsePro() {
                   )}
                 </>
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-start pt-40 p-16 text-center">
-                  <div className="w-40 h-40 bg-white/90 rounded-[3.5rem] shadow-2xl flex items-center justify-center mb-12 border border-white/20"><MessageSquare size={72} className="text-blue-600/10" /></div>
-                  <h3 className="text-4xl font-black text-slate-800 tracking-tight mb-6">解析工作站就绪</h3>
-                  <p className="text-slate-400 font-black text-[15px] max-w-sm leading-relaxed uppercase tracking-[0.3em]">上传文档，AI 将立即为您呈现<br/>[文件概览] 与 [文件脉络]</p>
+                <div className="flex-1 flex flex-col items-center justify-center p-6 lg:p-16 text-center">
+                  <div className="w-24 h-24 lg:w-40 lg:h-40 bg-white/90 rounded-[2rem] lg:rounded-[3.5rem] shadow-2xl flex items-center justify-center mb-8 lg:mb-12 border border-white/20"><MessageSquare size={48} className="lg:hidden text-blue-600/10" /><MessageSquare size={72} className="hidden lg:block text-blue-600/10" /></div>
+                  <h3 className="text-2xl lg:text-4xl font-black text-slate-800 tracking-tight mb-4 lg:mb-6">解析工作站就绪</h3>
+                  <p className="text-slate-400 font-black text-[12px] lg:text-[15px] max-w-sm leading-relaxed uppercase tracking-[0.2em] lg:tracking-[0.3em]">上传文档，AI 将立即为您呈现<br/>[文件概览] 与 [文件脉络]</p>
                 </div>
               )}
             </div>
@@ -576,44 +582,45 @@ export default function DocuParsePro() {
         )}
 
         {activeTab === 'marketplace' && (
-          <ScrollArea className="flex-1 p-12 bg-white/20">
+          <ScrollArea className="flex-1 p-6 lg:p-12 bg-white/20">
             <div className="max-w-[1400px] mx-auto">
-              <div className="flex items-center justify-between mb-16">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10 lg:mb-16">
                 <div>
-                  <h3 className="text-4xl font-black text-slate-800 tracking-tight">全局策略广场</h3>
-                  <p className="mt-4 text-slate-400 text-[16px] font-black uppercase tracking-widest">选择高效解析指令，当前每行展示 5 个策略</p>
+                  <h3 className="text-2xl lg:text-4xl font-black text-slate-800 tracking-tight">全局策略广场</h3>
+                  <p className="mt-2 lg:mt-4 text-slate-400 text-sm lg:text-[16px] font-black uppercase tracking-widest">选择高效解析指令</p>
                 </div>
-                <div className="flex gap-4">
-                  <Badge className="bg-blue-600/10 text-blue-600 font-black px-4 py-2 text-sm border-none rounded-xl">已收录 {allStrategies.length} 个专家指令</Badge>
+                <div>
+                  <Badge className="bg-blue-600/10 text-blue-600 font-black px-4 py-2 text-[12px] border-none rounded-xl">已收录 {allStrategies.length} 个专家指令</Badge>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-6">
                 {allStrategies.map(s => (
-                  <Card key={s.id} className={cn("rounded-[2.2rem] border-none shadow-xl bg-white hover:shadow-blue-600/15 transition-all hover:-translate-y-2 group flex flex-col h-full", selectedRuleId === s.id && "ring-2 ring-blue-600")}>
-                    <CardHeader className="p-7">
+                  <Card key={s.id} className={cn("rounded-[2rem] lg:rounded-[2.2rem] border-none shadow-xl bg-white hover:shadow-blue-600/15 transition-all hover:-translate-y-2 group flex flex-col h-full", selectedRuleId === s.id && "ring-2 ring-blue-600")}>
+                    <CardHeader className="p-5 lg:p-7">
                       <div className="flex items-start justify-between mb-4">
-                        <div className={cn("w-14 h-14 rounded-[1.25rem] flex items-center justify-center shadow-inner", s.id.includes('expert') ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600")}>
-                          {s.id === 'logistics-expert' ? <Truck size={28} /> : s.id === 'factory-expert' ? <Layers size={28} /> : s.id === 'speech-expert' ? <Headphones size={28} /> : <Sparkles size={28} />}
+                        <div className={cn("w-12 h-12 lg:w-14 lg:h-14 rounded-[1.25rem] flex items-center justify-center shadow-inner", s.id.includes('expert') ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600")}>
+                          {s.id === 'logistics-expert' ? <Truck size={24} className="lg:hidden" /> : s.id === 'factory-expert' ? <Layers size={24} className="lg:hidden" /> : s.id === 'speech-expert' ? <Headphones size={24} className="lg:hidden" /> : <Sparkles size={24} className="lg:hidden" />}
+                          {s.id === 'logistics-expert' ? <Truck size={28} className="hidden lg:block" /> : s.id === 'factory-expert' ? <Layers size={28} className="hidden lg:block" /> : s.id === 'speech-expert' ? <Headphones size={28} className="hidden lg:block" /> : <Sparkles size={28} className="hidden lg:block" />}
                         </div>
-                        <Button variant="ghost" size="icon" onClick={() => toggleStar(s.id)} className={cn("rounded-xl transition-all h-11 w-11", userProfile?.starredStrategyIds?.includes(s.id) ? "text-amber-500 bg-amber-50" : "text-slate-100 hover:text-amber-500")}><Star size={24} fill={userProfile?.starredStrategyIds?.includes(s.id) ? "currentColor" : "none"} /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => toggleStar(s.id)} className={cn("rounded-xl transition-all h-10 w-10 lg:h-11 lg:w-11", userProfile?.starredStrategyIds?.includes(s.id) ? "text-amber-500 bg-amber-50" : "text-slate-100 hover:text-amber-500")}><Star size={20} className="lg:hidden" fill={userProfile?.starredStrategyIds?.includes(s.id) ? "currentColor" : "none"} /><Star size={24} className="hidden lg:block" fill={userProfile?.starredStrategyIds?.includes(s.id) ? "currentColor" : "none"} /></Button>
                       </div>
-                      <CardTitle className="text-lg font-black leading-tight mb-2">{s.name}</CardTitle>
-                      <CardDescription className="text-[12px] font-black line-clamp-2 h-10 text-slate-400 leading-snug">{s.description}</CardDescription>
+                      <CardTitle className="text-base lg:text-lg font-black leading-tight mb-2">{s.name}</CardTitle>
+                      <CardDescription className="text-[11px] lg:text-[12px] font-black line-clamp-2 h-10 text-slate-400 leading-snug">{s.description}</CardDescription>
                     </CardHeader>
-                    <CardContent className="px-7 flex-1 pb-4">
-                      <div className="bg-slate-50/80 p-5 rounded-[1.5rem] text-[11px] font-black text-slate-500 line-clamp-5 h-32 overflow-hidden leading-relaxed border border-slate-100/50 italic">
+                    <CardContent className="px-5 lg:px-7 flex-1 pb-4">
+                      <div className="bg-slate-50/80 p-4 lg:p-5 rounded-[1.5rem] text-[10px] lg:text-[11px] font-black text-slate-500 line-clamp-5 h-24 lg:h-32 overflow-hidden leading-relaxed border border-slate-100/50 italic">
                         {s.content}
                       </div>
                     </CardContent>
-                    <CardFooter className="p-7 pt-0 flex flex-col gap-4 mt-auto">
+                    <CardFooter className="p-5 lg:p-7 pt-0 flex flex-col gap-4 mt-auto">
                       <div className="flex items-center justify-between w-full">
-                         <div className="flex items-center gap-2.5">
-                            <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[9px] font-black text-slate-400 uppercase">{s.authorName?.charAt(0)}</div>
-                            <span className="text-[11px] font-black text-slate-400">{s.authorName}</span>
+                         <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[8px] font-black text-slate-400 uppercase">{s.authorName?.charAt(0)}</div>
+                            <span className="text-[10px] font-black text-slate-400">{s.authorName}</span>
                          </div>
-                         <div className="flex items-center gap-1.5 text-slate-300 text-[11px] font-black"><Star size={12} fill="currentColor" /> {s.starCount}</div>
+                         <div className="flex items-center gap-1 text-slate-300 text-[10px] font-black"><Star size={10} fill="currentColor" /> {s.starCount}</div>
                       </div>
-                      <Button onClick={() => { setSelectedRuleId(s.id); setActiveTab('chat'); toast({ title: "策略挂载成功", description: `已切换至[${s.name}]` }); }} className={cn("w-full h-11 rounded-xl font-black text-[13px] shadow-lg transition-all", selectedRuleId === s.id ? "bg-blue-600 text-white shadow-blue-600/20" : "bg-white text-slate-600 border border-slate-100 hover:bg-slate-50 shadow-none")}>
+                      <Button onClick={() => { setSelectedRuleId(s.id); setActiveTab('chat'); toast({ title: "策略挂载成功", description: `已切换至[${s.name}]` }); }} className={cn("w-full h-10 lg:h-11 rounded-xl font-black text-[12px] lg:text-[13px] shadow-lg transition-all", selectedRuleId === s.id ? "bg-blue-600 text-white shadow-blue-600/20" : "bg-white text-slate-600 border border-slate-100 hover:bg-slate-50 shadow-none")}>
                         {selectedRuleId === s.id ? '当前使用中' : '挂载此策略'}
                       </Button>
                     </CardFooter>
@@ -625,22 +632,22 @@ export default function DocuParsePro() {
         )}
 
         {activeTab === 'stats' && (
-          <ScrollArea className="flex-1 p-12 bg-white/20">
-            <div className="max-w-4xl mx-auto text-center py-40">
-              <div className="w-32 h-32 bg-white rounded-[3rem] shadow-2xl flex items-center justify-center mx-auto mb-12 border border-white/20"><Activity size={64} className="text-blue-600/30" /></div>
-              <h3 className="text-4xl font-black text-slate-800 tracking-tight">企业用量看板建设中</h3>
-              <p className="mt-6 text-slate-400 font-black text-[16px] uppercase tracking-[0.4em]">正在对接全司算力资源监控接口...</p>
+          <ScrollArea className="flex-1 p-6 lg:p-12 bg-white/20">
+            <div className="max-w-4xl mx-auto text-center py-20 lg:py-40">
+              <div className="w-24 h-24 lg:w-32 lg:h-32 bg-white rounded-[2rem] lg:rounded-[3rem] shadow-2xl flex items-center justify-center mx-auto mb-8 lg:mb-12 border border-white/20"><Activity size={48} className="lg:hidden text-blue-600/30" /><Activity size={64} className="hidden lg:block text-blue-600/30" /></div>
+              <h3 className="text-2xl lg:text-4xl font-black text-slate-800 tracking-tight">企业用量看板建设中</h3>
+              <p className="mt-4 lg:mt-6 text-slate-400 font-black text-sm lg:text-[16px] uppercase tracking-[0.2em] lg:tracking-[0.4em]">正在对接全司算力资源监控接口...</p>
             </div>
           </ScrollArea>
         )}
       </main>
 
       <style jsx global>{`
-        .prose p { @apply text-[15px] leading-relaxed mb-6 text-slate-600 font-medium; }
-        .prose h1, .prose h2, .prose h3 { @apply font-black text-slate-800 mt-10 mb-5 tracking-tight; }
-        .prose table { @apply w-full border-collapse border border-slate-100 rounded-2xl overflow-hidden my-8 shadow-sm bg-white/50; }
-        .prose th { @apply bg-slate-50 p-5 text-[12px] font-black uppercase text-slate-500 text-left border-b; }
-        .prose td { @apply p-5 border-t border-slate-50 text-[14px] text-slate-600 font-medium; }
+        .prose p { @apply text-[14px] lg:text-[15px] leading-relaxed mb-4 lg:mb-6 text-slate-600 font-medium; }
+        .prose h1, .prose h2, .prose h3 { @apply font-black text-slate-800 mt-8 lg:mt-10 mb-4 lg:mb-5 tracking-tight; }
+        .prose table { @apply w-full border-collapse border border-slate-100 rounded-xl lg:rounded-2xl overflow-hidden my-6 lg:my-8 shadow-sm bg-white/50; }
+        .prose th { @apply bg-slate-50 p-4 lg:p-5 text-[11px] lg:text-[12px] font-black uppercase text-slate-500 text-left border-b; }
+        .prose td { @apply p-4 lg:p-5 border-t border-slate-50 text-[13px] lg:text-[14px] text-slate-600 font-medium; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
     </div>
