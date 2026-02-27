@@ -4,126 +4,46 @@ service cloud.firestore {
 
     /**
      * DocuParse Pro Security Rules Documentation
-     *
-     * Core Philosophy:
-     * This ruleset implements a strict user-ownership model for all private data (documents, extraction results,
-     * and custom rules) while providing a public marketplace for "Extraction Strategies". Access is primarily
-     * governed by the user's authenticated UID.
-     *
-     * Data Structure:
-     * - Private Data: Nested under `/users/{userId}/...` to ensure logical and physical isolation.
-     * - Marketplace Data: Located in the top-level `/extractionStrategies` collection for cross-user discovery.
-     *
-     * Key Security Decisions:
-     * 1. Authorization Independence: All documents contain denormalized ownership fields (userId or authorId).
-     *    This allows rules to verify access without performing expensive get() lookups on parent documents.
-     * 2. QAP (Rules are not Filters): Read rules are designed to align with user-specific queries, ensuring
-     *    the path-based isolation is enforced at the database level.
-     * 3. Prototyping Flexibility: Data types and schema shapes are not strictly enforced to allow for
-     *    rapid iteration, focusing instead on robust authorization and relational integrity.
-     *
-     * Denormalization for Authorization:
-     * - `ExtractedData` documents include a `userId` field to allow direct ownership checks.
-     * - `ExtractionStrategy` documents include `authorId` and `isPublic` fields to manage marketplace access.
      */
 
-    // --- Helper Functions ---
-
-    /** @description Checks if the user is authenticated with Firebase Auth. */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /** @description Checks if the user's UID matches the provided ID. */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /** @description Checks if a document exists and the user is the owner. Used for updates/deletes. */
     function isExistingOwner(userId) {
       return resource != null && isOwner(userId);
     }
 
-    /** @description Checks if a field is being modified during an update. */
     function isUnchanged(fieldName) {
       return request.resource.data[fieldName] == resource.data[fieldName];
     }
 
     // --- Collection Rules ---
 
-    /**
-     * @description Rules for the User profile. Only the user can read or manage their own profile.
-     * @path /users/{userId}
-     * @allow (get) If the requesting user's UID matches {userId}.
-     * @deny (list) Listing users is globally disabled for privacy.
-     * @principle Restricts access to a user's own data tree and prevents user enumeration.
-     */
     match /users/{userId} {
       allow get: if isOwner(userId);
-      allow list: if false; // User listing is not permitted in this application.
+      allow list: if false;
       allow create: if isOwner(userId);
       allow update: if isExistingOwner(userId);
-      allow delete: if false; // Profile deletion is managed by administrative processes.
+      allow delete: if false;
 
-      /**
-       * @description Rules for user documents. Ensures isolation of historical files.
-       * @path /users/{userId}/documents/{documentId}
-       * @allow (create) If userId in path matches auth.uid AND userId in data matches auth.uid.
-       * @deny (update) If the userId field is being changed to another user's ID.
-       * @principle Enforces strict ownership and path-to-data consistency.
-       */
       match /documents/{documentId} {
         allow get, list: if isOwner(userId);
         allow create: if isOwner(userId) && request.resource.data.userId == userId;
         allow update: if isExistingOwner(userId) && isUnchanged('userId');
         allow delete: if isExistingOwner(userId);
       }
-
-      /**
-       * @description Rules for extracted data. Isolated per user for privacy.
-       * @path /users/{userId}/extractedData/{extractedDataId}
-       * @allow (get) If the owner is requesting their specific extracted result.
-       * @deny (create) If the document's internal userId does not match the authenticated user.
-       * @principle Uses denormalized ownership fields to prevent cross-user data leaks.
-       */
-      match /extractedData/{extractedDataId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update: if isExistingOwner(userId) && isUnchanged('userId');
-        allow delete: if isExistingOwner(userId);
-      }
-
-      /**
-       * @description Rules for custom extraction rules. Private to the creating user.
-       * @path /users/{userId}/extractionRules/{ruleId}
-       * @allow (create) If authorId in the rule data matches the user's UID.
-       * @deny (delete) If the user is not the owner of the rule.
-       * @principle Maintains privacy of proprietary extraction logic.
-       */
-      match /extractionRules/{ruleId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.authorId == userId;
-        allow update: if isExistingOwner(userId) && isUnchanged('authorId');
-        allow delete: if isExistingOwner(userId);
-      }
     }
 
-    /**
-     * @description Rules for the Strategy Marketplace. Allows public discovery and author control.
-     * @path /extractionStrategies/{strategyId}
-     * @allow (list) If the strategy is marked as public OR the user is the author.
-     * @deny (update) If a non-author attempts to modify the strategy or its star count directly.
-     * @principle Implements a "Public Read, Owner-Only Write" pattern with marketplace logic.
-     */
     match /extractionStrategies/{strategyId} {
-      // Users can see a strategy if it is public OR if they are the author.
-      allow get, list: if isSignedIn() && (resource.data.isPublic == true || resource.data.authorId == request.auth.uid);
+      // 允许公共读取，无需登录即可看到广场内容（增强稳定性）
+      allow get, list: if (resource.data.isPublic == true) || (isSignedIn() && resource.data.authorId == request.auth.uid);
       
-      // Only the author can create a strategy.
       allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
-      
-      // Only the author can update or delete.
-      // Note: In a production app, starCount updates would typically happen via a Cloud Function to ensure integrity.
       allow update: if isSignedIn() && resource.data.authorId == request.auth.uid && isUnchanged('authorId');
       allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
     }

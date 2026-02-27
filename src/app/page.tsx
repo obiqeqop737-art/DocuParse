@@ -61,7 +61,7 @@ const SYSTEM_STRATEGIES = [
   {
     id: 'speech-expert',
     name: '语音文件转译专家',
-    description: '使用 TeleAI 模型，专注于语音内容的精准校准与原文本还原。',
+    description: '根据 ASR 内容输出精准校准的原文本，并引导提问。',
     content: '你是一个语音文件转译专家。请根据输入的 ASR (语音转文字) 内容，首先输出校准后的完整原文本，确保修正口语化冗余、语气词及同音错别字，使语意逻辑严密、标点准确。随后，请在回复的末尾增加一句引导语：“以上是为您校准后的文本，您可以针对内容细节向我提问。”',
     authorName: '系统预设',
     starCount: 888
@@ -115,11 +115,11 @@ export default function DocuParsePro() {
     }
   }, [user, auth, isUserLoading]);
 
-  // 云端策略广场
+  // 云端策略广场 - 增加 user 依赖，防止权限错误
   const marketQuery = useMemoFirebase(() => {
-    if (!db) return null;
+    if (!db || !user) return null;
     return query(collection(db, 'extractionStrategies'), where('isPublic', '==', true));
-  }, [db]);
+  }, [db, user]);
   const { data: marketplaceStrategiesData } = useCollection(marketQuery);
   const marketplaceStrategies = marketplaceStrategiesData || [];
 
@@ -155,7 +155,7 @@ export default function DocuParsePro() {
       uploadedFilesRef.current.set(docId, file);
       setLocalDocs(prev => [newDoc, ...prev]);
       setSelectedDocId(docId);
-      setActiveTab('chat');
+      setActiveTab('chat'); // 立即切换到聊天终端
       
       toast({
         title: "文件接收成功",
@@ -329,7 +329,7 @@ export default function DocuParsePro() {
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full tech-glass rounded-r-[2.5rem] overflow-hidden p-1">
+    <div className="flex flex-col h-full tech-glass rounded-r-[2.5rem] overflow-hidden p-2">
       <div className="p-8 pb-4 flex items-center gap-4">
         <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg">
           <BookOpen size={24} />
@@ -340,7 +340,7 @@ export default function DocuParsePro() {
         </div>
       </div>
       
-      <nav className="flex-1 px-4 mt-8 space-y-8 overflow-y-auto no-scrollbar p-2">
+      <nav className="flex-1 px-4 mt-8 space-y-8 overflow-y-auto no-scrollbar">
         <div>
           <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">功能主菜单</p>
           <div className="space-y-2">
@@ -541,10 +541,10 @@ export default function DocuParsePro() {
                         <Button variant="ghost" size="icon" className="opacity-20 hover:opacity-100"><Star size={20} /></Button>
                       </div>
                       <CardTitle className="text-base font-black mb-2">{s.name}</CardTitle>
-                      <CardDescription className="text-[11px] font-bold opacity-60 dark:opacity-70 leading-snug h-8 line-clamp-2 uppercase tracking-tight">{s.description}</CardDescription>
+                      <CardDescription className="text-[11px] font-bold opacity-60 dark:opacity-60 leading-snug h-8 line-clamp-2 uppercase tracking-tight">{s.description}</CardDescription>
                     </CardHeader>
                     <CardContent className="px-8 pb-4 flex-1">
-                       <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl text-[10px] font-bold opacity-60 dark:opacity-80 line-clamp-5 h-28 italic border border-black/5">
+                       <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl text-[10px] font-bold opacity-60 dark:opacity-70 line-clamp-5 h-28 italic border border-black/5">
                          {s.content}
                        </div>
                     </CardContent>
