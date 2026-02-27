@@ -188,18 +188,19 @@ export default function DocuParsePro() {
           const content = await page.getTextContent();
           text += content.items.map((item: any) => item.str).join(' ') + "\n";
         }
-        finalContent = text;
+        finalContent = text.trim() || "[PDF 文档未提取到文本内容，可能是扫描件或受保护的文件]";
       } 
       else if (ext === 'docx') {
         const res = await mammoth.extractRawText({ arrayBuffer: ab });
-        finalContent = res.value;
+        finalContent = res.value.trim() || "[DOCX 文档未提取到文本内容]";
       } 
       else if (['xlsx', 'xls', 'csv'].includes(ext)) {
         const workbook = XLSX.read(ab);
         finalContent = workbook.SheetNames.map(name => XLSX.utils.sheet_to_txt(workbook.Sheets[name])).join('\n\n');
+        if (!finalContent.trim()) finalContent = "[表格文档未提取到文本内容]";
       } 
       else {
-        finalContent = await file.text();
+        finalContent = (await file.text()).trim() || "[文本文件内容为空]";
       }
 
       const fullContent = `\n# 文档内容: ${file.name}\n\n${finalContent}\n`;
@@ -332,26 +333,30 @@ export default function DocuParsePro() {
 
         <div className="p-1">
           <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">我的文档</p>
-          <div className="space-y-2 px-2">
+          <div className="space-y-3 px-6">
             {localDocs.map(d => (
               <button 
                 key={d.id} 
                 onClick={() => setSelectedDocId(d.id)} 
                 className={cn(
-                  "w-full h-12 flex items-center gap-3 px-3 rounded-xl transition-all text-left group min-w-0 overflow-hidden", 
+                  "w-full h-14 flex items-center gap-3 px-4 rounded-2xl transition-all text-left relative group min-w-0 overflow-hidden", 
                   selectedDocId === d.id 
                     ? "bg-primary/15 text-primary" 
                     : "hover:bg-black/5 dark:hover:bg-white/5"
                 )}
               >
+                {selectedDocId === d.id && (
+                  <div className="absolute left-0 top-3 bottom-3 w-1 bg-primary rounded-r-full" />
+                )}
                 <div className={cn(
                   "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm transition-colors", 
                   selectedDocId === d.id ? "bg-primary text-white" : "bg-primary/10 text-primary"
                 )}>
                   {['MP3','WAV','M4A','OGG'].includes(d.type) ? <Music size={14} /> : <FileText size={14} />}
                 </div>
-                <div className="flex-1 min-w-0 overflow-hidden">
-                  <p className="font-bold text-[13px] truncate block w-full leading-tight">{d.name}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-[13px] truncate leading-tight">{d.name}</p>
+                  <p className="text-[10px] opacity-40 uppercase font-black">{d.status === 'completed' ? '解析成功' : '待处理'}</p>
                 </div>
               </button>
             ))}
@@ -393,10 +398,8 @@ export default function DocuParsePro() {
               <Sheet>
                 <SheetTrigger asChild><Button variant="ghost" size="icon"><Menu size={24} /></Button></SheetTrigger>
                 <SheetContent side="left" className="p-0 w-[300px] border-none bg-transparent">
-                  <div className="sr-only">
-                    <SheetTitle>导航菜单</SheetTitle>
-                    <SheetDescription>通过此侧边栏管理您的文档和策略</SheetDescription>
-                  </div>
+                  <SheetTitle className="sr-only">导航菜单</SheetTitle>
+                  <SheetDescription className="sr-only">管理文档和策略</SheetDescription>
                   <SidebarContent />
                 </SheetContent>
               </Sheet>
@@ -411,7 +414,6 @@ export default function DocuParsePro() {
 
         {activeTab === 'chat' && (
           <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-            {/* Mobile document list (only shows if no document selected) */}
             <div className={cn("flex-1 flex flex-col relative bg-white/10", !selectedDocId && "hidden lg:flex")}>
               {selectedDocId && !selectedDoc ? (
                 <div className="flex-1 flex flex-col items-center justify-center animate-pulse">
