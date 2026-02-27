@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -545,7 +546,6 @@ export default function DocuParsePro() {
                   ) : (
                     <>
                       <ScrollArea className="flex-1 px-8 lg:px-12 py-10 lg:py-16" ref={scrollRef}>
-                        {/* Tight gap with the list */}
                         <div className="max-w-3xl space-y-10 lg:space-y-16 pb-40">
                           {selectedDoc.chatHistory?.map((m, i) => (
                             <div key={i} className={cn("flex gap-6 lg:gap-10", m.role === 'user' ? "flex-row-reverse" : "flex-row")}>
@@ -589,42 +589,42 @@ export default function DocuParsePro() {
         )}
 
         {activeTab === 'marketplace' && (
-          <ScrollArea className="flex-1 p-8 lg:p-16 bg-white/[0.02]">
-            <div className="max-w-[1600px] mx-auto">
-              <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10 mb-16 lg:mb-24">
+          <ScrollArea className="flex-1 px-12 lg:px-24 py-12 lg:py-20 bg-white/[0.02]">
+            <div className="max-w-[1400px] mx-auto">
+              <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10 mb-16 lg:mb-20">
                 <div>
-                  <h3 className="text-4xl lg:text-7xl font-black text-white tracking-tighter mb-4">规则广场</h3>
-                  <p className="text-white/20 text-sm lg:text-[18px] font-black uppercase tracking-[0.5em]">GLOBAL STRATEGY LIQUID</p>
+                  <h3 className="text-4xl lg:text-6xl font-black text-white tracking-tighter mb-4">规则广场</h3>
+                  <p className="text-white/20 text-sm lg:text-[16px] font-black uppercase tracking-[0.5em]">GLOBAL STRATEGY LIQUID</p>
                 </div>
                 <Badge className="bg-blue-600/10 text-blue-400 font-black px-6 py-3 text-[14px] border border-blue-500/20 rounded-2xl backdrop-blur-md">已载入 {allStrategies.length} 个深度专家</Badge>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8 lg:gap-10">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 lg:gap-8">
                 {allStrategies.map(s => (
-                  <Card key={s.id} className={cn("rounded-[2.8rem] border-white/10 shadow-2xl bg-white/5 backdrop-blur-3xl hover:bg-white/10 transition-all duration-500 hover:-translate-y-4 group flex flex-col h-full overflow-hidden", selectedRuleId === s.id && "ring-4 ring-blue-600 shadow-blue-600/20")}>
-                    <CardHeader className="p-8 lg:p-10">
-                      <div className="flex items-start justify-between mb-8">
-                        <div className={cn("w-16 h-16 lg:w-20 lg:h-20 rounded-[1.8rem] flex items-center justify-center shadow-inner transition-transform group-hover:scale-110", s.id.includes('expert') ? "bg-blue-600 text-white" : "bg-white/10 text-white/40")}>
-                          {s.id === 'logistics-expert' ? <Truck size={32} /> : s.id === 'factory-expert' ? <Layers size={32} /> : s.id === 'speech-expert' ? <Headphones size={32} /> : <Sparkles size={32} />}
+                  <Card key={s.id} className={cn("rounded-[2.8rem] border-white/10 shadow-2xl bg-white/5 backdrop-blur-3xl hover:bg-white/10 transition-all duration-500 hover:-translate-y-2 group flex flex-col h-full overflow-hidden", selectedRuleId === s.id && "ring-4 ring-blue-600 shadow-blue-600/20")}>
+                    <CardHeader className="p-8">
+                      <div className="flex items-start justify-between mb-6">
+                        <div className={cn("w-14 h-14 lg:w-16 lg:h-16 rounded-[1.8rem] flex items-center justify-center shadow-inner transition-transform group-hover:scale-110", s.id.includes('expert') ? "bg-blue-600 text-white" : "bg-white/10 text-white/40")}>
+                          {s.id === 'logistics-expert' ? <Truck size={28} /> : s.id === 'factory-expert' ? <Layers size={28} /> : s.id === 'speech-expert' ? <Headphones size={28} /> : <Sparkles size={28} />}
                         </div>
-                        <Button variant="ghost" size="icon" onClick={() => toggleStar(s.id)} className={cn("rounded-2xl transition-all h-12 w-12 lg:h-14 lg:w-14 hover:bg-white/10", userProfile?.starredStrategyIds?.includes(s.id) ? "text-amber-400" : "text-white/10 hover:text-amber-400")}><Star size={28} fill={userProfile?.starredStrategyIds?.includes(s.id) ? "currentColor" : "none"} /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => toggleStar(s.id)} className={cn("rounded-2xl transition-all h-10 w-10 hover:bg-white/10", userProfile?.starredStrategyIds?.includes(s.id) ? "text-amber-400" : "text-white/10 hover:text-amber-400")}><Star size={24} fill={userProfile?.starredStrategyIds?.includes(s.id) ? "currentColor" : "none"} /></Button>
                       </div>
-                      <CardTitle className="text-lg lg:text-xl font-black leading-tight mb-4 tracking-tight">{s.name}</CardTitle>
-                      <CardDescription className="text-[12px] lg:text-[13px] font-black line-clamp-2 h-12 text-white/30 leading-snug uppercase tracking-widest">{s.description}</CardDescription>
+                      <CardTitle className="text-lg font-black leading-tight mb-3 tracking-tight">{s.name}</CardTitle>
+                      <CardDescription className="text-[11px] font-black line-clamp-2 h-10 text-white/30 leading-snug uppercase tracking-widest">{s.description}</CardDescription>
                     </CardHeader>
-                    <CardContent className="px-8 lg:p-10 flex-1 pb-6">
-                      <div className="bg-black/20 p-6 lg:p-8 rounded-[2rem] text-[11px] lg:text-[12px] font-black text-white/20 line-clamp-6 h-32 lg:h-44 overflow-hidden leading-relaxed border border-white/5 italic">
+                    <CardContent className="px-8 flex-1 pb-4">
+                      <div className="bg-black/20 p-5 rounded-[2rem] text-[10px] lg:text-[11px] font-black text-white/20 line-clamp-5 h-28 lg:h-36 overflow-hidden leading-relaxed border border-white/5 italic">
                         {s.content}
                       </div>
                     </CardContent>
-                    <CardFooter className="p-8 lg:p-10 pt-0 flex flex-col gap-6 mt-auto">
+                    <CardFooter className="p-8 pt-0 flex flex-col gap-4 mt-auto">
                       <div className="flex items-center justify-between w-full">
                          <div className="flex items-center gap-3">
-                            <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-black text-white/40 uppercase">{s.authorName?.charAt(0)}</div>
-                            <span className="text-[11px] font-black text-white/30 tracking-wider">{s.authorName}</span>
+                            <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px] font-black text-white/40 uppercase">{s.authorName?.charAt(0)}</div>
+                            <span className="text-[10px] font-black text-white/30 tracking-wider">{s.authorName}</span>
                          </div>
-                         <div className="flex items-center gap-2 text-white/20 text-[11px] font-black"><Star size={12} fill="currentColor" /> {s.starCount}</div>
+                         <div className="flex items-center gap-2 text-white/20 text-[10px] font-black"><Star size={10} fill="currentColor" /> {s.starCount}</div>
                       </div>
-                      <Button onClick={() => { setSelectedRuleId(s.id); setActiveTab('chat'); toast({ title: "规则挂载成功", description: `引擎已切换至 [${s.name}]` }); }} className={cn("w-full h-14 lg:h-16 rounded-[1.5rem] font-black text-[14px] lg:text-[16px] shadow-2xl transition-all uppercase tracking-[0.2em]", selectedRuleId === s.id ? "bg-blue-600 text-white shadow-blue-600/40" : "bg-white/5 text-white/60 border border-white/10 hover:bg-white/10")}>
+                      <Button onClick={() => { setSelectedRuleId(s.id); setActiveTab('chat'); toast({ title: "规则挂载成功", description: `引擎已切换至 [${s.name}]` }); }} className={cn("w-full h-12 lg:h-14 rounded-[1.5rem] font-black text-[13px] shadow-2xl transition-all uppercase tracking-[0.2em]", selectedRuleId === s.id ? "bg-blue-600 text-white shadow-blue-600/40" : "bg-white/5 text-white/60 border border-white/10 hover:bg-white/10")}>
                         {selectedRuleId === s.id ? 'Using Now' : 'Mount Engine'}
                       </Button>
                     </CardFooter>
