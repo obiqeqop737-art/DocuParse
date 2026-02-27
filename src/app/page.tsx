@@ -34,6 +34,7 @@ import {
 } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { performASR } from '@/ai/flows/asr-flow';
+import { performOCR } from '@/ai/flows/ocr-flow';
 
 // 配置 PDF.js Worker
 if (typeof window !== 'undefined') {
@@ -151,8 +152,8 @@ export default function DocuParsePro() {
       setActiveTab('chat'); 
       
       toast({
-        title: "文件接收成功",
-        description: `${file.name} 已加入待解析列表。`,
+        title: "文件就绪",
+        description: `${file.name} 已准备好进行 AI 研读。`,
       });
     }
     e.target.value = '';
@@ -178,32 +179,46 @@ export default function DocuParsePro() {
         });
         const base64 = await base64Promise;
         const { text } = await performASR({ audioBase64: base64 });
-        finalContent = text || "[该音频未能转写出有效文本]";
+        finalContent = text || "[音频转写未发现有效内容]";
       } 
       else if (ext === 'pdf') {
         const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
-        let text = "";
+        const imagesToOCR: { pageIndex: number; dataUri: string }[] = [];
+        
+        // PDF 视觉化重构：将每一页转为图片进行 OCR，确保内容完整性
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          text += content.items.map((item: any) => item.str).join(' ') + "\n";
+          const viewport = page.getViewport({ scale: 2.0 }); // 提升缩放比例以获得更好的 OCR 精度
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          
+          await page.render({ canvasContext: context!, viewport }).promise;
+          imagesToOCR.push({
+            pageIndex: i,
+            dataUri: canvas.toDataURL('image/jpeg', 0.8)
+          });
         }
-        finalContent = text.trim() || "[PDF 文档未提取到文本内容，可能是扫描件或受保护的文件]";
+        
+        const { results } = await performOCR({ images: imagesToOCR });
+        finalContent = results.map(r => `## 第 ${r.pageIndex} 页\n${r.text}`).join('\n\n');
+        if (!finalContent.trim()) finalContent = "[PDF 视觉识别未提取到有效文本]";
       } 
       else if (ext === 'docx') {
         const res = await mammoth.extractRawText({ arrayBuffer: ab });
-        finalContent = res.value.trim() || "[DOCX 文档未提取到文本内容]";
+        finalContent = res.value.trim() || "[DOCX 内容提取为空]";
       } 
       else if (['xlsx', 'xls', 'csv'].includes(ext)) {
         const workbook = XLSX.read(ab);
         finalContent = workbook.SheetNames.map(name => XLSX.utils.sheet_to_txt(workbook.Sheets[name])).join('\n\n');
-        if (!finalContent.trim()) finalContent = "[表格文档未提取到文本内容]";
+        if (!finalContent.trim()) finalContent = "[表格内容提取为空]";
       } 
       else {
-        finalContent = (await file.text()).trim() || "[文本文件内容为空]";
+        finalContent = (await file.text()).trim() || "[文本内容为空]";
       }
 
-      const fullContent = `\n# 文档内容: ${file.name}\n\n${finalContent}\n`;
+      const fullContent = `\n# 技术文档: ${file.name}\n\n${finalContent}\n`;
       setLocalDocs(prev => prev.map(d => d.id === docId ? { ...d, content: fullContent, status: 'completed' } : d));
       
       setIsExtracting(false);
@@ -220,7 +235,7 @@ export default function DocuParsePro() {
         })
       });
 
-      if (!res.ok) throw new Error("AI 引擎未响应");
+      if (!res.ok) throw new Error("AI 引擎连接失败");
 
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
@@ -333,21 +348,18 @@ export default function DocuParsePro() {
 
         <div className="p-1">
           <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">我的文档</p>
-          <div className="space-y-3 px-6">
+          <div className="space-y-3 px-6 pb-20">
             {localDocs.map(d => (
               <button 
                 key={d.id} 
                 onClick={() => setSelectedDocId(d.id)} 
                 className={cn(
-                  "w-full h-14 flex items-center gap-3 px-4 rounded-2xl transition-all text-left relative group min-w-0 overflow-hidden", 
+                  "w-full h-12 flex items-center gap-3 px-3 rounded-xl transition-all text-left relative group min-w-0 overflow-hidden shrink-0", 
                   selectedDocId === d.id 
                     ? "bg-primary/15 text-primary" 
                     : "hover:bg-black/5 dark:hover:bg-white/5"
                 )}
               >
-                {selectedDocId === d.id && (
-                  <div className="absolute left-0 top-3 bottom-3 w-1 bg-primary rounded-r-full" />
-                )}
                 <div className={cn(
                   "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm transition-colors", 
                   selectedDocId === d.id ? "bg-primary text-white" : "bg-primary/10 text-primary"
@@ -356,7 +368,6 @@ export default function DocuParsePro() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-[13px] truncate leading-tight">{d.name}</p>
-                  <p className="text-[10px] opacity-40 uppercase font-black">{d.status === 'completed' ? '解析成功' : '待处理'}</p>
                 </div>
               </button>
             ))}
@@ -418,7 +429,7 @@ export default function DocuParsePro() {
               {selectedDocId && !selectedDoc ? (
                 <div className="flex-1 flex flex-col items-center justify-center animate-pulse">
                   <Loader2 className="animate-spin text-primary mb-4" size={40} />
-                  <p className="font-black uppercase tracking-widest text-sm opacity-40">引擎加载中...</p>
+                  <p className="font-black uppercase tracking-widest text-sm opacity-40">引擎准备中...</p>
                 </div>
               ) : selectedDoc ? (
                 <>
@@ -432,9 +443,9 @@ export default function DocuParsePro() {
                         <div className="w-20 h-20 bg-primary/10 text-primary rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
                           {selectedDoc.status === 'processing' ? <Loader2 className="animate-spin" size={40} /> : <AlertCircle size={40} />}
                         </div>
-                        <CardTitle className="text-2xl font-black mb-4">{selectedDoc.status === 'processing' ? '正在研读...' : '解析就绪'}</CardTitle>
+                        <CardTitle className="text-2xl font-black mb-4">{selectedDoc.status === 'processing' ? '正在视觉研读...' : '文件就绪'}</CardTitle>
                         <CardDescription className="font-bold opacity-60 mb-8 uppercase tracking-widest text-xs">
-                          {selectedDoc.status === 'processing' ? '正在提取文档或音频语义' : `准备分析: ${selectedDoc.name}`}
+                          {selectedDoc.status === 'processing' ? '正在执行 OCR 视觉提取与 ASR 转译' : `准备解析: ${selectedDoc.name}`}
                         </CardDescription>
                         {selectedDoc.status === 'pending_confirm' && (
                           <Button onClick={() => startAnalysis(selectedDoc.id)} disabled={isExtracting} className="w-full h-16 rounded-[1.8rem] bg-primary text-lg font-black shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all">
@@ -460,7 +471,7 @@ export default function DocuParsePro() {
                             <div className="flex gap-5">
                               <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center shrink-0 shadow-md animate-pulse"><Loader2 className="animate-spin" size={18} /></div>
                               <div className="bg-white/80 dark:bg-slate-800/80 p-6 rounded-[2rem] rounded-tl-none border border-black/5 animate-pulse text-sm font-bold opacity-40 shadow-sm">
-                                {isExtracting ? "文档研读中，请稍候..." : "专家思考中..."}
+                                {isExtracting ? "OCR 视觉扫描中..." : "DeepSeek 思考中..."}
                               </div>
                             </div>
                           )}
@@ -469,7 +480,7 @@ export default function DocuParsePro() {
                       <footer className="p-8 lg:p-10 border-t border-black/5 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl sticky bottom-0">
                         <div className="max-w-3xl relative mx-auto lg:mx-0">
                           <textarea 
-                            placeholder="追问文档细节..." 
+                            placeholder="基于提取内容追问..." 
                             className="w-full min-h-[90px] bg-white dark:bg-slate-800 border border-black/10 rounded-[2rem] p-6 pr-20 text-sm lg:text-[15px] font-bold focus:ring-4 focus:ring-primary/10 shadow-xl resize-none transition-all" 
                             value={chatInput} 
                             onChange={(e) => setChatInput(e.target.value)} 
@@ -485,7 +496,7 @@ export default function DocuParsePro() {
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center opacity-10">
                   <MessageSquare size={120} />
-                  <h3 className="text-3xl font-black mt-8 uppercase tracking-[1em]">终端已就绪</h3>
+                  <h3 className="text-3xl font-black mt-8 uppercase tracking-[1em]">解析终端就绪</h3>
                 </div>
               )}
             </div>
