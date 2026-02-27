@@ -421,7 +421,7 @@ export default function DocuParsePro() {
       <div className="p-4 border-t border-white/20 bg-blue-50/30">
         <label className="group relative w-full flex items-center justify-center gap-2 bg-white hover:bg-blue-600 hover:text-white p-3 rounded-lg border border-blue-100 transition-all shadow-md shadow-blue-600/5 cursor-pointer active:scale-95">
           <Upload size={16} className="transition-transform group-hover:-translate-y-0.5" />
-          <span className="text-[12px] font-black">上传文档</span>
+          <span className="text-[13px] font-black">上传文档</span>
           <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.csv" />
         </label>
       </div>
@@ -475,7 +475,7 @@ export default function DocuParsePro() {
 
         {activeTab === 'chat' && (
           <div className="flex-1 flex overflow-hidden">
-            <div className={cn("w-[260px] border-r border-white/20 bg-white/10 flex flex-col shrink-0 transition-all", selectedDocId && "hidden lg:flex")}>
+            <div className={cn("w-[300px] border-r border-white/20 bg-white/10 flex flex-col shrink-0 transition-all", selectedDocId && "hidden lg:flex")}>
               <div className="p-4 shrink-0">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
@@ -529,7 +529,7 @@ export default function DocuParsePro() {
                   ) : (
                     <>
                       <ScrollArea className="flex-1 px-4 md:px-8 py-6" ref={scrollRef}>
-                        <div className="max-w-3xl mx-auto space-y-6 pb-20">
+                        <div className="max-w-4xl space-y-6 pb-20">
                           {selectedDoc.chatHistory.map((m, i) => (
                             <div key={i} className={cn("flex gap-4", m.role === 'user' ? "flex-row-reverse" : "flex-row")}>
                               <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border shadow-sm font-black text-[10px]", m.role === 'user' ? "bg-white text-slate-400" : "bg-blue-600 text-white shadow-blue-600/20")}>
@@ -552,7 +552,7 @@ export default function DocuParsePro() {
                         </div>
                       </ScrollArea>
                       <footer className="p-4 border-t border-white/20 bg-white/40 backdrop-blur-xl shrink-0">
-                        <div className="max-w-3xl mx-auto relative group">
+                        <div className="max-w-4xl relative group">
                           <textarea placeholder="进一步提问..." className="w-full min-h-[48px] max-h-[140px] bg-white/80 border-none rounded-[1.25rem] p-4 pr-14 text-[13px] font-bold focus:ring-2 focus:ring-blue-100 shadow-inner resize-none no-scrollbar" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} />
                           <Button onClick={handleSendMessage} disabled={!chatInput.trim() || isChatting || selectedDoc.status !== 'completed'} className="absolute right-3 bottom-3 w-9 h-9 rounded-lg bg-blue-600 text-white shadow-lg shadow-blue-600/30 hover:scale-105 active:scale-95 transition-all">
                             <Send size={16} />
