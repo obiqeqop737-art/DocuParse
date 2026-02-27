@@ -64,6 +64,11 @@ const SheetContent = React.forwardRef<
       className={cn(sheetVariants({ side }), className)}
       {...props}
     >
+      {/* Accessibility Fix: Ensure SheetTitle and SheetDescription are present for screen readers */}
+      <div className="sr-only">
+        <SheetPrimitive.Title>导航菜单</SheetPrimitive.Title>
+        <SheetPrimitive.Description>通过此侧边栏管理您的文档和策略</SheetPrimitive.Description>
+      </div>
       {children}
       <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
         <X className="h-4 w-4" />

@@ -473,10 +473,6 @@ export default function DocuParsePro() {
                   <Button variant="ghost" size="icon"><Menu size={22} /></Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="p-0 w-[300px]">
-                  <SheetHeader className="sr-only">
-                    <SheetTitle>导航菜单</SheetTitle>
-                    <SheetDescription>访问应用核心功能</SheetDescription>
-                  </SheetHeader>
                   <SidebarContent />
                 </SheetContent>
               </Sheet>
