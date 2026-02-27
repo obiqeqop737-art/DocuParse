@@ -34,7 +34,7 @@ import {
   initiateAnonymousSignIn
 } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import { performASR } from '@/ai/flows/asr-flow'; // 修正导入路径
+import { performASR } from '@/ai/flows/asr-flow';
 
 // 配置 PDF.js Worker
 if (typeof window !== 'undefined') {
@@ -171,7 +171,6 @@ export default function DocuParsePro() {
       const ab = await file.arrayBuffer();
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
       
-      // 处理音频文件 (ASR)
       if (['wav', 'mp3', 'm4a', 'ogg'].includes(ext)) {
         const reader = new FileReader();
         const base64Promise = new Promise<string>((resolve) => {
@@ -182,7 +181,6 @@ export default function DocuParsePro() {
         const { text } = await performASR({ audioBase64: base64 });
         finalContent = text || "[该音频未能转写出有效文本]";
       } 
-      // 处理 PDF
       else if (ext === 'pdf') {
         const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
         let text = "";
@@ -193,17 +191,14 @@ export default function DocuParsePro() {
         }
         finalContent = text;
       } 
-      // 处理 Word
       else if (ext === 'docx') {
         const res = await mammoth.extractRawText({ arrayBuffer: ab });
         finalContent = res.value;
       } 
-      // 处理表格
       else if (['xlsx', 'xls', 'csv'].includes(ext)) {
         const workbook = XLSX.read(ab);
         finalContent = workbook.SheetNames.map(name => XLSX.utils.sheet_to_txt(workbook.Sheets[name])).join('\n\n');
       } 
-      // 处理纯文本
       else {
         finalContent = await file.text();
       }
@@ -405,16 +400,31 @@ export default function DocuParsePro() {
                 </div>
               </div>
               <ScrollArea className="flex-1 pb-10">
-                <div className="space-y-4 px-4 py-4">
+                <div className="space-y-3 px-4 py-4">
                   {localDocs.map(d => (
-                    <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-full p-6 rounded-[1.8rem] border transition-all text-left flex items-start gap-4 overflow-hidden", selectedDocId === d.id ? "bg-primary text-white shadow-xl shadow-primary/20 border-primary ring-[8px] ring-primary/30" : "bg-black/5 dark:bg-white/5 border-transparent hover:bg-black/10")}>
-                      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm", selectedDocId === d.id ? "bg-white/20" : "bg-primary/10 text-primary")}>
-                        {d.type === 'PDF' ? <FileText size={18} /> : d.type.includes('XL') ? <FileSpreadsheet size={18} /> : ['MP3','WAV','M4A','OGG'].includes(d.type) ? <Music size={18} /> : <FileText size={18} />}
+                    <button 
+                      key={d.id} 
+                      onClick={() => setSelectedDocId(d.id)} 
+                      className={cn(
+                        "w-full h-16 flex items-center gap-3 px-4 rounded-2xl transition-all text-left relative group min-w-0 overflow-hidden", 
+                        selectedDocId === d.id 
+                          ? "bg-primary/15 text-primary shadow-sm" 
+                          : "hover:bg-black/5 dark:hover:bg-white/5"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-colors", 
+                        selectedDocId === d.id ? "bg-primary text-white" : "bg-primary/10 text-primary"
+                      )}>
+                        {['MP3','WAV','M4A','OGG'].includes(d.type) ? <Music size={18} /> : d.type === 'PDF' ? <FileText size={18} /> : <FileText size={18} />}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-bold text-[13px] truncate block w-full">{d.name}</p>
-                        <p className="text-[11px] opacity-40 mt-1 font-bold uppercase tracking-widest truncate">{d.status}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-[13px] truncate">{d.name}</p>
+                        <p className="text-[10px] font-black opacity-40 uppercase tracking-widest truncate">{d.status}</p>
                       </div>
+                      {selectedDocId === d.id && (
+                        <div className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-primary rounded-full" />
+                      )}
                     </button>
                   ))}
                   {localDocs.length === 0 && (
@@ -512,9 +522,9 @@ export default function DocuParsePro() {
                 <p className="opacity-30 font-black uppercase tracking-[0.6em] text-xs">Global Extraction Strategy</p>
                 <h3 className="text-4xl font-black mt-4 tracking-tighter">策略解析规则广场</h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 p-12">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12 p-12">
                 {allStrategies.map(s => (
-                  <Card key={s.id} className={cn("rounded-[3.5rem] border-none shadow-2xl bg-white dark:bg-slate-900 transition-all hover:-translate-y-2 flex flex-col h-full overflow-hidden p-1 shadow-black/5", selectedRuleId === s.id && "ring-[10px] ring-primary shadow-primary/30")}>
+                  <Card key={s.id} className={cn("rounded-[3.5rem] border-none shadow-2xl bg-white dark:bg-slate-900 transition-all hover:-translate-y-2 flex flex-col h-full overflow-hidden p-1 shadow-black/5 relative", selectedRuleId === s.id && "ring-[10px] ring-primary shadow-primary/30")}>
                     <CardHeader className="p-8 pb-4 relative">
                       <div className="flex justify-between items-start mb-6">
                         <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg", s.id.includes('universal') ? "bg-blue-600" : s.id.includes('speech') ? "bg-amber-500" : s.id.includes('logistics') ? "bg-emerald-600" : "bg-slate-800")}>
@@ -558,3 +568,4 @@ export default function DocuParsePro() {
     </div>
   );
 }
+
