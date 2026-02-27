@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -6,7 +5,7 @@ import {
   FileText, Upload, MessageSquare, Send, Loader2, Search, BookOpen, 
   Sparkles, Layers, Menu, ChevronLeft, FileDown,
   AlertCircle, PlayCircle, Trash2, FileSpreadsheet, Presentation, Star, ShoppingBag,
-  Target, Sun, Moon, BarChart3, Clock, Truck, Music
+  Target, Sun, Moon, BarChart3, Clock, Truck, Music, Mic
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -399,14 +398,14 @@ export default function DocuParsePro() {
                   <Input placeholder="检索本地文档..." className="pl-12 h-12 bg-black/5 border-none rounded-xl text-[13px] font-bold" />
                 </div>
               </div>
-              <ScrollArea className="flex-1 pb-10">
-                <div className="space-y-3 px-6 py-4">
+              <ScrollArea className="flex-1 pb-10 px-6">
+                <div className="space-y-3 py-4">
                   {localDocs.map(d => (
                     <button 
                       key={d.id} 
                       onClick={() => setSelectedDocId(d.id)} 
                       className={cn(
-                        "w-full h-16 flex items-center gap-3 px-4 rounded-2xl transition-all text-left relative group min-w-0 overflow-hidden", 
+                        "w-full h-14 flex items-center gap-3 px-4 rounded-2xl transition-all text-left relative group min-w-0 overflow-hidden", 
                         selectedDocId === d.id 
                           ? "bg-primary/15 text-primary" 
                           : "hover:bg-black/5 dark:hover:bg-white/5"
@@ -416,14 +415,14 @@ export default function DocuParsePro() {
                         <div className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-primary rounded-full" />
                       )}
                       <div className={cn(
-                        "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-colors", 
+                        "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-colors", 
                         selectedDocId === d.id ? "bg-primary text-white" : "bg-primary/10 text-primary"
                       )}>
-                        {['MP3','WAV','M4A','OGG'].includes(d.type) ? <Music size={18} /> : <FileText size={18} />}
+                        {['MP3','WAV','M4A','OGG'].includes(d.type) ? <Music size={16} /> : <FileText size={16} />}
                       </div>
-                      <div className="flex-1 min-w-0 pr-2">
-                        <p className="font-bold text-[13px] truncate block w-full">{d.name}</p>
-                        <p className="text-[10px] font-black opacity-40 uppercase tracking-widest truncate">{d.status}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-[13px] truncate block w-full leading-tight">{d.name}</p>
+                        <p className="text-[10px] font-black opacity-30 uppercase tracking-widest truncate leading-none mt-0.5">{d.status}</p>
                       </div>
                     </button>
                   ))}
@@ -568,4 +567,3 @@ export default function DocuParsePro() {
     </div>
   );
 }
-
