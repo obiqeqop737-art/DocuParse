@@ -331,15 +331,35 @@ export default function DocuParsePro() {
         </div>
 
         <div className="p-1">
-          <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">当前挂载引擎</p>
-          <div className="p-4 mx-2 bg-primary/10 rounded-2xl border border-primary/20 flex items-center gap-3 shadow-inner">
-            <div className="w-10 h-10 bg-primary text-white rounded-xl flex items-center justify-center shrink-0 shadow-md">
-              <Target size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[12px] font-black truncate">{currentStrategy.name}</p>
-              <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Engine Ready</p>
-            </div>
+          <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">我的文档</p>
+          <div className="space-y-2 px-2">
+            {localDocs.map(d => (
+              <button 
+                key={d.id} 
+                onClick={() => setSelectedDocId(d.id)} 
+                className={cn(
+                  "w-full h-12 flex items-center gap-3 px-3 rounded-xl transition-all text-left group min-w-0 overflow-hidden", 
+                  selectedDocId === d.id 
+                    ? "bg-primary/15 text-primary" 
+                    : "hover:bg-black/5 dark:hover:bg-white/5"
+                )}
+              >
+                <div className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm transition-colors", 
+                  selectedDocId === d.id ? "bg-primary text-white" : "bg-primary/10 text-primary"
+                )}>
+                  {['MP3','WAV','M4A','OGG'].includes(d.type) ? <Music size={14} /> : <FileText size={14} />}
+                </div>
+                <div className="flex-1 min-w-0 overflow-hidden">
+                  <p className="font-bold text-[13px] truncate block w-full leading-tight">{d.name}</p>
+                </div>
+              </button>
+            ))}
+            {localDocs.length === 0 && (
+              <div className="py-10 text-center opacity-20">
+                <p className="text-[10px] font-black uppercase tracking-widest">暂无文件</p>
+              </div>
+            )}
           </div>
         </div>
       </nav>
@@ -391,51 +411,7 @@ export default function DocuParsePro() {
 
         {activeTab === 'chat' && (
           <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-            <div className={cn("w-full lg:w-[300px] border-b lg:border-b-0 lg:border-r border-black/5 flex flex-col shrink-0 bg-white/5 p-4", !selectedDocId && "flex-1 lg:flex-none", selectedDocId && "hidden lg:flex")}>
-              <div className="p-4 px-6">
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 opacity-20" size={18} />
-                  <Input placeholder="检索本地文档..." className="pl-12 h-12 bg-black/5 border-none rounded-xl text-[13px] font-bold" />
-                </div>
-              </div>
-              <ScrollArea className="flex-1 pb-10 px-6">
-                <div className="space-y-3 py-4">
-                  {localDocs.map(d => (
-                    <button 
-                      key={d.id} 
-                      onClick={() => setSelectedDocId(d.id)} 
-                      className={cn(
-                        "w-full h-14 flex items-center gap-3 px-4 rounded-2xl transition-all text-left relative group min-w-0 overflow-hidden", 
-                        selectedDocId === d.id 
-                          ? "bg-primary/15 text-primary" 
-                          : "hover:bg-black/5 dark:hover:bg-white/5"
-                      )}
-                    >
-                      {selectedDocId === d.id && (
-                        <div className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-primary rounded-full" />
-                      )}
-                      <div className={cn(
-                        "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-colors", 
-                        selectedDocId === d.id ? "bg-primary text-white" : "bg-primary/10 text-primary"
-                      )}>
-                        {['MP3','WAV','M4A','OGG'].includes(d.type) ? <Music size={16} /> : <FileText size={16} />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-[13px] truncate block w-full leading-tight">{d.name}</p>
-                        <p className="text-[10px] font-black opacity-30 uppercase tracking-widest truncate leading-none mt-0.5">{d.status}</p>
-                      </div>
-                    </button>
-                  ))}
-                  {localDocs.length === 0 && (
-                    <div className="p-10 text-center opacity-20 flex flex-col items-center">
-                      <Upload size={40} className="mb-4" />
-                      <p className="text-xs font-black uppercase tracking-widest">暂无解析文件</p>
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </div>
-
+            {/* Mobile document list (only shows if no document selected) */}
             <div className={cn("flex-1 flex flex-col relative bg-white/10", !selectedDocId && "hidden lg:flex")}>
               {selectedDocId && !selectedDoc ? (
                 <div className="flex-1 flex flex-col items-center justify-center animate-pulse">
