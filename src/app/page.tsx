@@ -322,7 +322,7 @@ export default function DocuParsePro() {
       <nav className="flex-1 px-4 mt-8 space-y-6 overflow-y-auto no-scrollbar">
         <div>
           <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.3em] mb-4 pl-4">功能主菜单</p>
-          <div className="space-y-2">
+          <div className="space-y-2 p-1"> {/* 增加 p-1 防止阴影被遮挡 */}
             <button onClick={() => setActiveTab('chat')} className={cn("w-full h-14 flex items-center gap-4 px-6 rounded-2xl transition-all font-bold text-sm", activeTab === 'chat' ? "bg-primary text-white shadow-lg" : "opacity-60 hover:bg-black/5 hover:opacity-100")}>
               <MessageSquare size={18} /> 智能对话工作站
             </button>
@@ -398,7 +398,7 @@ export default function DocuParsePro() {
                 </div>
               </div>
               <ScrollArea className="flex-1 px-4 pb-10">
-                <div className="space-y-3">
+                <div className="space-y-3 p-1"> {/* 增加 p-1 防止阴影被遮挡 */}
                   {documents.map(d => (
                     <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-full p-4 rounded-2xl border transition-all text-left flex items-start gap-4", selectedDocId === d.id ? "bg-primary text-white shadow-xl border-primary" : "bg-black/5 border-transparent hover:bg-black/10")}>
                       <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", selectedDocId === d.id ? "bg-white/20" : "bg-black/5 text-primary")}><FileText size={18} /></div>
@@ -474,14 +474,14 @@ export default function DocuParsePro() {
 
         {activeTab === 'marketplace' && (
           <ScrollArea className="flex-1 px-8 lg:px-16 py-12 bg-white/10">
-            <div className="max-w-[1400px] mx-auto">
+            <div className="max-w-[1400px] mx-auto p-6"> {/* 增加 p-6 确保环绕的高亮边框有展示空间 */}
               <div className="mb-16">
                 <h3 className="text-4xl font-black tracking-tight mb-2 uppercase">规则广场</h3>
                 <p className="opacity-40 font-bold uppercase tracking-[0.4em] text-xs">Global Strategy Collection</p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-10">
                 {allStrategies.map(s => (
-                  <Card key={s.id} className={cn("rounded-[2.5rem] border-none shadow-xl bg-white transition-all hover:-translate-y-2 flex flex-col h-full overflow-hidden", selectedRuleId === s.id && "ring-4 ring-primary shadow-primary/20")}>
+                  <Card key={s.id} className={cn("rounded-[2.5rem] border-none shadow-xl bg-white transition-all hover:-translate-y-2 flex flex-col h-full overflow-hidden", selectedRuleId === s.id && "ring-[6px] ring-primary shadow-2xl shadow-primary/20")}>
                     <CardHeader className="p-6">
                       <div className="flex justify-between items-start mb-6">
                         <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg", s.id.includes('universal') ? "bg-blue-600" : "bg-slate-800")}>
