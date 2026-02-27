@@ -15,7 +15,9 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
-import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { 
+  Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription 
+} from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -98,12 +100,10 @@ export default function DocuParsePro() {
   const [selectedRuleId, setSelectedRuleId] = useState<string>('universal-expert');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   
-  // 本地文档状态
   const [localDocs, setLocalDocs] = useState<LocalDocument[]>([]);
   const uploadedFilesRef = useRef<Map<string, File>>(new Map());
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 语音功能状态
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -339,7 +339,7 @@ export default function DocuParsePro() {
       <nav className="flex-1 px-4 mt-8 space-y-8 overflow-y-auto no-scrollbar">
         <div>
           <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">主功能菜单</p>
-          <div className="space-y-2">
+          <div className="space-y-2 p-1">
             <button onClick={() => setActiveTab('chat')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-[1.8rem] transition-all font-bold text-[13px] border border-transparent", activeTab === 'chat' ? "bg-primary text-white shadow-xl shadow-primary/20" : "opacity-60 hover:bg-black/5 dark:hover:bg-white/5 hover:opacity-100")}>
               <MessageSquare size={18} /> 智能对话终端
             </button>
@@ -392,10 +392,6 @@ export default function DocuParsePro() {
               <Sheet>
                 <SheetTrigger asChild><Button variant="ghost" size="icon"><Menu size={24} /></Button></SheetTrigger>
                 <SheetContent side="left" className="p-0 w-[300px] border-none bg-transparent">
-                  <div className="sr-only">
-                    <SheetTitle>导航菜单</SheetTitle>
-                    <SheetDescription>管理您的文档与策略</SheetDescription>
-                  </div>
                   <SidebarContent />
                 </SheetContent>
               </Sheet>
@@ -523,11 +519,11 @@ export default function DocuParsePro() {
 
         {activeTab === 'marketplace' && (
           <ScrollArea className="flex-1 bg-slate-50 dark:bg-slate-950 overflow-hidden">
-            <div className="max-w-6xl mx-auto p-12 lg:p-24 pb-40">
+            <div className="max-w-[1400px] mx-auto p-12 lg:p-24 pb-40">
               <div className="mb-20 text-center">
                 <p className="opacity-30 font-black uppercase tracking-[0.6em] text-xs">Global Extraction Strategy</p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-12 p-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-16 p-12">
                 {allStrategies.map(s => (
                   <Card key={s.id} className={cn("rounded-[4rem] border-none shadow-2xl bg-white dark:bg-slate-900 transition-all hover:-translate-y-4 flex flex-col h-full overflow-hidden p-2 shadow-black/5", selectedRuleId === s.id && "ring-[10px] ring-primary shadow-primary/30")}>
                     <CardHeader className="p-10 pb-6 relative">
@@ -537,11 +533,11 @@ export default function DocuParsePro() {
                         </div>
                         <Button variant="ghost" size="icon" className="opacity-20 hover:opacity-100"><Star size={24} /></Button>
                       </div>
-                      <CardTitle className="text-lg font-black mb-3 text-slate-900 dark:text-white leading-tight">{s.name}</CardTitle>
+                      <CardTitle className="text-xl font-black mb-3 text-slate-900 dark:text-white leading-tight">{s.name}</CardTitle>
                       <CardDescription className="text-xs font-bold opacity-40 dark:opacity-60 leading-relaxed uppercase tracking-tight">{s.description}</CardDescription>
                     </CardHeader>
                     <CardContent className="px-10 pb-6 flex-1">
-                       <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem] text-[11px] font-bold opacity-60 dark:opacity-80 line-clamp-6 italic border border-black/5">
+                       <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem] text-[12px] font-bold opacity-60 dark:opacity-80 h-40 overflow-hidden italic border border-black/5">
                          {s.content}
                        </div>
                     </CardContent>
