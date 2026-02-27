@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -7,7 +6,7 @@ import {
   Sparkles, ShieldCheck, Truck, Layers, Menu, ChevronLeft, FileDown, Eye, 
   CheckCircle2, FileSearch, Database, Activity, Clock, BarChart3, PieChart as PieChartIcon,
   RefreshCw, AlertCircle, PlayCircle, Trash2, FileSpreadsheet, Presentation, Star, ShoppingBag, User as UserIcon,
-  Mic, MicOff, Target
+  Mic, MicOff, Target, Headphones
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -38,6 +37,7 @@ import {
   setDocumentNonBlocking
 } from '@/firebase';
 import { collection, query, orderBy, limit, where, doc, increment, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { performASR } from '@/ai/flows/asr-flow';
 
 // 配置 Server Action 超时时间为 120 秒
 export const maxDuration = 120;
@@ -60,6 +60,14 @@ const SYSTEM_STRATEGIES = [
     content: '你是一个全能文件解析专家。请对该文档进行深度研读，并严格按以下格式输出：\n\n1. [文件概览]：用三句话精准总结文档核心内容。\n2. [文件脉络]：以 Markdown 列表形式列出文档的主要章节和逻辑结构大纲。\n3. [详细解析]：根据文档内容对用户的提问进行专业解答。',
     authorName: '系统预设',
     starCount: 999
+  },
+  {
+    id: 'speech-expert',
+    name: '语音文件转译专家',
+    description: '使用 TeleAI/TeleSpeechASR 模型，专注于语音内容的精准提取与语义分析。',
+    content: '你是一个语音文件转译与语义分析专家。请对输入的语音转写文本进行精准校对、提炼要点并翻译为规范的格式。特别注意识别口语中的废话并过滤，保留核心技术参数、决策指令和关键时间点。',
+    authorName: '系统预设',
+    starCount: 888
   },
   {
     id: 'factory-expert',
@@ -91,6 +99,12 @@ export default function DocuParsePro() {
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [selectedRuleId, setSelectedRuleId] = useState<string>('universal-expert');
   
+  // 语音识别状态
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
   const uploadedFilesRef = useRef<Map<string, File>>(new Map());
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -179,7 +193,15 @@ export default function DocuParsePro() {
       let finalContent = "";
       const ab = await file.arrayBuffer();
       if (selectedDoc.type === 'PDF') {
-        finalContent = "[PDF 内容提取中...]"; 
+        const loadingTask = pdfjsLib.getDocument({ data: ab });
+        const pdf = await loadingTask.promise;
+        let text = "";
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          text += content.items.map((item: any) => item.str).join(' ') + "\n";
+        }
+        finalContent = text;
       } else if (selectedDoc.type === 'DOCX' || selectedDoc.type === 'DOC') {
         const res = await mammoth.extractRawText({ arrayBuffer: ab });
         finalContent = res.value;
@@ -297,6 +319,54 @@ export default function DocuParsePro() {
       toast({ variant: "destructive", title: "对话失败", description: err.message });
     } finally {
       setIsChatting(false);
+    }
+  };
+
+  // 语音录制逻辑
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+          const base64Audio = reader.result as string;
+          setIsTranscribing(true);
+          try {
+            const { text } = await performASR({ audioBase64: base64Audio });
+            if (text) {
+              setChatInput(prev => prev + text);
+              toast({ title: "识别成功", description: "已将语音转换为文本。" });
+            }
+          } catch (err: any) {
+            toast({ variant: "destructive", title: "识别失败", description: err.message });
+          } finally {
+            setIsTranscribing(false);
+          }
+        };
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      toast({ variant: "destructive", title: "麦克风权限错误", description: "请确保已允许浏览器访问麦克风。" });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
     }
   };
 
@@ -482,8 +552,11 @@ export default function DocuParsePro() {
                       </ScrollArea>
                       <footer className="p-10 border-t border-white/20 bg-white/60 backdrop-blur-3xl">
                         <div className="max-w-3xl relative">
-                          <textarea placeholder="进一步向全能专家追问文档细节..." className="w-full min-h-[72px] max-h-[250px] bg-white border-none rounded-[2rem] p-7 pr-24 text-[15px] font-black focus:ring-2 focus:ring-blue-100 shadow-inner resize-none no-scrollbar placeholder:text-slate-300" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} />
+                          <textarea placeholder={isRecording ? "正在监听语音..." : "向专家追问文档细节，或点击右侧麦克风进行语音输入..."} className={cn("w-full min-h-[72px] max-h-[250px] bg-white border-none rounded-[2rem] p-7 pr-32 text-[15px] font-black focus:ring-2 focus:ring-blue-100 shadow-inner resize-none no-scrollbar placeholder:text-slate-300", isRecording && "bg-red-50/30")} value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} />
                           <div className="absolute right-6 bottom-6 flex items-center gap-3">
+                             <Button onClick={isRecording ? stopRecording : startRecording} disabled={isTranscribing} variant="ghost" className={cn("w-14 h-14 rounded-2xl transition-all", isRecording ? "bg-red-500 text-white animate-pulse" : "bg-slate-100 text-slate-400 hover:bg-blue-50 hover:text-blue-600")}>
+                               {isTranscribing ? <Loader2 className="animate-spin" size={24} /> : isRecording ? <MicOff size={24} /> : <Mic size={24} />}
+                             </Button>
                              <Button onClick={handleSendMessage} disabled={!chatInput.trim() || isChatting} className="w-14 h-14 rounded-2xl bg-blue-600 text-white shadow-xl shadow-blue-600/30 hover:scale-105 active:scale-95 transition-all"><Send size={24} /></Button>
                           </div>
                         </div>
@@ -520,7 +593,7 @@ export default function DocuParsePro() {
                     <CardHeader className="p-7">
                       <div className="flex items-start justify-between mb-4">
                         <div className={cn("w-14 h-14 rounded-[1.25rem] flex items-center justify-center shadow-inner", s.id.includes('expert') ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600")}>
-                          {s.id === 'logistics-expert' ? <Truck size={28} /> : s.id === 'factory-expert' ? <Layers size={28} /> : <Sparkles size={28} />}
+                          {s.id === 'logistics-expert' ? <Truck size={28} /> : s.id === 'factory-expert' ? <Layers size={28} /> : s.id === 'speech-expert' ? <Headphones size={28} /> : <Sparkles size={28} />}
                         </div>
                         <Button variant="ghost" size="icon" onClick={() => toggleStar(s.id)} className={cn("rounded-xl transition-all h-11 w-11", userProfile?.starredStrategyIds?.includes(s.id) ? "text-amber-500 bg-amber-50" : "text-slate-100 hover:text-amber-500")}><Star size={24} fill={userProfile?.starredStrategyIds?.includes(s.id) ? "currentColor" : "none"} /></Button>
                       </div>
