@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { performOCR } from '@/ai/flows/ocr-flow';
 import { cn } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -103,7 +103,7 @@ export default function DocuParsePro() {
   const [isChatting, setIsChatting] = useState(false);
   const [isTestingApi, setIsTestingApi] = useState(false);
   
-  // 用于存储上传的 File 对象，避免依赖 DOM 查询
+  // 用于存储上传的 File 对象，确保解析时能正确获取
   const uploadedFilesRef = useRef<Map<string, File>>(new Map());
   
   const [rules, setRules] = useState<Rule[]>(DEFAULT_RULES);
@@ -118,7 +118,8 @@ export default function DocuParsePro() {
     const history = selectedDoc.chatHistory;
     if (history.length === 0) return true;
     const lastMsg = history[history.length - 1];
-    return lastMsg.role !== 'model' || lastMsg.content === '';
+    // 如果最后一条消息是 model 且内容为空，说明正在研读中
+    return lastMsg.role === 'model' && lastMsg.content === '';
   }, [isChatting, selectedDoc]);
 
   useEffect(() => {
@@ -206,6 +207,8 @@ export default function DocuParsePro() {
       setDocuments(prev => [newDoc, ...prev]);
       setSelectedDocId(fileId);
     }
+    // 重置 input
+    e.target.value = '';
   };
 
   const startAnalysis = async (docId: string) => {
@@ -227,12 +230,8 @@ export default function DocuParsePro() {
       } else if (['DOCX', 'XLSX', 'XLS', 'CSV', 'PPTX', 'PPT'].includes(doc.type)) {
         const ab = await file.arrayBuffer();
         if (doc.type === 'DOCX') {
-          // 使用 mammoth 正确解析 DOCX 内容
           const result = await mammoth.extractRawText({ arrayBuffer: ab });
           finalContent = result.value;
-          if (result.messages.length > 0) {
-            console.warn('Mammoth Messages:', result.messages);
-          }
         } else if (['XLSX', 'XLS', 'CSV'].includes(doc.type)) {
           const wb = XLSX.read(ab, { type: 'array' });
           wb.SheetNames.forEach(name => {
@@ -284,7 +283,8 @@ export default function DocuParsePro() {
             if (dataStr === '[DONE]') break;
             try {
               const data = JSON.parse(dataStr);
-              fullAnswer += data.choices[0]?.delta?.content || "";
+              const text = data.choices[0]?.delta?.content || "";
+              fullAnswer += text;
               setDocuments(prev => prev.map(d => d.id === docId ? { ...d, chatHistory: [{ role: 'model', content: fullAnswer }] } : d));
             } catch (e) {}
           }
@@ -335,7 +335,8 @@ export default function DocuParsePro() {
             if (dataStr === '[DONE]') break;
             try {
               const data = JSON.parse(dataStr);
-              fullAnswer += data.choices[0]?.delta?.content || "";
+              const text = data.choices[0]?.delta?.content || "";
+              fullAnswer += text;
               setDocuments(prev => prev.map(d => d.id === selectedDoc.id ? { ...d, chatHistory: [...currentHistory, { role: 'model', content: fullAnswer }] } : d));
             } catch (e) {}
           }
@@ -443,7 +444,18 @@ export default function DocuParsePro() {
 
         <header className="h-14 px-4 flex items-center justify-between bg-white/40 backdrop-blur-md border-b border-white/20 sticky top-0 z-30 shrink-0">
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <Sheet><SheetTrigger asChild><Button variant="ghost" size="icon" className="lg:hidden"><Menu size={18} /></Button></SheetTrigger><SheetContent side="left" className="p-0 w-[300px]"><SidebarContent /></SheetContent></Sheet>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="lg:hidden"><Menu size={18} /></Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="p-0 w-[300px]">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>导航菜单</SheetTitle>
+                  <SheetDescription>查看文档列表和设置</SheetDescription>
+                </SheetHeader>
+                <SidebarContent />
+              </SheetContent>
+            </Sheet>
             <Button variant="ghost" size="icon" className="hidden lg:flex text-slate-400" onClick={() => setIsSidebarOpen(!isSidebarOpen)}><ChevronLeft className={cn("transition-transform", !isSidebarOpen && "rotate-180")} size={16} /></Button>
             <div className="min-w-0 flex-1 flex items-center gap-2">
               <h2 className="font-black text-slate-800 text-sm hidden sm:block truncate shrink-0">
