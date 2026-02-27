@@ -5,7 +5,7 @@ import {
   FileText, Upload, MessageSquare, Send, Loader2, Search, BookOpen, 
   Sparkles, Layers, Menu, ChevronLeft, FileDown,
   AlertCircle, PlayCircle, Trash2, FileSpreadsheet, Presentation, Star, ShoppingBag,
-  Mic, MicOff, Target, Sun, Moon, BarChart3, Clock
+  Mic, MicOff, Target, Sun, Moon, BarChart3, Clock, Truck
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -58,6 +58,14 @@ const SYSTEM_STRATEGIES = [
     content: '你是一个全能文件解析专家。请对该文档进行深度研读，并严格按以下格式输出：\n\n1. [文件概览]：用三句话精准总结文档核心内容。\n2. [文件脉络]：以 Markdown 列表形式列出文档的主要章节 and 逻辑结构大纲。\n3. [详细解析]：根据文档内容对用户的提问进行专业解答。',
     authorName: '系统预设',
     starCount: 999
+  },
+  {
+    id: 'logistics-expert',
+    name: '物流文件解析助手',
+    description: '专注于运单、装箱单、发票及提单。提取物流关键信息。',
+    content: '你是一个资深的物流单证解析专家。请重点识别文档中的：运单号、发货人/收货人信息、物料描述、件数/毛重/体积、港口信息以及贸易条款。请按结构化表格输出关键物流参数。',
+    authorName: '系统预设',
+    starCount: 850
   },
   {
     id: 'speech-expert',
@@ -323,14 +331,14 @@ export default function DocuParsePro() {
         </div>
         <div>
           <h1 className="text-lg font-black tracking-tight">DocuParse</h1>
-          <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Liquid Engine</p>
+          <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">DeepSeek Engine</p>
         </div>
       </div>
       
       <nav className="flex-1 px-4 mt-8 space-y-8 overflow-y-auto no-scrollbar">
-        <div>
+        <div className="p-1">
           <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">系统主控</p>
-          <div className="space-y-2 p-1">
+          <div className="space-y-2">
             <button onClick={() => setActiveTab('chat')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-[1.8rem] transition-all font-black text-[13px] border border-transparent shadow-sm", activeTab === 'chat' ? "bg-primary text-white shadow-xl shadow-primary/20" : "opacity-60 hover:bg-black/5 dark:hover:bg-white/5 hover:opacity-100")}>
               <MessageSquare size={18} /> 智能解析终端
             </button>
@@ -340,7 +348,7 @@ export default function DocuParsePro() {
           </div>
         </div>
 
-        <div>
+        <div className="p-1">
           <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">当前挂载引擎</p>
           <div className="p-4 mx-2 bg-primary/10 rounded-2xl border border-primary/20 flex items-center gap-3 shadow-inner">
             <div className="w-10 h-10 bg-primary text-white rounded-xl flex items-center justify-center shrink-0 shadow-md">
@@ -385,7 +393,7 @@ export default function DocuParsePro() {
                 <SheetContent side="left" className="p-0 w-[300px] border-none bg-transparent">
                   <div className="sr-only">
                     <SheetTitle>导航菜单</SheetTitle>
-                    <SheetDescription>管理您的文档与解析策略</SheetDescription>
+                    <SheetDescription>通过此侧边栏管理您的文档和策略</SheetDescription>
                   </div>
                   <SidebarContent />
                 </SheetContent>
@@ -513,7 +521,7 @@ export default function DocuParsePro() {
         )}
 
         {activeTab === 'marketplace' && (
-          <ScrollArea className="flex-1 bg-slate-50 dark:bg-slate-950 overflow-hidden">
+          <ScrollArea className="flex-1 bg-slate-50 dark:bg-slate-950">
             <div className="max-w-[1400px] mx-auto p-12 pb-40">
               <div className="mb-20 text-center">
                 <p className="opacity-30 font-black uppercase tracking-[0.6em] text-xs">Global Extraction Strategy</p>
@@ -524,8 +532,8 @@ export default function DocuParsePro() {
                   <Card key={s.id} className={cn("rounded-[3rem] border-none shadow-2xl bg-white dark:bg-slate-900 transition-all hover:-translate-y-2 flex flex-col h-full overflow-hidden p-1 shadow-black/5", selectedRuleId === s.id && "ring-[10px] ring-primary shadow-primary/30")}>
                     <CardHeader className="p-8 pb-4 relative">
                       <div className="flex justify-between items-start mb-6">
-                        <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg", s.id.includes('universal') ? "bg-blue-600" : s.id.includes('speech') ? "bg-amber-500" : s.id.includes('factory') ? "bg-slate-800" : "bg-indigo-600")}>
-                          {s.id.includes('speech') ? <Mic size={24} /> : <Sparkles size={24} />}
+                        <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg", s.id.includes('universal') ? "bg-blue-600" : s.id.includes('speech') ? "bg-amber-500" : s.id.includes('logistics') ? "bg-emerald-600" : "bg-slate-800")}>
+                          {s.id.includes('speech') ? <Mic size={24} /> : s.id.includes('logistics') ? <Truck size={24} /> : <Sparkles size={24} />}
                         </div>
                         <div className="flex items-center gap-1 opacity-20 text-[11px] font-black"><Star size={12} fill="currentColor" /> {s.starCount}</div>
                       </div>
