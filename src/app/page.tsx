@@ -398,58 +398,58 @@ export default function DocuParsePro() {
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-white/70 backdrop-blur-xl border-r border-white/20">
-      <div className="p-6 flex items-center gap-4">
-        <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30 text-white shrink-0">
-          <BookOpen size={24} />
+    <div className="flex flex-col h-full liquid-glass rounded-r-[3rem] overflow-hidden">
+      <div className="p-8 flex items-center gap-5">
+        <div className="w-14 h-14 bg-blue-600/90 rounded-[1.5rem] flex items-center justify-center shadow-2xl shadow-blue-500/40 text-white shrink-0">
+          <BookOpen size={28} />
         </div>
         <div className="min-w-0">
-          <h1 className="text-lg font-black text-slate-800 tracking-tight truncate leading-none mb-1">DocuParse Pro</h1>
-          <p className="text-[10px] font-black text-blue-600/60 uppercase tracking-widest truncate">Enterprise AI Brain</p>
+          <h1 className="text-xl font-black text-white tracking-tight truncate leading-tight">DocuParse</h1>
+          <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] truncate">Liquid AI Brain</p>
         </div>
       </div>
       
-      <nav className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto no-scrollbar">
-        <div className="pb-4 px-5">
-           <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">主菜单</p>
-           <div className="space-y-2">
-              <button onClick={() => setActiveTab('chat')} className={cn("w-full flex items-center gap-3.5 px-5 py-4 rounded-2xl transition-all font-black text-[13px] tracking-wide", activeTab === 'chat' ? "bg-blue-600 text-white shadow-xl shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
+      <nav className="flex-1 px-4 space-y-6 mt-6 overflow-y-auto no-scrollbar">
+        <div className="px-4">
+           <p className="text-[11px] font-black text-white/30 uppercase tracking-[0.3em] mb-5 pl-4">导航菜单</p>
+           <div className="space-y-3">
+              <button onClick={() => setActiveTab('chat')} className={cn("w-full flex items-center gap-4 px-6 py-4.5 rounded-[1.5rem] transition-all font-black text-[14px] tracking-wide", activeTab === 'chat' ? "bg-white/10 text-white shadow-xl border border-white/20" : "text-white/40 hover:bg-white/5 hover:text-white")}>
                 <MessageSquare size={20} /> 智能对话
               </button>
-              <button onClick={() => setActiveTab('marketplace')} className={cn("w-full flex items-center gap-3.5 px-5 py-4 rounded-2xl transition-all font-black text-[13px] tracking-wide", activeTab === 'marketplace' ? "bg-blue-600 text-white shadow-xl shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
+              <button onClick={() => setActiveTab('marketplace')} className={cn("w-full flex items-center gap-4 px-6 py-4.5 rounded-[1.5rem] transition-all font-black text-[14px] tracking-wide", activeTab === 'marketplace' ? "bg-white/10 text-white shadow-xl border border-white/20" : "text-white/40 hover:bg-white/5 hover:text-white")}>
                 <ShoppingBag size={20} /> 策略广场
               </button>
-              <button onClick={() => setActiveTab('stats')} className={cn("w-full flex items-center gap-3.5 px-5 py-4 rounded-2xl transition-all font-black text-[13px] tracking-wide", activeTab === 'stats' ? "bg-blue-600 text-white shadow-xl shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
+              <button onClick={() => setActiveTab('stats')} className={cn("w-full flex items-center gap-4 px-6 py-4.5 rounded-[1.5rem] transition-all font-black text-[14px] tracking-wide", activeTab === 'stats' ? "bg-white/10 text-white shadow-xl border border-white/20" : "text-white/40 hover:bg-white/5 hover:text-white")}>
                 <BarChart3 size={20} /> 统计看板
               </button>
            </div>
         </div>
 
-        <div className="pt-6 pb-4 px-5">
-          <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">当前挂载策略</p>
-          <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-center gap-3 animate-in fade-in slide-in-from-left-2">
-            <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shrink-0 shadow-sm">
-              <Target size={20} />
+        <div className="px-4">
+          <p className="text-[11px] font-black text-white/30 uppercase tracking-[0.3em] mb-5 pl-4">挂载状态</p>
+          <div className="p-5 bg-blue-500/10 rounded-[1.8rem] border border-blue-400/20 flex items-center gap-4 animate-in fade-in zoom-in-95">
+            <div className="w-11 h-11 bg-blue-600 text-white rounded-[1.1rem] flex items-center justify-center shrink-0 shadow-lg shadow-blue-600/30">
+              <Target size={22} />
             </div>
-            <div className="min-w-0">
-              <p className="text-[12px] font-black text-slate-800 truncate">{currentStrategy.name}</p>
-              <p className="text-[10px] font-black text-blue-600/60 uppercase">解析引擎已就绪</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-black text-white truncate">{currentStrategy.name}</p>
+              <p className="text-[10px] font-black text-blue-400 uppercase">Engine Ready</p>
             </div>
           </div>
         </div>
 
-        <div className="pt-6 pb-4 px-5 flex items-center justify-between">
-          <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">数据安全</p>
-          <Badge variant="outline" className="text-[10px] font-black bg-green-50 text-green-600 border-none px-2 h-6 flex items-center gap-1.5">
-            <ShieldCheck size={12} /> {user?.uid ? '已隔离' : '加载中'}
+        <div className="px-4 flex items-center justify-between pb-8">
+          <p className="text-[11px] font-black text-white/30 uppercase tracking-[0.3em] pl-4">安全级别</p>
+          <Badge variant="outline" className="text-[10px] font-black bg-blue-500/10 text-blue-400 border-none px-3 h-7 flex items-center gap-1.5 rounded-full">
+            <ShieldCheck size={12} /> {user?.uid ? '企业隔离' : '校验中'}
           </Badge>
         </div>
       </nav>
 
-      <div className="p-6 border-t border-white/20">
-        <label className="group relative w-full flex items-center justify-center gap-3 bg-white hover:bg-blue-600 hover:text-white py-4.5 rounded-[1.25rem] border border-blue-100 transition-all shadow-md shadow-blue-600/5 cursor-pointer active:scale-95">
-          <Upload size={20} className="transition-transform group-hover:-translate-y-0.5" />
-          <span className="text-[15px] font-black">上传技术文档</span>
+      <div className="p-8 pb-12">
+        <label className="group relative w-full flex items-center justify-center gap-3 bg-blue-600 text-white py-5 rounded-[2rem] transition-all shadow-2xl shadow-blue-600/40 cursor-pointer active:scale-95 hover:bg-blue-500">
+          <Upload size={22} className="transition-transform group-hover:-translate-y-1" />
+          <span className="text-[16px] font-black">上传技术文件</span>
           <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.csv" />
         </label>
       </div>
@@ -457,53 +457,62 @@ export default function DocuParsePro() {
   );
 
   return (
-    <div className="flex h-screen bg-[#f8fafc] overflow-hidden">
-      <aside className={cn("hidden lg:block transition-all duration-300 shrink-0 border-r border-white/20", isSidebarOpen ? "w-[300px]" : "w-0 overflow-hidden")}>
+    <div className="flex h-screen bg-[#020617] relative overflow-hidden text-white selection:bg-blue-500/30">
+      {/* Liquid Blobs Background */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/20 blur-[150px] rounded-full animate-blob pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-400/10 blur-[150px] rounded-full animate-blob animation-delay-2000 pointer-events-none" />
+      <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] bg-blue-800/20 blur-[120px] rounded-full animate-blob animation-delay-4000 pointer-events-none" />
+
+      <aside className={cn("hidden lg:block transition-all duration-500 shrink-0 z-40", isSidebarOpen ? "w-[320px]" : "w-0")}>
         <SidebarContent />
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0 relative">
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-400/10 blur-[150px] rounded-full -translate-y-1/2 translate-x-1/2 -z-10" />
-
-        <header className="h-18 px-4 lg:px-8 flex items-center justify-between bg-white/40 backdrop-blur-md border-b border-white/20 sticky top-0 z-30 shrink-0">
-          <div className="flex items-center gap-3 lg:gap-5">
+      <main className="flex-1 flex flex-col min-w-0 relative z-10">
+        <header className="h-20 px-8 flex items-center justify-between bg-white/5 backdrop-blur-xl border-b border-white/10 sticky top-0 shrink-0">
+          <div className="flex items-center gap-6">
             <div className="lg:hidden">
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon"><Menu size={22} /></Button>
+                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/10"><Menu size={24} /></Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="p-0 w-[300px]">
+                <SheetContent side="left" className="p-0 w-[300px] border-none bg-transparent">
                   <SidebarContent />
                 </SheetContent>
               </Sheet>
             </div>
-            <Button variant="ghost" size="icon" className="hidden lg:flex text-slate-400 hover:bg-white" onClick={() => setIsSidebarOpen(!isSidebarOpen)}><ChevronLeft className={cn("transition-transform", !isSidebarOpen && "rotate-180")} size={22} /></Button>
-            <h2 className="font-black text-slate-800 text-base lg:text-lg tracking-tight truncate">{activeTab === 'chat' ? '解析工作站' : activeTab === 'marketplace' ? '全局策略广场' : '用量监控'}</h2>
+            <Button variant="ghost" size="icon" className="hidden lg:flex text-white/40 hover:bg-white/10 rounded-xl" onClick={() => setIsSidebarOpen(!isSidebarOpen)}><ChevronLeft className={cn("transition-transform duration-300", !isSidebarOpen && "rotate-180")} size={24} /></Button>
+            <h2 className="font-black text-white text-xl tracking-tight truncate">{activeTab === 'chat' ? '解析终端' : activeTab === 'marketplace' ? '规则广场' : '数据看板'}</h2>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge className="bg-white/90 border-blue-100 text-blue-600 font-black px-3 lg:px-4 py-1.5 shadow-sm flex items-center gap-2 text-[10px] lg:text-[12px] rounded-xl whitespace-nowrap">
-              <Sparkles size={14} className="animate-pulse hidden sm:block" /> DeepSeek V3 极速解析
+          <div className="flex items-center gap-4">
+            <Badge className="bg-blue-600/20 border-blue-400/30 text-blue-400 font-black px-5 py-2 shadow-2xl flex items-center gap-2.5 text-[13px] rounded-2xl whitespace-nowrap">
+              <Sparkles size={16} className="animate-pulse" /> DeepSeek V3 Liquid
             </Badge>
           </div>
         </header>
 
         {activeTab === 'chat' && (
-          <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-            <div className={cn("w-full lg:w-[300px] border-b lg:border-b-0 lg:border-r border-white/20 bg-white/10 flex flex-col shrink-0", !selectedDocId && "flex-1 lg:flex-none lg:w-[300px]", selectedDocId && "hidden lg:flex")}>
-              <div className="p-5"><div className="relative"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><Input placeholder="搜索历史文档..." className="pl-12 h-12 bg-white/80 border-none rounded-2xl shadow-sm text-[13px] font-black" /></div></div>
-              <ScrollArea className="flex-1 px-5">
-                <div className="space-y-4 pb-12">
+          <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-white/[0.02]">
+            {/* List Section: 300px */}
+            <div className={cn("w-full lg:w-[320px] border-b lg:border-b-0 lg:border-r border-white/5 bg-white/5 flex flex-col shrink-0", !selectedDocId && "flex-1 lg:flex-none lg:w-[320px]", selectedDocId && "hidden lg:flex")}>
+              <div className="p-6">
+                <div className="relative group">
+                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-blue-400 transition-colors" size={20} />
+                  <Input placeholder="检索历史文档..." className="pl-14 h-14 bg-white/5 border-white/10 rounded-2xl text-[14px] font-black placeholder:text-white/20 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50" />
+                </div>
+              </div>
+              <ScrollArea className="flex-1 px-6">
+                <div className="space-y-4 pb-20">
                   {documents.length === 0 ? (
-                    <div className="py-20 lg:py-32 text-center opacity-20"><FileSearch size={48} className="mx-auto mb-4" /><p className="text-[11px] font-black tracking-[0.2em] uppercase">等待文档载入</p></div>
+                    <div className="py-32 text-center opacity-10"><FileSearch size={64} className="mx-auto mb-6" /><p className="text-[12px] font-black tracking-[0.3em] uppercase">等待数据载入</p></div>
                   ) : (
                     documents.map(d => (
-                      <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-full p-4.5 rounded-[1.5rem] border transition-all text-left flex items-start gap-4 group relative overflow-hidden", selectedDocId === d.id ? "bg-white border-blue-600 shadow-xl shadow-blue-600/10" : "bg-transparent border-transparent hover:bg-white/60")}>
-                        <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-colors", selectedDocId === d.id ? "bg-blue-600 text-white" : "bg-white text-slate-400")}>{getFileIcon(d.type)}</div>
+                      <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-full p-5 rounded-[2rem] border transition-all duration-300 text-left flex items-start gap-5 group relative overflow-hidden", selectedDocId === d.id ? "bg-blue-600 shadow-2xl shadow-blue-600/30 border-blue-400" : "bg-white/5 border-transparent hover:bg-white/10 hover:border-white/10")}>
+                        <div className={cn("w-11 h-11 rounded-[1.1rem] flex items-center justify-center shrink-0 shadow-lg", selectedDocId === d.id ? "bg-white text-blue-600" : "bg-white/10 text-white/60 group-hover:bg-white/20")}>{getFileIcon(d.type)}</div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-black text-[12px] text-slate-800 truncate mb-1.5">{d.name}</p>
-                          <div className="flex items-center gap-3">
-                            <span className="text-[10px] font-black text-slate-400">{new Date(d.createdAt).toLocaleDateString()}</span>
-                            {d.status === 'completed' ? <Badge className="bg-green-50 text-green-600 text-[9px] h-5 border-none font-black px-2 rounded-lg">已完成</Badge> : <Badge className="bg-blue-50 text-blue-600 text-[9px] h-5 border-none font-black px-2 rounded-lg animate-pulse">解析中</Badge>}
+                          <p className="font-black text-[14px] truncate mb-2">{d.name}</p>
+                          <div className="flex items-center gap-4">
+                            <span className="text-[11px] font-black text-white/30">{new Date(d.createdAt).toLocaleDateString()}</span>
+                            {d.status === 'completed' ? <Badge className="bg-green-500/20 text-green-400 text-[10px] h-6 border-none font-black px-3 rounded-full">OK</Badge> : <Badge className="bg-blue-500/20 text-blue-400 text-[10px] h-6 border-none font-black px-3 rounded-full animate-pulse">Running</Badge>}
                           </div>
                         </div>
                       </button>
@@ -513,53 +522,55 @@ export default function DocuParsePro() {
               </ScrollArea>
             </div>
 
-            <div className={cn("flex-1 flex flex-col bg-white/30 relative", !selectedDocId && "hidden lg:flex")}>
+            {/* Chat Section: Aligned Left */}
+            <div className={cn("flex-1 flex flex-col relative", !selectedDocId && "hidden lg:flex")}>
               {selectedDoc ? (
                 <>
-                  <div className="lg:hidden p-4 border-b flex items-center">
-                    <Button variant="ghost" size="sm" onClick={() => setSelectedDocId(null)} className="font-black text-slate-500 gap-2"><ChevronLeft size={18} /> 返回列表</Button>
-                    <p className="ml-4 font-black text-slate-800 text-sm truncate">{selectedDoc.name}</p>
+                  <div className="lg:hidden p-6 border-b border-white/10 flex items-center bg-white/5 backdrop-blur-md">
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedDocId(null)} className="font-black text-white/60 gap-3 hover:text-white"><ChevronLeft size={20} /> 返回</Button>
+                    <p className="ml-6 font-black text-white text-sm truncate">{selectedDoc.name}</p>
                   </div>
                   {selectedDoc.status === 'pending_confirm' ? (
-                    <div className="flex-1 flex items-center justify-center p-6 lg:p-16">
-                      <Card className="max-w-md w-full rounded-[2.5rem] lg:rounded-[2.8rem] border-none shadow-2xl bg-white/90 backdrop-blur-xl p-8 lg:p-12 text-center animate-in zoom-in-95">
-                        <div className="w-16 h-16 lg:w-24 lg:h-24 bg-blue-50 text-blue-600 rounded-2xl lg:rounded-[2rem] flex items-center justify-center mx-auto mb-6 lg:mb-10 shadow-inner"><AlertCircle size={32} className="lg:hidden" /><AlertCircle size={48} className="hidden lg:block" /></div>
-                        <CardTitle className="text-xl lg:text-2xl font-black mb-4 lg:mb-6 tracking-tight">确认开启解析</CardTitle>
-                        <CardDescription className="text-sm lg:text-[15px] font-black text-slate-500 mb-8 lg:mb-10 leading-relaxed">系统准备处理文档：<br/><span className="text-blue-600 font-black text-base lg:text-lg">"{selectedDoc.name}"</span><br/>AI 将为您梳理全局脉络并抓取核心细节。</CardDescription>
-                        <div className="space-y-4">
-                          <Button onClick={() => startAnalysis(selectedDoc.id)} className="w-full h-14 lg:h-16 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-base lg:text-lg shadow-xl shadow-blue-600/30 flex items-center justify-center gap-3"><PlayCircle size={22} /> 开启 AI 深度解析</Button>
-                          <Button variant="ghost" onClick={() => { deleteDocumentNonBlocking(doc(db, 'users', user?.uid!, 'documents', selectedDoc.id)); setSelectedDocId(null); }} className="text-slate-400 font-black hover:text-red-500 text-sm"><Trash2 size={18} className="mr-2" /> 舍弃此文档</Button>
+                    <div className="flex-1 flex items-center justify-start p-8 lg:p-16">
+                      <Card className="max-w-xl w-full rounded-[3rem] border-white/20 shadow-2xl bg-white/5 backdrop-blur-3xl p-10 lg:p-14 text-center animate-in zoom-in-95">
+                        <div className="w-20 h-20 lg:w-28 lg:h-28 bg-blue-600/20 text-blue-400 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-inner border border-blue-400/20"><AlertCircle size={48} /></div>
+                        <CardTitle className="text-2xl lg:text-3xl font-black mb-6 tracking-tight">准备开启解析</CardTitle>
+                        <CardDescription className="text-[15px] lg:text-[17px] font-black text-white/40 mb-10 leading-relaxed uppercase tracking-wider">系统就绪，即将解析：<br/><span className="text-blue-400 font-black text-lg mt-2 block">{selectedDoc.name}</span></CardDescription>
+                        <div className="space-y-5">
+                          <Button onClick={() => startAnalysis(selectedDoc.id)} className="w-full h-16 lg:h-20 rounded-3xl bg-blue-600 hover:bg-blue-500 text-white font-black text-lg lg:text-xl shadow-2xl shadow-blue-600/40 flex items-center justify-center gap-4"><PlayCircle size={28} /> 激活 AI 深度解析</Button>
+                          <Button variant="ghost" onClick={() => { deleteDocumentNonBlocking(doc(db, 'users', user?.uid!, 'documents', selectedDoc.id)); setSelectedDocId(null); }} className="text-white/20 font-black hover:text-red-400 transition-colors uppercase tracking-widest text-[12px]"><Trash2 size={20} className="mr-3" /> 移除并舍弃</Button>
                         </div>
                       </Card>
                     </div>
                   ) : (
                     <>
-                      <ScrollArea className="flex-1 px-6 lg:px-10 py-8 lg:py-12" ref={scrollRef}>
-                        <div className="max-w-3xl space-y-8 lg:space-y-12 pb-32">
+                      <ScrollArea className="flex-1 px-8 lg:px-12 py-10 lg:py-16" ref={scrollRef}>
+                        {/* Tight gap with the list */}
+                        <div className="max-w-3xl space-y-10 lg:space-y-16 pb-40">
                           {selectedDoc.chatHistory?.map((m, i) => (
-                            <div key={i} className={cn("flex gap-4 lg:gap-8", m.role === 'user' ? "flex-row-reverse" : "flex-row")}>
-                              <div className={cn("w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-[1.25rem] flex items-center justify-center shrink-0 border shadow-sm font-black text-[12px] lg:text-[14px] tracking-widest", m.role === 'user' ? "bg-white text-slate-400" : "bg-blue-600 text-white shadow-blue-600/20")}>{m.role === 'user' ? 'ME' : <Sparkles size={18} className="lg:hidden" />}{m.role === 'user' ? '' : <Sparkles size={24} className="hidden lg:block" />}</div>
-                              <div className={cn("max-w-[85%] lg:max-w-[90%] p-5 lg:p-8 rounded-[1.5rem] lg:rounded-[2.5rem] text-sm lg:text-[15px] leading-relaxed shadow-sm", m.role === 'user' ? "bg-blue-600 text-white rounded-tr-none" : "bg-white/95 backdrop-blur-md border rounded-tl-none prose prose-slate prose-sm")}>
+                            <div key={i} className={cn("flex gap-6 lg:gap-10", m.role === 'user' ? "flex-row-reverse" : "flex-row")}>
+                              <div className={cn("w-12 h-12 lg:w-14 lg:h-14 rounded-2xl lg:rounded-[1.4rem] flex items-center justify-center shrink-0 border border-white/10 shadow-lg font-black text-[14px]", m.role === 'user' ? "bg-white/10 text-white/40" : "bg-blue-600 text-white shadow-blue-600/30")}>{m.role === 'user' ? 'ME' : <Sparkles size={24} />}</div>
+                              <div className={cn("max-w-[85%] lg:max-w-[95%] p-7 lg:p-10 rounded-[2rem] lg:rounded-[3rem] text-[15px] lg:text-[17px] leading-relaxed", m.role === 'user' ? "bg-blue-600/90 text-white rounded-tr-none shadow-2xl shadow-blue-600/20" : "bg-white/5 backdrop-blur-xl border border-white/10 rounded-tl-none prose prose-invert prose-blue")}>
                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
                               </div>
                             </div>
                           ))}
                           {isChatting && (
-                            <div className="flex gap-4 lg:gap-8">
-                              <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-[1.25rem] bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-blue-600/20"><Sparkles size={18} /></div>
-                              <div className="bg-white/80 backdrop-blur-md border p-5 lg:p-8 rounded-[1.5rem] lg:rounded-[2.5rem] rounded-tl-none flex items-center gap-4 shadow-sm"><Loader2 className="animate-spin text-blue-600" size={18} /><span className="text-[12px] lg:text-[14px] font-black text-slate-700 tracking-wider">正在深度研读并构建脉络...</span></div>
+                            <div className="flex gap-6 lg:gap-10">
+                              <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-2xl lg:rounded-[1.4rem] bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-2xl shadow-blue-600/30"><Sparkles size={24} /></div>
+                              <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-7 lg:p-10 rounded-[2rem] lg:rounded-[3rem] rounded-tl-none flex items-center gap-5"><Loader2 className="animate-spin text-blue-400" size={24} /><span className="text-[14px] lg:text-[16px] font-black text-white/60 tracking-widest uppercase">研读中，正在构建流式脉络...</span></div>
                             </div>
                           )}
                         </div>
                       </ScrollArea>
-                      <footer className="p-4 lg:p-10 border-t border-white/20 bg-white/60 backdrop-blur-3xl">
+                      <footer className="p-8 lg:p-12 border-t border-white/5 bg-white/[0.03] backdrop-blur-3xl">
                         <div className="max-w-3xl relative">
-                          <textarea placeholder={isRecording ? "正在监听语音..." : "向专家追问文档细节，或点击麦克风..."} className={cn("w-full min-h-[64px] lg:min-h-[72px] max-h-[200px] bg-white border-none rounded-2xl lg:rounded-[2rem] p-4 lg:p-7 pr-24 lg:pr-32 text-sm lg:text-[15px] font-black focus:ring-2 focus:ring-blue-100 shadow-inner resize-none no-scrollbar placeholder:text-slate-300", isRecording && "bg-red-50/30")} value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} />
-                          <div className="absolute right-3 lg:right-6 bottom-3 lg:bottom-6 flex items-center gap-2 lg:gap-3">
-                             <Button onClick={isRecording ? stopRecording : startRecording} disabled={isTranscribing} variant="ghost" className={cn("w-10 h-10 lg:w-14 lg:h-14 rounded-xl lg:rounded-2xl transition-all", isRecording ? "bg-red-500 text-white animate-pulse" : "bg-slate-100 text-slate-400 hover:bg-blue-50 hover:text-blue-600")}>
-                               {isTranscribing ? <Loader2 className="animate-spin" size={20} /> : isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+                          <textarea placeholder={isRecording ? "正在监听音频..." : "向解析专家追问，或通过麦克风输入指令..."} className={cn("w-full min-h-[80px] lg:min-h-[90px] max-h-[300px] bg-white/5 border-white/10 rounded-[2.2rem] lg:rounded-[2.8rem] p-6 lg:p-9 pr-28 lg:pr-36 text-[15px] lg:text-[17px] font-black focus:ring-2 focus:ring-blue-500/20 shadow-inner resize-none no-scrollbar placeholder:text-white/20 transition-all text-white", isRecording && "bg-blue-500/10 border-blue-500/30")} value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} />
+                          <div className="absolute right-4 lg:right-7 bottom-4 lg:bottom-7 flex items-center gap-3 lg:gap-5">
+                             <Button onClick={isRecording ? stopRecording : startRecording} disabled={isTranscribing} variant="ghost" className={cn("w-12 h-12 lg:w-16 lg:h-16 rounded-2xl lg:rounded-[1.4rem] transition-all duration-300", isRecording ? "bg-blue-500 text-white animate-pulse" : "bg-white/5 text-white/30 hover:bg-white/10 hover:text-white")}>
+                               {isTranscribing ? <Loader2 className="animate-spin" size={24} /> : isRecording ? <MicOff size={24} /> : <Mic size={24} />}
                              </Button>
-                             <Button onClick={handleSendMessage} disabled={!chatInput.trim() || isChatting} className="w-10 h-10 lg:w-14 lg:h-14 rounded-xl lg:rounded-2xl bg-blue-600 text-white shadow-xl shadow-blue-600/30 hover:scale-105 active:scale-95 transition-all flex items-center justify-center"><Send size={20} /></Button>
+                             <Button onClick={handleSendMessage} disabled={!chatInput.trim() || isChatting} className="w-12 h-12 lg:w-16 lg:h-16 rounded-2xl lg:rounded-[1.4rem] bg-blue-600 text-white shadow-2xl shadow-blue-600/40 hover:scale-110 active:scale-95 transition-all flex items-center justify-center border border-white/20"><Send size={24} /></Button>
                           </div>
                         </div>
                       </footer>
@@ -567,10 +578,10 @@ export default function DocuParsePro() {
                   )}
                 </>
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-center p-6 lg:p-16 text-center">
-                  <div className="w-24 h-24 lg:w-40 lg:h-40 bg-white/90 rounded-[2rem] lg:rounded-[3.5rem] shadow-2xl flex items-center justify-center mb-8 lg:mb-12 border border-white/20"><MessageSquare size={48} className="lg:hidden text-blue-600/10" /><MessageSquare size={72} className="hidden lg:block text-blue-600/10" /></div>
-                  <h3 className="text-2xl lg:text-4xl font-black text-slate-800 tracking-tight mb-4 lg:mb-6">解析工作站就绪</h3>
-                  <p className="text-slate-400 font-black text-[12px] lg:text-[15px] max-w-sm leading-relaxed uppercase tracking-[0.2em] lg:tracking-[0.3em]">上传文档，AI 将立即为您呈现<br/>[文件概览] 与 [文件脉络]</p>
+                <div className="flex-1 flex flex-col items-start justify-center p-12 lg:p-24 text-left">
+                  <div className="w-28 h-28 lg:w-48 lg:h-48 bg-white/5 rounded-[3.5rem] lg:rounded-[4.5rem] shadow-2xl flex items-center justify-center mb-12 lg:mb-16 border border-white/10"><MessageSquare size={80} className="text-blue-500/20" /></div>
+                  <h3 className="text-4xl lg:text-6xl font-black text-white tracking-tighter mb-8 leading-tight">解析工作站已就绪</h3>
+                  <p className="text-white/20 font-black text-[14px] lg:text-[18px] max-w-md leading-relaxed uppercase tracking-[0.4em]">载入技术文档，开启液态流式深度解析</p>
                 </div>
               )}
             </div>
@@ -578,46 +589,43 @@ export default function DocuParsePro() {
         )}
 
         {activeTab === 'marketplace' && (
-          <ScrollArea className="flex-1 p-6 lg:p-12 bg-white/20">
-            <div className="max-w-[1400px] mx-auto">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10 lg:mb-16">
+          <ScrollArea className="flex-1 p-8 lg:p-16 bg-white/[0.02]">
+            <div className="max-w-[1600px] mx-auto">
+              <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10 mb-16 lg:mb-24">
                 <div>
-                  <h3 className="text-2xl lg:text-4xl font-black text-slate-800 tracking-tight">全局策略广场</h3>
-                  <p className="mt-2 lg:mt-4 text-slate-400 text-sm lg:text-[16px] font-black uppercase tracking-widest">选择高效解析指令</p>
+                  <h3 className="text-4xl lg:text-7xl font-black text-white tracking-tighter mb-4">规则广场</h3>
+                  <p className="text-white/20 text-sm lg:text-[18px] font-black uppercase tracking-[0.5em]">GLOBAL STRATEGY LIQUID</p>
                 </div>
-                <div>
-                  <Badge className="bg-blue-600/10 text-blue-600 font-black px-4 py-2 text-[12px] border-none rounded-xl">已收录 {allStrategies.length} 个专家指令</Badge>
-                </div>
+                <Badge className="bg-blue-600/10 text-blue-400 font-black px-6 py-3 text-[14px] border border-blue-500/20 rounded-2xl backdrop-blur-md">已载入 {allStrategies.length} 个深度专家</Badge>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8 lg:gap-10">
                 {allStrategies.map(s => (
-                  <Card key={s.id} className={cn("rounded-[2rem] lg:rounded-[2.2rem] border-none shadow-xl bg-white hover:shadow-blue-600/15 transition-all hover:-translate-y-2 group flex flex-col h-full", selectedRuleId === s.id && "ring-2 ring-blue-600")}>
-                    <CardHeader className="p-5 lg:p-7">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className={cn("w-12 h-12 lg:w-14 lg:h-14 rounded-[1.25rem] flex items-center justify-center shadow-inner", s.id.includes('expert') ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600")}>
-                          {s.id === 'logistics-expert' ? <Truck size={24} className="lg:hidden" /> : s.id === 'factory-expert' ? <Layers size={24} className="lg:hidden" /> : s.id === 'speech-expert' ? <Headphones size={24} className="lg:hidden" /> : <Sparkles size={24} className="lg:hidden" />}
-                          {s.id === 'logistics-expert' ? <Truck size={28} className="hidden lg:block" /> : s.id === 'factory-expert' ? <Layers size={28} className="hidden lg:block" /> : s.id === 'speech-expert' ? <Headphones size={28} className="hidden lg:block" /> : <Sparkles size={28} className="hidden lg:block" />}
+                  <Card key={s.id} className={cn("rounded-[2.8rem] border-white/10 shadow-2xl bg-white/5 backdrop-blur-3xl hover:bg-white/10 transition-all duration-500 hover:-translate-y-4 group flex flex-col h-full overflow-hidden", selectedRuleId === s.id && "ring-4 ring-blue-600 shadow-blue-600/20")}>
+                    <CardHeader className="p-8 lg:p-10">
+                      <div className="flex items-start justify-between mb-8">
+                        <div className={cn("w-16 h-16 lg:w-20 lg:h-20 rounded-[1.8rem] flex items-center justify-center shadow-inner transition-transform group-hover:scale-110", s.id.includes('expert') ? "bg-blue-600 text-white" : "bg-white/10 text-white/40")}>
+                          {s.id === 'logistics-expert' ? <Truck size={32} /> : s.id === 'factory-expert' ? <Layers size={32} /> : s.id === 'speech-expert' ? <Headphones size={32} /> : <Sparkles size={32} />}
                         </div>
-                        <Button variant="ghost" size="icon" onClick={() => toggleStar(s.id)} className={cn("rounded-xl transition-all h-10 w-10 lg:h-11 lg:w-11", userProfile?.starredStrategyIds?.includes(s.id) ? "text-amber-500 bg-amber-50" : "text-slate-100 hover:text-amber-500")}><Star size={20} className="lg:hidden" fill={userProfile?.starredStrategyIds?.includes(s.id) ? "currentColor" : "none"} /><Star size={24} className="hidden lg:block" fill={userProfile?.starredStrategyIds?.includes(s.id) ? "currentColor" : "none"} /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => toggleStar(s.id)} className={cn("rounded-2xl transition-all h-12 w-12 lg:h-14 lg:w-14 hover:bg-white/10", userProfile?.starredStrategyIds?.includes(s.id) ? "text-amber-400" : "text-white/10 hover:text-amber-400")}><Star size={28} fill={userProfile?.starredStrategyIds?.includes(s.id) ? "currentColor" : "none"} /></Button>
                       </div>
-                      <CardTitle className="text-base lg:text-lg font-black leading-tight mb-2">{s.name}</CardTitle>
-                      <CardDescription className="text-[11px] lg:text-[12px] font-black line-clamp-2 h-10 text-slate-400 leading-snug">{s.description}</CardDescription>
+                      <CardTitle className="text-lg lg:text-xl font-black leading-tight mb-4 tracking-tight">{s.name}</CardTitle>
+                      <CardDescription className="text-[12px] lg:text-[13px] font-black line-clamp-2 h-12 text-white/30 leading-snug uppercase tracking-widest">{s.description}</CardDescription>
                     </CardHeader>
-                    <CardContent className="px-5 lg:px-7 flex-1 pb-4">
-                      <div className="bg-slate-50/80 p-4 lg:p-5 rounded-[1.5rem] text-[10px] lg:text-[11px] font-black text-slate-500 line-clamp-5 h-24 lg:h-32 overflow-hidden leading-relaxed border border-slate-100/50 italic">
+                    <CardContent className="px-8 lg:p-10 flex-1 pb-6">
+                      <div className="bg-black/20 p-6 lg:p-8 rounded-[2rem] text-[11px] lg:text-[12px] font-black text-white/20 line-clamp-6 h-32 lg:h-44 overflow-hidden leading-relaxed border border-white/5 italic">
                         {s.content}
                       </div>
                     </CardContent>
-                    <CardFooter className="p-5 lg:p-7 pt-0 flex flex-col gap-4 mt-auto">
+                    <CardFooter className="p-8 lg:p-10 pt-0 flex flex-col gap-6 mt-auto">
                       <div className="flex items-center justify-between w-full">
-                         <div className="flex items-center gap-2">
-                            <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[8px] font-black text-slate-400 uppercase">{s.authorName?.charAt(0)}</div>
-                            <span className="text-[10px] font-black text-slate-400">{s.authorName}</span>
+                         <div className="flex items-center gap-3">
+                            <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-black text-white/40 uppercase">{s.authorName?.charAt(0)}</div>
+                            <span className="text-[11px] font-black text-white/30 tracking-wider">{s.authorName}</span>
                          </div>
-                         <div className="flex items-center gap-1 text-slate-300 text-[10px] font-black"><Star size={10} fill="currentColor" /> {s.starCount}</div>
+                         <div className="flex items-center gap-2 text-white/20 text-[11px] font-black"><Star size={12} fill="currentColor" /> {s.starCount}</div>
                       </div>
-                      <Button onClick={() => { setSelectedRuleId(s.id); setActiveTab('chat'); toast({ title: "策略挂载成功", description: `已切换至[${s.name}]` }); }} className={cn("w-full h-10 lg:h-11 rounded-xl font-black text-[12px] lg:text-[13px] shadow-lg transition-all", selectedRuleId === s.id ? "bg-blue-600 text-white shadow-blue-600/20" : "bg-white text-slate-600 border border-slate-100 hover:bg-slate-50 shadow-none")}>
-                        {selectedRuleId === s.id ? '当前使用中' : '挂载此策略'}
+                      <Button onClick={() => { setSelectedRuleId(s.id); setActiveTab('chat'); toast({ title: "规则挂载成功", description: `引擎已切换至 [${s.name}]` }); }} className={cn("w-full h-14 lg:h-16 rounded-[1.5rem] font-black text-[14px] lg:text-[16px] shadow-2xl transition-all uppercase tracking-[0.2em]", selectedRuleId === s.id ? "bg-blue-600 text-white shadow-blue-600/40" : "bg-white/5 text-white/60 border border-white/10 hover:bg-white/10")}>
+                        {selectedRuleId === s.id ? 'Using Now' : 'Mount Engine'}
                       </Button>
                     </CardFooter>
                   </Card>
@@ -628,22 +636,22 @@ export default function DocuParsePro() {
         )}
 
         {activeTab === 'stats' && (
-          <ScrollArea className="flex-1 p-6 lg:p-12 bg-white/20">
-            <div className="max-w-4xl mx-auto text-center py-20 lg:py-40">
-              <div className="w-24 h-24 lg:w-32 lg:h-32 bg-white rounded-[2rem] lg:rounded-[3rem] shadow-2xl flex items-center justify-center mx-auto mb-8 lg:mb-12 border border-white/20"><Activity size={48} className="lg:hidden text-blue-600/30" /><Activity size={64} className="hidden lg:block text-blue-600/30" /></div>
-              <h3 className="text-2xl lg:text-4xl font-black text-slate-800 tracking-tight">企业用量看板建设中</h3>
-              <p className="mt-4 lg:mt-6 text-slate-400 font-black text-sm lg:text-[16px] uppercase tracking-[0.2em] lg:tracking-[0.4em]">正在对接全司算力资源监控接口...</p>
+          <ScrollArea className="flex-1 p-8 lg:p-16 bg-white/[0.02]">
+            <div className="max-w-4xl mx-auto text-center py-32 lg:py-48">
+              <div className="w-32 h-32 lg:w-48 lg:h-48 bg-white/5 rounded-[4rem] lg:rounded-[6rem] shadow-2xl flex items-center justify-center mx-auto mb-16 border border-white/10"><Activity size={80} className="text-blue-500/10" /></div>
+              <h3 className="text-5xl lg:text-7xl font-black text-white tracking-tighter mb-8 leading-tight">看板建设中</h3>
+              <p className="text-white/20 font-black text-sm lg:text-[20px] uppercase tracking-[0.5em]">MONITORING INTERFACE CONNECTING...</p>
             </div>
           </ScrollArea>
         )}
       </main>
 
       <style jsx global>{`
-        .prose p { @apply text-[14px] lg:text-[15px] leading-relaxed mb-4 lg:mb-6 text-slate-600 font-medium; }
-        .prose h1, .prose h2, .prose h3 { @apply font-black text-slate-800 mt-8 lg:mt-10 mb-4 lg:mb-5 tracking-tight; }
-        .prose table { @apply w-full border-collapse border border-slate-100 rounded-xl lg:rounded-2xl overflow-hidden my-6 lg:my-8 shadow-sm bg-white/50; }
-        .prose th { @apply bg-slate-50 p-4 lg:p-5 text-[11px] lg:text-[12px] font-black uppercase text-slate-500 text-left border-b; }
-        .prose td { @apply p-4 lg:p-5 border-t border-slate-50 text-[13px] lg:text-[14px] text-slate-600 font-medium; }
+        .prose p { @apply text-[15px] lg:text-[17px] leading-relaxed mb-6 lg:mb-8 text-white/70 font-medium; }
+        .prose h1, .prose h2, .prose h3 { @apply font-black text-white mt-10 lg:mt-12 mb-6 lg:mb-8 tracking-tighter; }
+        .prose table { @apply w-full border-collapse border border-white/10 rounded-[2rem] lg:rounded-[3rem] overflow-hidden my-8 lg:my-12 shadow-2xl bg-white/5; }
+        .prose th { @apply bg-white/10 p-5 lg:p-7 text-[12px] lg:text-[14px] font-black uppercase text-white/40 text-left border-b border-white/10; }
+        .prose td { @apply p-5 lg:p-7 border-t border-white/5 text-[14px] lg:text-[16px] text-white/60 font-medium; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
     </div>
