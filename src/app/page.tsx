@@ -5,7 +5,7 @@ import {
   FileText, Upload, MessageSquare, Send, Loader2, Search, BookOpen, 
   Sparkles, Layers, Menu, ChevronLeft, FileDown,
   AlertCircle, PlayCircle, Trash2, FileSpreadsheet, Presentation, Star, ShoppingBag,
-  Target, Sun, Moon, BarChart3, Clock, Truck, Music, Mic
+  Target, Sun, Moon, BarChart3, Clock, Truck, Music, Mic, ChevronRight
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -185,10 +185,10 @@ export default function DocuParsePro() {
         const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
         const imagesToOCR: { pageIndex: number; dataUri: string }[] = [];
         
-        // PDF 视觉化重构：强制所有 PDF 页光栅化为高清图片再 OCR，确保内容无遗漏
+        // 300 DPI 视觉高保真提取
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: 2.0 }); 
+          const viewport = page.getViewport({ scale: 3.0 }); 
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
           canvas.height = viewport.height;
@@ -235,7 +235,10 @@ export default function DocuParsePro() {
         })
       });
 
-      if (!res.ok) throw new Error("AI 引擎连接失败");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "AI 引擎连接失败");
+      }
 
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
@@ -292,6 +295,10 @@ export default function DocuParsePro() {
           history: selectedDoc.chatHistory 
         })
       });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "API 响应异常");
+      }
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       let fullAnswer = "";
@@ -318,7 +325,9 @@ export default function DocuParsePro() {
           } catch (e) {}
         }
       }
-    } catch (err) {} finally { setIsChatting(false); }
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "发送失败", description: err.message });
+    } finally { setIsChatting(false); }
   };
 
   const SidebarContent = () => (
@@ -416,11 +425,19 @@ export default function DocuParsePro() {
               </Sheet>
             </div>
             <Button variant="ghost" size="icon" className="hidden lg:flex opacity-40 hover:opacity-100" onClick={() => setIsSidebarOpen(!isSidebarOpen)}><ChevronLeft className={cn("transition-transform", !isSidebarOpen && "rotate-180")} size={24} /></Button>
-            <h2 className="font-black text-lg tracking-widest uppercase">{activeTab === 'chat' ? '解析终端' : '规则广场'}</h2>
+            <div className="flex flex-col">
+              <h2 className="font-black text-lg tracking-widest uppercase">{activeTab === 'chat' ? '解析终端' : '规则广场'}</h2>
+              <div className="flex items-center gap-2 mt-0.5">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] font-black opacity-40 uppercase tracking-widest">当前挂载: {currentStrategy.name}</span>
+              </div>
+            </div>
           </div>
-          <Badge className="bg-primary/20 border-primary/30 text-primary font-black px-4 py-1.5 rounded-xl uppercase tracking-widest text-[12px] flex items-center gap-2 shadow-sm">
-            <Sparkles size={14} /> DeepSeek V3.2 Pro
-          </Badge>
+          <div className="flex items-center gap-3">
+            <Badge className="bg-primary/20 border-primary/30 text-primary font-black px-4 py-1.5 rounded-xl uppercase tracking-widest text-[12px] flex items-center gap-2 shadow-sm">
+              <Sparkles size={14} /> DeepSeek V3.2 Pro
+            </Badge>
+          </div>
         </header>
 
         {activeTab === 'chat' && (
@@ -459,6 +476,14 @@ export default function DocuParsePro() {
                     <>
                       <ScrollArea className="flex-1 px-8 lg:px-12 py-12" ref={scrollRef}>
                         <div className="max-w-3xl space-y-12 pb-32">
+                          <div className="bg-primary/5 border border-primary/10 p-6 rounded-[2rem] flex items-start gap-4 mb-8">
+                             <div className="w-10 h-10 rounded-xl bg-primary/20 text-primary flex items-center justify-center shrink-0"><Target size={20} /></div>
+                             <div>
+                               <p className="text-[10px] font-black uppercase text-primary tracking-widest mb-1">已挂载规则专家</p>
+                               <h4 className="font-black text-sm">{currentStrategy.name}</h4>
+                               <p className="text-[11px] opacity-60 font-bold mt-1">{currentStrategy.description}</p>
+                             </div>
+                          </div>
                           {selectedDoc.chatHistory?.map((m, i) => (
                             <div key={i} className={cn("flex gap-5", m.role === 'user' ? "flex-row-reverse text-right" : "flex-row text-left")}>
                               <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border border-black/5 font-black text-[12px] shadow-sm", m.role === 'user' ? "bg-black/5" : "bg-primary text-white")}>{m.role === 'user' ? 'ME' : <Sparkles size={18} />}</div>
@@ -471,7 +496,7 @@ export default function DocuParsePro() {
                             <div className="flex gap-5">
                               <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center shrink-0 shadow-md animate-pulse"><Loader2 className="animate-spin" size={18} /></div>
                               <div className="bg-white/80 dark:bg-slate-800/80 p-6 rounded-[2rem] rounded-tl-none border border-black/5 animate-pulse text-sm font-bold opacity-40 shadow-sm">
-                                {isExtracting ? "OCR 视觉扫描中..." : "DeepSeek 思考中..."}
+                                {isExtracting ? "正在进行 300DPI 视觉扫描..." : "DeepSeek 正在思考文档脉络..."}
                               </div>
                             </div>
                           )}
@@ -480,7 +505,7 @@ export default function DocuParsePro() {
                       <footer className="p-8 lg:p-10 border-t border-black/5 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl sticky bottom-0">
                         <div className="max-w-3xl relative mx-auto lg:mx-0">
                           <textarea 
-                            placeholder="基于提取内容追问..." 
+                            placeholder={`基于 [${currentStrategy.name}] 的解析结果追问...`} 
                             className="w-full min-h-[90px] bg-white dark:bg-slate-800 border border-black/10 rounded-[2rem] p-6 pr-20 text-sm lg:text-[15px] font-bold focus:ring-4 focus:ring-primary/10 shadow-xl resize-none transition-all" 
                             value={chatInput} 
                             onChange={(e) => setChatInput(e.target.value)} 

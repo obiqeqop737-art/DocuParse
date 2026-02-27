@@ -1,9 +1,7 @@
-
 'use server';
 /**
  * @fileOverview 硅基流动 (SiliconFlow) 视觉 OCR 流程。
- * 严格锁定 PaddlePaddle/PaddleOCR-VL-1.5 模型。
- * 修复了 Base64 格式解析问题。
+ * 针对 100% 数字高保真提取进行了提示词强化与参数调优。
  */
 
 import { ai } from '@/ai/genkit';
@@ -42,9 +40,14 @@ const ocrFlow = ai.defineFlow(
 
     const results: { pageIndex: number; text: string }[] = [];
 
+    const antiHallucinationPrompt = `你是一个极其精确的工业数据提取器。你的唯一任务是【像素级复刻】图片中的内容。
+1. 绝对禁止任何形式的推理、联想或语病修正。
+2. 对于所有的【数字、小数点、物理单位、负号】，必须逐字核对，原样输出。如果看不清，请保留原样或输出'[不清]'，绝对不允许自行猜测填补。
+3. 如果是表格，请严格保证行列对应，不要漏掉任何一个单元格的数值。
+请直接以 Markdown 格式返回提取结果，不要包含任何多余的解释。`;
+
     for (const item of input.images) {
       try {
-        // 强制移除 Data URI 以外的任何潜在非法字符
         const cleanDataUri = item.dataUri.trim();
 
         const response = await fetch(SILICON_FLOW_API_URL, {
@@ -59,12 +62,13 @@ const ocrFlow = ai.defineFlow(
               {
                 role: "user",
                 content: [
-                  { type: "text", text: "请精准提取图片中的所有文本，以 Markdown 格式返回。不要解释，直接返回结果。" },
+                  { type: "text", text: antiHallucinationPrompt },
                   { type: "image_url", image_url: { url: cleanDataUri } }
                 ]
               }
             ],
-            temperature: 0.1,
+            temperature: 0.01, // 极致确定性输出
+            top_p: 0.1,        // 极致采样限制
             max_tokens: 4096
           }),
         });

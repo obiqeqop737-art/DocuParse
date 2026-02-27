@@ -13,7 +13,6 @@ export async function POST(req: NextRequest) {
 
     const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
     const SILICON_FLOW_API_KEY = 'sk-orcwdodraxjcyrllecfaaukwuuepdysjqeeslnaarzhhjeey';
-    // 升级模型 ID
     const MODEL_ID = 'deepseek-ai/DeepSeek-V3.2';
 
     const systemPrompt = `你是一个工厂技术文档专家。请严格遵循以下解析规则和文档背景来回答用户问题。
@@ -46,16 +45,16 @@ ${documentContent}
         messages: messages,
         temperature: 0.3,
         max_tokens: 4096,
-        stream: true // 开启流式传输
+        stream: true
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      return NextResponse.json({ error: errorData.error?.message || 'API 请求失败' }, { status: response.status });
+      const errorMsg = errorData.error?.message || errorData.message || 'API 请求失败';
+      return NextResponse.json({ error: `[DeepSeek V3.2] ${errorMsg}` }, { status: response.status });
     }
 
-    // 返回原始流给前端
     return new NextResponse(response.body, {
       headers: {
         'Content-Type': 'text/event-stream',
