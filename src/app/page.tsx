@@ -118,7 +118,6 @@ export default function DocuParsePro() {
     const history = selectedDoc.chatHistory;
     if (history.length === 0) return true;
     const lastMsg = history[history.length - 1];
-    // 如果最后一条消息是 model 且内容为空，说明正在研读中
     return lastMsg.role === 'model' && lastMsg.content === '';
   }, [isChatting, selectedDoc]);
 
@@ -201,13 +200,10 @@ export default function DocuParsePro() {
         chatHistory: []
       };
       
-      // 存储文件对象
       uploadedFilesRef.current.set(fileId, file);
-      
       setDocuments(prev => [newDoc, ...prev]);
       setSelectedDocId(fileId);
     }
-    // 重置 input
     e.target.value = '';
   };
 
@@ -393,39 +389,39 @@ export default function DocuParsePro() {
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-white/70 backdrop-blur-xl border-r border-white/20">
       <div className="p-4 flex items-center gap-3">
-        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/30 text-white shrink-0">
-          <BookOpen size={16} />
+        <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/30 text-white shrink-0">
+          <BookOpen size={18} />
         </div>
         <div className="min-w-0">
-          <h1 className="text-sm font-black text-slate-800 tracking-tight truncate">DocuParse</h1>
-          <p className="text-[8px] font-bold text-blue-600/60 uppercase tracking-widest truncate">AI 助理</p>
+          <h1 className="text-base font-black text-slate-800 tracking-tight truncate">DocuParse Pro</h1>
+          <p className="text-[10px] font-bold text-blue-600/60 uppercase tracking-widest truncate">技术文档 AI 解析</p>
         </div>
       </div>
       
-      <nav className="flex-1 px-2 space-y-1 overflow-hidden">
-        <button onClick={() => setActiveTab('chat')} className={cn("w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all font-bold text-[11px]", activeTab === 'chat' ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
-          <MessageSquare size={14} /> 智能对话
+      <nav className="flex-1 px-3 space-y-2 overflow-hidden">
+        <button onClick={() => setActiveTab('chat')} className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all font-bold text-[13px]", activeTab === 'chat' ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
+          <MessageSquare size={16} /> 智能对话
         </button>
-        <button onClick={() => setActiveTab('rules')} className={cn("w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all font-bold text-[11px]", activeTab === 'rules' ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
-          <Settings size={14} /> 策略库
+        <button onClick={() => setActiveTab('rules')} className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all font-bold text-[13px]", activeTab === 'rules' ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
+          <Settings size={16} /> 策略库
         </button>
-        <button onClick={() => setActiveTab('stats')} className={cn("w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all font-bold text-[11px]", activeTab === 'stats' ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
-          <BarChart3 size={14} /> 统计后台
+        <button onClick={() => setActiveTab('stats')} className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all font-bold text-[13px]", activeTab === 'stats' ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" : "text-slate-500 hover:bg-white hover:text-blue-600")}>
+          <BarChart3 size={16} /> 统计后台
         </button>
 
-        <div className="mt-6 mb-2 px-3"><p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">解析策略</p></div>
+        <div className="mt-8 mb-2 px-3"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">解析策略</p></div>
         {rules.map(r => (
-          <button key={r.id} onClick={() => setSelectedRuleId(r.id)} className={cn("w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold text-left min-w-0", selectedRuleId === r.id ? "bg-blue-50 text-blue-600 ring-1 ring-blue-100" : "text-slate-400 hover:bg-slate-50 hover:text-slate-600")}>
+          <button key={r.id} onClick={() => setSelectedRuleId(r.id)} className={cn("w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-[11px] font-bold text-left min-w-0", selectedRuleId === r.id ? "bg-blue-50 text-blue-600 ring-1 ring-blue-100" : "text-slate-400 hover:bg-slate-50 hover:text-slate-600")}>
             <span className="shrink-0">{r.icon}</span>
             <span className="truncate">{r.name}</span>
           </button>
         ))}
       </nav>
 
-      <div className="p-3 border-t border-white/20 bg-blue-50/30">
-        <label className="group relative w-full flex items-center justify-center gap-2 bg-white hover:bg-blue-600 hover:text-white p-2.5 rounded-lg border border-blue-100 transition-all shadow-md shadow-blue-600/5 cursor-pointer active:scale-95">
-          <Upload size={14} className="transition-transform group-hover:-translate-y-0.5" />
-          <span className="text-[10px] font-black">上传文档</span>
+      <div className="p-4 border-t border-white/20 bg-blue-50/30">
+        <label className="group relative w-full flex items-center justify-center gap-2 bg-white hover:bg-blue-600 hover:text-white p-3 rounded-lg border border-blue-100 transition-all shadow-md shadow-blue-600/5 cursor-pointer active:scale-95">
+          <Upload size={16} className="transition-transform group-hover:-translate-y-0.5" />
+          <span className="text-[12px] font-black">上传文档</span>
           <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.csv" />
         </label>
       </div>
@@ -464,7 +460,7 @@ export default function DocuParsePro() {
               {selectedDoc && activeTab === 'chat' && (
                 <Badge variant="outline" className="bg-white/80 border-blue-100 text-blue-600 rounded-lg px-2 py-0.5 flex items-center gap-1.5 max-w-[160px] shadow-sm overflow-hidden min-w-0">
                   {getFileIcon(selectedDoc.type)}
-                  <span className="truncate flex-1 text-[9px] font-bold ml-1">{selectedDoc.name}</span>
+                  <span className="truncate flex-1 text-[10px] font-bold ml-1">{selectedDoc.name}</span>
                 </Badge>
               )}
             </div>
@@ -472,7 +468,7 @@ export default function DocuParsePro() {
           <div className="flex items-center gap-3">
             <div className="hidden md:flex items-center gap-1.5 px-2 py-1 bg-white/60 rounded-lg border border-white/20 shadow-sm">
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-lg shadow-green-500/50 animate-pulse" />
-              <span className="text-[9px] font-black text-slate-600">DEEPSEEK V3</span>
+              <span className="text-[10px] font-black text-slate-600">DEEPSEEK V3</span>
             </div>
           </div>
         </header>
@@ -482,25 +478,25 @@ export default function DocuParsePro() {
             <div className={cn("w-[300px] border-r border-white/20 bg-white/10 flex flex-col shrink-0 transition-all", selectedDocId && "hidden lg:flex")}>
               <div className="p-4 shrink-0">
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
-                  <Input placeholder="检索文档..." className="pl-8 h-8 bg-white/80 border-none rounded-lg shadow-sm text-[10px] focus-visible:ring-blue-200" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <Input placeholder="检索文档..." className="pl-9 h-9 bg-white/80 border-none rounded-lg shadow-sm text-[12px] focus-visible:ring-blue-200" />
                 </div>
               </div>
               <ScrollArea className="flex-1">
-                <div className="pb-8 space-y-2 flex flex-col items-center min-w-0 overflow-hidden">
+                <div className="pb-8 space-y-3 flex flex-col items-center min-w-0 overflow-hidden">
                   {documents.length === 0 ? (
-                    <div className="py-20 text-center opacity-20"><FileSearch size={32} className="mx-auto mb-2" /><p className="text-[9px] font-black uppercase tracking-widest">等待解析</p></div>
+                    <div className="py-20 text-center opacity-20"><FileSearch size={32} className="mx-auto mb-2" /><p className="text-[10px] font-black uppercase tracking-widest">等待解析</p></div>
                   ) : (
                     documents.map(d => (
-                      <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-[calc(100%-32px)] mx-auto p-2.5 rounded-xl border transition-all text-left flex items-start gap-2.5 group relative overflow-hidden min-w-0", selectedDocId === d.id ? "bg-white border-blue-600 shadow-lg shadow-blue-600/5" : "bg-transparent border-transparent hover:bg-white/40")}>
+                      <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-[calc(100%-32px)] mx-auto p-3.5 rounded-xl border transition-all text-left flex items-start gap-3 group relative overflow-hidden min-w-0", selectedDocId === d.id ? "bg-white border-blue-600 shadow-lg shadow-blue-600/5" : "bg-transparent border-transparent hover:bg-white/40")}>
                         <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0 shadow-sm", selectedDocId === d.id ? "bg-blue-600 text-white" : "bg-white text-slate-400")}>
                           {getFileIcon(d.type)}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-black text-[10px] text-slate-800 truncate block max-w-[140px] pr-1">{d.name}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-[8px] font-bold text-slate-400">{d.date}</span>
-                            {d.status === 'completed' ? <Badge className="bg-green-50 text-green-600 text-[7px] h-3.5 px-1 font-bold">已解析</Badge> : d.status === 'pending_confirm' ? <Badge className="bg-orange-50 text-orange-600 text-[7px] h-3.5 px-1 font-bold">待确认</Badge> : <Badge className="bg-blue-50 text-blue-600 text-[7px] h-3.5 px-1 font-bold animate-pulse">解析中</Badge>}
+                          <p className="font-black text-[12px] text-slate-800 truncate block max-w-[140px] pr-1">{d.name}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[10px] font-bold text-slate-400">{d.date}</span>
+                            {d.status === 'completed' ? <Badge className="bg-green-50 text-green-600 text-[9px] h-4 px-1.5 font-bold">已解析</Badge> : d.status === 'pending_confirm' ? <Badge className="bg-orange-50 text-orange-600 text-[9px] h-4 px-1.5 font-bold">待确认</Badge> : <Badge className="bg-blue-50 text-blue-600 text-[9px] h-4 px-1.5 font-bold animate-pulse">解析中</Badge>}
                           </div>
                         </div>
                       </button>
@@ -517,16 +513,16 @@ export default function DocuParsePro() {
                     <div className="flex-1 flex items-center justify-center p-6">
                       <Card className="max-w-xs w-full rounded-[1.5rem] border-none shadow-2xl bg-white p-6 text-center animate-in zoom-in-95">
                         <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-inner"><AlertCircle size={24} /></div>
-                        <CardTitle className="text-lg font-black mb-2">解析确认</CardTitle>
-                        <CardDescription className="text-[10px] font-bold text-slate-500 mb-6 leading-relaxed">系统已准备好处理 <span className="text-blue-600 truncate inline-block max-w-[120px] align-bottom">"{selectedDoc.name}"</span>。</CardDescription>
+                        <CardTitle className="text-xl font-black mb-2">解析确认</CardTitle>
+                        <CardDescription className="text-[12px] font-bold text-slate-500 mb-6 leading-relaxed">系统已准备好处理 <span className="text-blue-600 truncate inline-block max-w-[120px] align-bottom">"{selectedDoc.name}"</span>。</CardDescription>
                         <div className="flex flex-col gap-2">
-                          <Button onClick={() => startAnalysis(selectedDoc.id)} className="w-full h-10 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2">
-                            <PlayCircle size={14} /> 开启 AI 深度解析
+                          <Button onClick={() => startAnalysis(selectedDoc.id)} className="w-full h-11 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-black text-sm shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2">
+                            <PlayCircle size={16} /> 开启 AI 深度解析
                           </Button>
                           <Button variant="ghost" onClick={() => {
                             uploadedFilesRef.current.delete(selectedDoc.id);
                             setDocuments(prev => prev.filter(d => d.id !== selectedDoc.id));
-                          }} className="text-slate-400 text-[10px] font-bold hover:text-red-500 h-8"><Trash2 size={12} className="mr-1.5" /> 取消</Button>
+                          }} className="text-slate-400 text-[11px] font-bold hover:text-red-500 h-9"><Trash2 size={14} className="mr-2" /> 取消</Button>
                         </div>
                       </Card>
                     </div>
@@ -535,21 +531,21 @@ export default function DocuParsePro() {
                       <ScrollArea className="flex-1 px-4 md:px-8 py-6" ref={scrollRef}>
                         <div className="max-w-3xl mx-auto space-y-6 pb-20">
                           {selectedDoc.chatHistory.map((m, i) => (
-                            <div key={i} className={cn("flex gap-3", m.role === 'user' ? "flex-row-reverse" : "flex-row")}>
-                              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border shadow-sm font-black text-[8px]", m.role === 'user' ? "bg-white text-slate-400" : "bg-blue-600 text-white shadow-blue-600/20")}>
-                                {m.role === 'user' ? 'ME' : <Sparkles size={14} />}
+                            <div key={i} className={cn("flex gap-4", m.role === 'user' ? "flex-row-reverse" : "flex-row")}>
+                              <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border shadow-sm font-black text-[10px]", m.role === 'user' ? "bg-white text-slate-400" : "bg-blue-600 text-white shadow-blue-600/20")}>
+                                {m.role === 'user' ? 'ME' : <Sparkles size={16} />}
                               </div>
-                              <div className={cn("max-w-[85%] p-4 rounded-[1.25rem] text-[11px] leading-relaxed shadow-sm transition-all overflow-hidden", m.role === 'user' ? "bg-blue-600 text-white rounded-tr-none" : "bg-white/80 backdrop-blur-sm border rounded-tl-none prose prose-slate prose-invert-0")}>
+                              <div className={cn("max-w-[85%] p-5 rounded-[1.25rem] text-[13px] leading-relaxed shadow-sm transition-all overflow-hidden", m.role === 'user' ? "bg-blue-600 text-white rounded-tr-none" : "bg-white/80 backdrop-blur-sm border rounded-tl-none prose prose-slate prose-invert-0")}>
                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
                               </div>
                             </div>
                           ))}
                           {isCurrentlyReading && (
-                            <div className="flex gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-blue-600/20"><Sparkles size={14} /></div>
-                              <div className="bg-white/60 backdrop-blur-sm border p-4 rounded-[1.25rem] rounded-tl-none flex items-center gap-2.5 shadow-sm">
-                                <Loader2 className="animate-spin text-blue-600" size={14} />
-                                <span className="text-[10px] font-black text-slate-700">正在研读脉络...</span>
+                            <div className="flex gap-4">
+                              <div className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-blue-600/20"><Sparkles size={16} /></div>
+                              <div className="bg-white/60 backdrop-blur-sm border p-5 rounded-[1.25rem] rounded-tl-none flex items-center gap-3 shadow-sm">
+                                <Loader2 className="animate-spin text-blue-600" size={16} />
+                                <span className="text-[12px] font-black text-slate-700">正在研读脉络...</span>
                               </div>
                             </div>
                           )}
@@ -557,9 +553,9 @@ export default function DocuParsePro() {
                       </ScrollArea>
                       <footer className="p-4 border-t border-white/20 bg-white/40 backdrop-blur-xl shrink-0">
                         <div className="max-w-3xl mx-auto relative group">
-                          <textarea placeholder="进一步提问..." className="w-full min-h-[44px] max-h-[120px] bg-white/80 border-none rounded-[1.25rem] p-3 pr-14 text-[11px] font-bold focus:ring-2 focus:ring-blue-100 shadow-inner resize-none no-scrollbar" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} />
-                          <Button onClick={handleSendMessage} disabled={!chatInput.trim() || isChatting || selectedDoc.status !== 'completed'} className="absolute right-2 bottom-2 w-8 h-8 rounded-lg bg-blue-600 text-white shadow-lg shadow-blue-600/30 hover:scale-105 active:scale-95 transition-all">
-                            <Send size={14} />
+                          <textarea placeholder="进一步提问..." className="w-full min-h-[48px] max-h-[140px] bg-white/80 border-none rounded-[1.25rem] p-4 pr-14 text-[13px] font-bold focus:ring-2 focus:ring-blue-100 shadow-inner resize-none no-scrollbar" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} />
+                          <Button onClick={handleSendMessage} disabled={!chatInput.trim() || isChatting || selectedDoc.status !== 'completed'} className="absolute right-3 bottom-3 w-9 h-9 rounded-lg bg-blue-600 text-white shadow-lg shadow-blue-600/30 hover:scale-105 active:scale-95 transition-all">
+                            <Send size={16} />
                           </Button>
                         </div>
                       </footer>
@@ -568,12 +564,12 @@ export default function DocuParsePro() {
                 </>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
-                  <div className="w-20 h-20 bg-white/80 rounded-[1.5rem] shadow-2xl flex items-center justify-center mb-6 border border-white/20"><MessageSquare size={32} className="text-blue-600/20" /></div>
-                  <h3 className="text-xl font-black text-slate-800 tracking-tight">上传技术文档</h3>
-                  <p className="mt-2 text-slate-400 font-bold text-[10px] max-w-xs leading-relaxed uppercase tracking-widest">AI 精准提取核心技术要点</p>
-                  <Button variant="outline" className="mt-8 h-12 rounded-lg px-8 border-2 border-blue-100 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all font-black text-xs group" asChild>
+                  <div className="w-24 h-24 bg-white/80 rounded-[1.5rem] shadow-2xl flex items-center justify-center mb-6 border border-white/20"><MessageSquare size={36} className="text-blue-600/20" /></div>
+                  <h3 className="text-2xl font-black text-slate-800 tracking-tight">上传技术文档</h3>
+                  <p className="mt-2 text-slate-400 font-bold text-[12px] max-w-xs leading-relaxed uppercase tracking-widest">AI 精准提取核心技术要点</p>
+                  <Button variant="outline" className="mt-10 h-14 rounded-lg px-10 border-2 border-blue-100 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all font-black text-sm group" asChild>
                     <label className="cursor-pointer">
-                      <Upload size={14} className="mr-2 transition-transform group-hover:-translate-y-0.5" /> 立即上传
+                      <Upload size={18} className="mr-2 transition-transform group-hover:-translate-y-0.5" /> 立即上传
                       <input type="file" multiple className="hidden" onChange={handleFileUpload} />
                     </label>
                   </Button>
@@ -587,18 +583,18 @@ export default function DocuParsePro() {
           <ScrollArea className="flex-1 p-6 bg-white/20">
             <div className="max-w-4xl mx-auto">
               <div className="flex items-center justify-between mb-8">
-                <div><h3 className="text-2xl font-black text-slate-800 tracking-tight">解析策略库</h3><p className="mt-1 text-slate-400 text-[10px] font-bold">配置不同文档场景的 AI 解析逻辑</p></div>
-                <Button variant="outline" onClick={() => setIsTestingApi(!isTestingApi)} className="rounded-lg h-10 px-4 border-2 border-blue-100 font-black text-[10px] gap-2 shadow-sm"><Activity size={14} /> 运行状态</Button>
+                <div><h3 className="text-2xl font-black text-slate-800 tracking-tight">解析策略库</h3><p className="mt-1 text-slate-400 text-[12px] font-bold">配置不同文档场景的 AI 解析逻辑</p></div>
+                <Button variant="outline" onClick={() => setIsTestingApi(!isTestingApi)} className="rounded-lg h-10 px-4 border-2 border-blue-100 font-black text-[11px] gap-2 shadow-sm"><Activity size={16} /> 运行状态</Button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {rules.map(r => (
                   <Card key={r.id} className={cn("rounded-[1.5rem] border-none shadow-xl transition-all duration-300 overflow-hidden", selectedRuleId === r.id ? "ring-2 ring-blue-600 bg-blue-600 text-white" : "bg-white hover:shadow-blue-600/10 hover:-translate-y-1")}>
-                    <CardHeader className="p-4 pb-2">
-                      <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mb-2", selectedRuleId === r.id ? "bg-white/20" : "bg-blue-50 text-blue-600")}>{r.icon}</div>
-                      <CardTitle className="text-sm font-black">{r.name}</CardTitle>
+                    <CardHeader className="p-5 pb-3">
+                      <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center mb-3", selectedRuleId === r.id ? "bg-white/20" : "bg-blue-50 text-blue-600")}>{r.icon}</div>
+                      <CardTitle className="text-base font-black">{r.name}</CardTitle>
                     </CardHeader>
-                    <CardContent className={cn("p-4 pt-0 text-[9px] font-bold leading-relaxed", selectedRuleId === r.id ? "text-white/80" : "text-slate-500")}>{r.content}</CardContent>
-                    <CardFooter className="p-4 pt-0"><Button onClick={() => setSelectedRuleId(r.id)} className={cn("w-full h-8 rounded-lg text-[10px] font-black transition-all", selectedRuleId === r.id ? "bg-white text-blue-600" : "bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white")}>{selectedRuleId === r.id ? '当前启用' : '应用'}</Button></CardFooter>
+                    <CardContent className={cn("p-5 pt-0 text-[11px] font-bold leading-relaxed", selectedRuleId === r.id ? "text-white/80" : "text-slate-500")}>{r.content}</CardContent>
+                    <CardFooter className="p-5 pt-0"><Button onClick={() => setSelectedRuleId(r.id)} className={cn("w-full h-9 rounded-lg text-[11px] font-black transition-all", selectedRuleId === r.id ? "bg-white text-blue-600" : "bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white")}>{selectedRuleId === r.id ? '当前启用' : '应用'}</Button></CardFooter>
                   </Card>
                 ))}
               </div>
@@ -608,56 +604,56 @@ export default function DocuParsePro() {
 
         {activeTab === 'stats' && (
           <ScrollArea className="flex-1 p-6 bg-white/20">
-            <div className="max-w-4xl mx-auto space-y-6">
+            <div className="max-w-4xl mx-auto space-y-8">
               <header className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-xl shadow-blue-600/20"><Database size={20} /></div>
-                  <div><h3 className="text-xl font-black text-slate-800 tracking-tight">用量看板</h3><p className="mt-0.5 text-slate-400 font-bold uppercase tracking-widest text-[8px]">AI 资源实时概览</p></div>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-xl shadow-blue-600/20"><Database size={24} /></div>
+                  <div><h3 className="text-2xl font-black text-slate-800 tracking-tight">用量看板</h3><p className="mt-0.5 text-slate-400 font-bold uppercase tracking-widest text-[10px]">AI 资源实时概览</p></div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => window.location.reload()}><RefreshCw size={14} /></Button>
+                <Button variant="ghost" size="icon" onClick={() => window.location.reload()}><RefreshCw size={18} /></Button>
               </header>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
-                  { label: '累计调用', val: logs?.length || 0, icon: <Activity size={16} />, sub: 'Total', color: 'blue' },
-                  { label: '语义消耗', val: logs?.filter(l => l.eventType === 'AIProcessing').reduce((a, c) => a + (c.consumedAmount || 0), 0) || 0, icon: <Sparkles size={16} />, sub: 'Units', color: 'purple' },
-                  { label: '视觉识别', val: logs?.filter(l => l.eventType === 'DocumentProcessed').reduce((a, c) => a + (c.consumedAmount || 0), 0) || 0, icon: <Eye size={16} />, sub: 'Pages', color: 'emerald' }
+                  { label: '累计调用', val: logs?.length || 0, icon: <Activity size={20} />, sub: 'Total', color: 'blue' },
+                  { label: '语义消耗', val: logs?.filter(l => l.eventType === 'AIProcessing').reduce((a, c) => a + (c.consumedAmount || 0), 0) || 0, icon: <Sparkles size={20} />, sub: 'Units', color: 'purple' },
+                  { label: '视觉识别', val: logs?.filter(l => l.eventType === 'DocumentProcessed').reduce((a, c) => a + (c.consumedAmount || 0), 0) || 0, icon: <Eye size={20} />, sub: 'Pages', color: 'emerald' }
                 ].map(s => (
-                  <Card key={s.label} className="rounded-[1.5rem] border-none shadow-xl bg-white p-5 group hover:-translate-y-1 transition-all">
-                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mb-3", `bg-${s.color}-50 text-${s.color}-600`)}>{s.icon}</div>
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{s.label}</p>
-                    <div className="flex items-baseline gap-1 mt-1"><h4 className="text-2xl font-black text-slate-800">{s.val}</h4><span className="text-[8px] font-black text-slate-400">{s.sub}</span></div>
+                  <Card key={s.label} className="rounded-[1.5rem] border-none shadow-xl bg-white p-6 group hover:-translate-y-1 transition-all">
+                    <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center mb-4", `bg-${s.color}-50 text-${s.color}-600`)}>{s.icon}</div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{s.label}</p>
+                    <div className="flex items-baseline gap-2 mt-1"><h4 className="text-3xl font-black text-slate-800">{s.val}</h4><span className="text-[10px] font-black text-slate-400">{s.sub}</span></div>
                   </Card>
                 ))}
               </div>
 
               {logs && logs.length > 0 ? (
                 <>
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <Card className="lg:col-span-2 rounded-[1.5rem] border-none shadow-xl bg-white overflow-hidden">
-                      <div className="px-5 py-3 border-b border-slate-50 flex items-center gap-2"><BarChart3 size={14} className="text-blue-600" /><h4 className="font-black text-[10px] text-slate-800">趋势 (7D)</h4></div>
-                      <div className="p-5 h-56">
+                      <div className="px-6 py-4 border-b border-slate-50 flex items-center gap-3"><BarChart3 size={18} className="text-blue-600" /><h4 className="font-black text-[12px] text-slate-800">趋势 (7D)</h4></div>
+                      <div className="p-6 h-64">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 8}} />
-                            <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 8}} />
-                            <RechartsTooltip cursor={{fill: '#f8fafc'}} content={({active, payload}) => active && payload?.length ? <div className="bg-slate-800 text-white p-2 rounded-lg shadow-2xl text-[8px] font-black uppercase">{payload[0].value} Units</div> : null} />
+                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+                            <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+                            <RechartsTooltip cursor={{fill: '#f8fafc'}} content={({active, payload}) => active && payload?.length ? <div className="bg-slate-800 text-white p-2 rounded-lg shadow-2xl text-[10px] font-black uppercase">{payload[0].value} Units</div> : null} />
                             <Bar dataKey="amount" radius={[4, 4, 0, 0]}>{chartData.map((e, i) => <Cell key={`c-${i}`} fill={COLORS[i % COLORS.length]} />)}</Bar>
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
                     </Card>
                     <Card className="rounded-[1.5rem] border-none shadow-xl bg-white overflow-hidden">
-                      <div className="px-5 py-3 border-b border-slate-50 flex items-center gap-2"><PieChartIcon size={14} className="text-purple-600" /><h4 className="font-black text-[10px] text-slate-800">资源分布</h4></div>
-                      <div className="p-5 h-56 flex flex-col items-center">
-                        <ResponsiveContainer width="100%" height="55%">
-                          <PieChart><Pie data={pieData} innerRadius={35} outerRadius={50} paddingAngle={5} dataKey="value">{pieData.map((e, i) => <Cell key={`p-${i}`} fill={COLORS[i % COLORS.length]} />)}</Pie><RechartsTooltip /></PieChart>
+                      <div className="px-6 py-4 border-b border-slate-50 flex items-center gap-3"><PieChartIcon size={18} className="text-purple-600" /><h4 className="font-black text-[12px] text-slate-800">资源分布</h4></div>
+                      <div className="p-6 h-64 flex flex-col items-center">
+                        <ResponsiveContainer width="100%" height="60%">
+                          <PieChart><Pie data={pieData} innerRadius={40} outerRadius={60} paddingAngle={5} dataKey="value">{pieData.map((e, i) => <Cell key={`p-${i}`} fill={COLORS[i % COLORS.length]} />)}</Pie><RechartsTooltip /></PieChart>
                         </ResponsiveContainer>
-                        <div className="w-full space-y-2 mt-4">
+                        <div className="w-full space-y-3 mt-5">
                           {pieData.map((d, i) => (
-                            <div key={d.name} className="flex items-center justify-between text-[7px] font-black uppercase tracking-widest text-slate-600">
-                              <div className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full" style={{backgroundColor: COLORS[i % COLORS.length]}} />{d.name}</div>
+                            <div key={d.name} className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-slate-600">
+                              <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full" style={{backgroundColor: COLORS[i % COLORS.length]}} />{d.name}</div>
                               <span>{d.value}</span>
                             </div>
                           ))}
@@ -665,17 +661,17 @@ export default function DocuParsePro() {
                       </div>
                     </Card>
                   </div>
-                  <Card className="rounded-[1.5rem] border-none shadow-xl bg-white overflow-hidden pb-6">
-                    <div className="px-5 py-3 border-b border-slate-50 flex items-center justify-between"><div className="flex items-center gap-2"><Clock size={14} className="text-emerald-600" /><h4 className="font-black text-[10px] text-slate-800">用量明细</h4></div><Badge variant="secondary" className="bg-slate-50 text-slate-400 text-[7px] font-black uppercase px-1.5">Recent 50</Badge></div>
+                  <Card className="rounded-[1.5rem] border-none shadow-xl bg-white overflow-hidden pb-8">
+                    <div className="px-6 py-4 border-b border-slate-50 flex items-center justify-between"><div className="flex items-center gap-3"><Clock size={18} className="text-emerald-600" /><h4 className="font-black text-[12px] text-slate-800">用量明细</h4></div><Badge variant="secondary" className="bg-slate-50 text-slate-400 text-[9px] font-black uppercase px-2">Recent 50</Badge></div>
                     <Table>
-                      <TableHeader><TableRow className="bg-slate-50/50 border-none"><TableHead className="px-5 font-black text-[8px] uppercase text-slate-400">时间</TableHead><TableHead className="font-black text-[8px] uppercase text-slate-400">类型</TableHead><TableHead className="text-right font-black text-[8px] uppercase text-slate-400">数值</TableHead><TableHead className="px-5 font-black text-[8px] uppercase text-slate-400">单位</TableHead></TableRow></TableHeader>
+                      <TableHeader><TableRow className="bg-slate-50/50 border-none"><TableHead className="px-6 font-black text-[10px] uppercase text-slate-400">时间</TableHead><TableHead className="font-black text-[10px] uppercase text-slate-400">类型</TableHead><TableHead className="text-right font-black text-[10px] uppercase text-slate-400">数值</TableHead><TableHead className="px-6 font-black text-[10px] uppercase text-slate-400">单位</TableHead></TableRow></TableHeader>
                       <TableBody>
                         {logs.map(l => (
                           <TableRow key={l.id} className="border-slate-50 hover:bg-slate-50/50 transition-colors">
-                            <TableCell className="px-5 text-[9px] font-bold text-slate-500">{new Date(l.eventDateTime).toLocaleString([], {month: '2-digit', day: '2-digit', hour: '2-digit', minute:'2-digit'})}</TableCell>
-                            <TableCell><Badge variant="outline" className={cn("text-[7px] font-black border-none px-1", l.eventType === 'AIProcessing' ? "bg-purple-50 text-purple-600" : "bg-blue-50 text-blue-600")}>{l.eventType === 'AIProcessing' ? '语义解析' : '视觉扫描'}</Badge></TableCell>
-                            <TableCell className="text-right font-black text-[10px] text-slate-700">{l.consumedAmount || 0}</TableCell>
-                            <TableCell className="px-5 text-[7px] font-black text-slate-400 uppercase tracking-widest">{l.consumptionUnit}</TableCell>
+                            <TableCell className="px-6 text-[11px] font-bold text-slate-500">{new Date(l.eventDateTime).toLocaleString([], {month: '2-digit', day: '2-digit', hour: '2-digit', minute:'2-digit'})}</TableCell>
+                            <TableCell><Badge variant="outline" className={cn("text-[9px] font-black border-none px-2", l.eventType === 'AIProcessing' ? "bg-purple-50 text-purple-600" : "bg-blue-50 text-blue-600")}>{l.eventType === 'AIProcessing' ? '语义解析' : '视觉扫描'}</Badge></TableCell>
+                            <TableCell className="text-right font-black text-[12px] text-slate-700">{l.consumedAmount || 0}</TableCell>
+                            <TableCell className="px-6 text-[9px] font-black text-slate-400 uppercase tracking-widest">{l.consumptionUnit}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -683,7 +679,7 @@ export default function DocuParsePro() {
                   </Card>
                 </>
               ) : (
-                <div className="py-24 text-center opacity-30"><Activity size={48} className="mx-auto mb-4" /><p className="font-black uppercase text-[9px] tracking-[0.2em]">暂无记录</p></div>
+                <div className="py-24 text-center opacity-30"><Activity size={64} className="mx-auto mb-6" /><p className="font-black uppercase text-[12px] tracking-[0.2em]">暂无记录</p></div>
               )}
             </div>
           </ScrollArea>
@@ -691,9 +687,9 @@ export default function DocuParsePro() {
       </main>
 
       <style jsx global>{`
-        .prose table { @apply w-full border-collapse border border-slate-100 rounded-lg overflow-hidden my-3; }
-        .prose th { @apply bg-slate-50 p-2 text-[9px] font-black uppercase text-slate-500 text-left; }
-        .prose td { @apply p-2 border-t border-slate-50 text-[10px] text-slate-600; }
+        .prose table { @apply w-full border-collapse border border-slate-100 rounded-lg overflow-hidden my-4; }
+        .prose th { @apply bg-slate-50 p-3 text-[11px] font-black uppercase text-slate-500 text-left; }
+        .prose td { @apply p-3 border-t border-slate-50 text-[12px] text-slate-600; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
     </div>
