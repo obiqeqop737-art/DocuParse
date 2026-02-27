@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -5,7 +6,7 @@ import {
   FileText, Upload, MessageSquare, Send, Loader2, Search, BookOpen, 
   Sparkles, Layers, Menu, ChevronLeft, FileDown,
   AlertCircle, PlayCircle, Trash2, FileSpreadsheet, Presentation, Star, ShoppingBag,
-  Mic, MicOff, Target, Sun, Moon, BarChart3, Clock, Truck
+  Mic, Target, Sun, Moon, BarChart3, Clock, Truck, Music
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -33,7 +34,7 @@ import {
   initiateAnonymousSignIn
 } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import { performASR } from '@/ai/flows/asr-flow';
+import { performASR } from '@/ai/flows/asr-flow'; // 修正导入路径
 
 // 配置 PDF.js Worker
 if (typeof window !== 'undefined') {
@@ -103,11 +104,6 @@ export default function DocuParsePro() {
   const uploadedFilesRef = useRef<Map<string, File>>(new Map());
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const [isRecording, setIsRecording] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-
   useEffect(() => {
     if (!user && auth && !isUserLoading) {
       initiateAnonymousSignIn(auth);
@@ -173,8 +169,21 @@ export default function DocuParsePro() {
     try {
       let finalContent = "";
       const ab = await file.arrayBuffer();
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
       
-      if (file.name.toLowerCase().endsWith('.pdf')) {
+      // 处理音频文件 (ASR)
+      if (['wav', 'mp3', 'm4a', 'ogg'].includes(ext)) {
+        const reader = new FileReader();
+        const base64Promise = new Promise<string>((resolve) => {
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+        const base64 = await base64Promise;
+        const { text } = await performASR({ audioBase64: base64 });
+        finalContent = text || "[该音频未能转写出有效文本]";
+      } 
+      // 处理 PDF
+      else if (ext === 'pdf') {
         const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
         let text = "";
         for (let i = 1; i <= pdf.numPages; i++) {
@@ -183,13 +192,19 @@ export default function DocuParsePro() {
           text += content.items.map((item: any) => item.str).join(' ') + "\n";
         }
         finalContent = text;
-      } else if (file.name.toLowerCase().endsWith('.docx')) {
+      } 
+      // 处理 Word
+      else if (ext === 'docx') {
         const res = await mammoth.extractRawText({ arrayBuffer: ab });
         finalContent = res.value;
-      } else if (file.name.toLowerCase().match(/\.(xlsx|xls|csv)$/)) {
+      } 
+      // 处理表格
+      else if (['xlsx', 'xls', 'csv'].includes(ext)) {
         const workbook = XLSX.read(ab);
         finalContent = workbook.SheetNames.map(name => XLSX.utils.sheet_to_txt(workbook.Sheets[name])).join('\n\n');
-      } else {
+      } 
+      // 处理纯文本
+      else {
         finalContent = await file.text();
       }
 
@@ -296,46 +311,19 @@ export default function DocuParsePro() {
     } catch (err) {} finally { setIsChatting(false); }
   };
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-      mediaRecorder.ondataavailable = (event) => audioChunksRef.current.push(event.data);
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = async () => {
-          setIsTranscribing(true);
-          try {
-            const { text } = await performASR({ audioBase64: reader.result as string });
-            if (text) setChatInput(prev => prev + " " + text);
-          } finally { setIsTranscribing(false); }
-        };
-        stream.getTracks().forEach(track => track.stop());
-      };
-      mediaRecorder.start();
-      setIsRecording(true);
-    } catch (err) {
-      toast({ variant: "destructive", title: "麦克风故障", description: "无法开启语音输入。" });
-    }
-  };
-
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-white/70 dark:bg-slate-950/70 backdrop-blur-2xl rounded-r-[2.5rem] overflow-hidden p-2 border-r border-white/20 shadow-2xl">
+    <div className="flex flex-col h-full bg-white/70 dark:bg-slate-950/70 backdrop-blur-2xl rounded-r-[2.5rem] overflow-hidden p-4 border-r border-white/20 shadow-2xl">
       <div className="p-8 pb-4 flex items-center gap-4">
         <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-primary/30">
           <BookOpen size={24} />
         </div>
         <div>
           <h1 className="text-lg font-black tracking-tight">DocuParse</h1>
-          <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">DeepSeek Engine</p>
+          <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">DeepSeek V3.2 Engine</p>
         </div>
       </div>
       
-      <nav className="flex-1 px-4 mt-8 space-y-8 overflow-y-auto no-scrollbar">
+      <nav className="flex-1 mt-8 space-y-8 overflow-y-auto no-scrollbar">
         <div className="p-1">
           <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">系统主控</p>
           <div className="space-y-2">
@@ -372,7 +360,7 @@ export default function DocuParsePro() {
         </div>
         <label className="w-full h-16 flex items-center justify-center gap-2 bg-primary text-white rounded-[1.8rem] transition-all shadow-xl shadow-primary/20 cursor-pointer hover:bg-primary/90 font-black text-sm uppercase tracking-widest">
           <Upload size={20} /> 上传文件
-          <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.pdf,.docx,.doc,.xlsx,.xls,.csv" />
+          <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.pdf,.docx,.doc,.xlsx,.xls,.csv,.mp3,.wav,.m4a,.ogg" />
         </label>
       </div>
     </div>
@@ -417,15 +405,15 @@ export default function DocuParsePro() {
                 </div>
               </div>
               <ScrollArea className="flex-1 pb-10">
-                <div className="space-y-4 px-2 py-4">
+                <div className="space-y-4 px-4 py-4">
                   {localDocs.map(d => (
-                    <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-full p-6 rounded-[1.8rem] border transition-all text-left flex items-start gap-4 overflow-hidden", selectedDocId === d.id ? "bg-primary text-white shadow-xl shadow-primary/20 border-primary" : "bg-black/5 dark:bg-white/5 border-transparent hover:bg-black/10")}>
+                    <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-full p-6 rounded-[1.8rem] border transition-all text-left flex items-start gap-4 overflow-hidden", selectedDocId === d.id ? "bg-primary text-white shadow-xl shadow-primary/20 border-primary ring-[8px] ring-primary/30" : "bg-black/5 dark:bg-white/5 border-transparent hover:bg-black/10")}>
                       <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm", selectedDocId === d.id ? "bg-white/20" : "bg-primary/10 text-primary")}>
-                        {d.type === 'PDF' ? <FileText size={18} /> : d.type.includes('XL') ? <FileSpreadsheet size={18} /> : <FileText size={18} />}
+                        {d.type === 'PDF' ? <FileText size={18} /> : d.type.includes('XL') ? <FileSpreadsheet size={18} /> : ['MP3','WAV','M4A','OGG'].includes(d.type) ? <Music size={18} /> : <FileText size={18} />}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="font-bold text-[13px] truncate block w-full">{d.name}</p>
-                        <p className="text-[11px] opacity-40 mt-1 font-bold uppercase tracking-widest">{d.status}</p>
+                        <p className="text-[11px] opacity-40 mt-1 font-bold uppercase tracking-widest truncate">{d.status}</p>
                       </div>
                     </button>
                   ))}
@@ -459,7 +447,7 @@ export default function DocuParsePro() {
                         </div>
                         <CardTitle className="text-2xl font-black mb-4">{selectedDoc.status === 'processing' ? '正在研读...' : '解析就绪'}</CardTitle>
                         <CardDescription className="font-bold opacity-60 mb-8 uppercase tracking-widest text-xs">
-                          {selectedDoc.status === 'processing' ? '正在提取文档核心语义' : `准备分析: ${selectedDoc.name}`}
+                          {selectedDoc.status === 'processing' ? '正在提取文档或音频语义' : `准备分析: ${selectedDoc.name}`}
                         </CardDescription>
                         {selectedDoc.status === 'pending_confirm' && (
                           <Button onClick={() => startAnalysis(selectedDoc.id)} disabled={isExtracting} className="w-full h-16 rounded-[1.8rem] bg-primary text-lg font-black shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all">
@@ -494,15 +482,12 @@ export default function DocuParsePro() {
                       <footer className="p-8 lg:p-10 border-t border-black/5 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl sticky bottom-0">
                         <div className="max-w-3xl relative mx-auto lg:mx-0">
                           <textarea 
-                            placeholder={isRecording ? "正在倾听您的指令..." : "追问文档细节..."} 
-                            className={cn("w-full min-h-[90px] bg-white dark:bg-slate-800 border border-black/10 rounded-[2rem] p-6 pr-36 text-sm lg:text-[15px] font-bold focus:ring-4 focus:ring-primary/10 shadow-xl resize-none transition-all", isRecording && "ring-4 ring-red-500/20 bg-red-50/50")} 
+                            placeholder="追问文档细节..." 
+                            className="w-full min-h-[90px] bg-white dark:bg-slate-800 border border-black/10 rounded-[2rem] p-6 pr-20 text-sm lg:text-[15px] font-bold focus:ring-4 focus:ring-primary/10 shadow-xl resize-none transition-all" 
                             value={chatInput} 
                             onChange={(e) => setChatInput(e.target.value)} 
                           />
-                          <div className="absolute right-4 bottom-4 flex gap-3">
-                             <Button onClick={isRecording ? () => mediaRecorderRef.current?.stop() : startRecording} disabled={isTranscribing} variant="ghost" className={cn("w-14 h-14 rounded-2xl shadow-md transition-all", isRecording ? "bg-red-500 text-white animate-pulse" : "bg-black/5 dark:bg-white/5 hover:bg-black/10")}>
-                               {isTranscribing ? <Loader2 className="animate-spin" /> : isRecording ? <MicOff size={22} /> : <Mic size={22} />}
-                             </Button>
+                          <div className="absolute right-4 bottom-4">
                              <Button onClick={handleSendMessage} disabled={!chatInput.trim() || isChatting} className="w-14 h-14 rounded-2xl bg-primary shadow-xl shadow-primary/20 hover:shadow-primary/40 transition-all"><Send size={22} /></Button>
                           </div>
                         </div>
@@ -529,7 +514,7 @@ export default function DocuParsePro() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 p-12">
                 {allStrategies.map(s => (
-                  <Card key={s.id} className={cn("rounded-[3rem] border-none shadow-2xl bg-white dark:bg-slate-900 transition-all hover:-translate-y-2 flex flex-col h-full overflow-hidden p-1 shadow-black/5", selectedRuleId === s.id && "ring-[10px] ring-primary shadow-primary/30")}>
+                  <Card key={s.id} className={cn("rounded-[3.5rem] border-none shadow-2xl bg-white dark:bg-slate-900 transition-all hover:-translate-y-2 flex flex-col h-full overflow-hidden p-1 shadow-black/5", selectedRuleId === s.id && "ring-[10px] ring-primary shadow-primary/30")}>
                     <CardHeader className="p-8 pb-4 relative">
                       <div className="flex justify-between items-start mb-6">
                         <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg", s.id.includes('universal') ? "bg-blue-600" : s.id.includes('speech') ? "bg-amber-500" : s.id.includes('logistics') ? "bg-emerald-600" : "bg-slate-800")}>
