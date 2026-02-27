@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -103,7 +104,7 @@ export default function DocuParsePro() {
   const [isChatting, setIsChatting] = useState(false);
   const [isTestingApi, setIsTestingApi] = useState(false);
   
-  // 用于存储上传的 File 对象，确保解析时能正确获取
+  // 用于存储上传的 File 对象
   const uploadedFilesRef = useRef<Map<string, File>>(new Map());
   
   const [rules, setRules] = useState<Rule[]>(DEFAULT_RULES);
@@ -262,28 +263,38 @@ export default function DocuParsePro() {
       });
 
       if (!response.ok) throw new Error('AI 响应初始化失败');
+      
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let fullAnswer = "";
+      let leftover = ""; // 行缓冲区
 
       setDocuments(prev => prev.map(d => d.id === docId ? { ...d, chatHistory: [{ role: 'model', content: '' }] } : d));
 
       while (reader) {
         const { done, value } = await reader.read();
         if (done) break;
+        
         const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        const combined = leftover + chunk;
+        const lines = combined.split('\n');
+        leftover = lines.pop() || ""; // 暂存最后一行（可能不完整）
+
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.slice(6);
-            if (dataStr === '[DONE]') break;
-            try {
-              const data = JSON.parse(dataStr);
-              const text = data.choices[0]?.delta?.content || "";
+          const trimmedLine = line.trim();
+          if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+          
+          const dataStr = trimmedLine.slice(6);
+          if (dataStr === '[DONE]') break;
+          
+          try {
+            const data = JSON.parse(dataStr);
+            const text = data.choices[0]?.delta?.content || "";
+            if (text) {
               fullAnswer += text;
               setDocuments(prev => prev.map(d => d.id === docId ? { ...d, chatHistory: [{ role: 'model', content: fullAnswer }] } : d));
-            } catch (e) {}
-          }
+            }
+          } catch (e) {}
         }
       }
       recordUsage('Chat', 1, 'API_call', { docId, mode: 'Auto', type: doc.type });
@@ -315,27 +326,38 @@ export default function DocuParsePro() {
         })
       });
       if (!res.ok) throw new Error('发送失败');
+      
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       let fullAnswer = "";
+      let leftover = ""; // 行缓冲区
+
       setDocuments(prev => prev.map(d => d.id === selectedDoc.id ? { ...d, chatHistory: [...currentHistory, { role: 'model', content: '' }] } : d));
 
       while (reader) {
         const { done, value } = await reader.read();
         if (done) break;
+        
         const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        const combined = leftover + chunk;
+        const lines = combined.split('\n');
+        leftover = lines.pop() || "";
+
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.slice(6);
-            if (dataStr === '[DONE]') break;
-            try {
-              const data = JSON.parse(dataStr);
-              const text = data.choices[0]?.delta?.content || "";
+          const trimmedLine = line.trim();
+          if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+          
+          const dataStr = trimmedLine.slice(6);
+          if (dataStr === '[DONE]') break;
+          
+          try {
+            const data = JSON.parse(dataStr);
+            const text = data.choices[0]?.delta?.content || "";
+            if (text) {
               fullAnswer += text;
               setDocuments(prev => prev.map(d => d.id === selectedDoc.id ? { ...d, chatHistory: [...currentHistory, { role: 'model', content: fullAnswer }] } : d));
-            } catch (e) {}
-          }
+            }
+          } catch (e) {}
         }
       }
       recordUsage('Chat', 1, 'API_call', { docId: selectedDoc.id, mode: 'Manual' });
@@ -409,7 +431,7 @@ export default function DocuParsePro() {
           <BarChart3 size={16} /> 统计后台
         </button>
 
-        <div className="mt-8 mb-2 px-3"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">解析策略</p></div>
+        <div className="mt-8 mb-2 px-3"><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">解析策略</p></div>
         {rules.map(r => (
           <button key={r.id} onClick={() => setSelectedRuleId(r.id)} className={cn("w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-[11px] font-bold text-left min-w-0", selectedRuleId === r.id ? "bg-blue-50 text-blue-600 ring-1 ring-blue-100" : "text-slate-400 hover:bg-slate-50 hover:text-slate-600")}>
             <span className="shrink-0">{r.icon}</span>
