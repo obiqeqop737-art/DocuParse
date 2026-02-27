@@ -69,7 +69,7 @@ const SYSTEM_STRATEGIES = [
   {
     id: 'factory-expert',
     name: '工厂文件解析专家',
-    description: '专注于 SOP、BOM 表、设备规格及维保安全规程的提取与分析。',
+    description: '专注于 SOP、BOM 表、设备规格及维保安全规程。',
     content: '你是一个精通工厂设备管理和生产流程的专家。请重点分析文档中的技术参数、物料清单(BOM)、操作标准程序(SOP)以及安全生产规范。',
     authorName: '系统预设',
     starCount: 777
@@ -77,7 +77,7 @@ const SYSTEM_STRATEGIES = [
   {
     id: 'logistics-expert',
     name: '物流文件解析专家',
-    description: '专注于货运清单、仓储计划、路由节点及交付标准的专业分析。',
+    description: '专注于货运清单、仓储计划及交付标准的专业分析。',
     content: '你是一个物流供应链专家。请从文档中识别出运输计划、货物明细、路由节点以及交付时间表。',
     authorName: '系统预设',
     starCount: 666
@@ -115,7 +115,6 @@ export default function DocuParsePro() {
     }
   }, [user, auth, isUserLoading]);
 
-  // 云端策略广场
   const marketQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(collection(db, 'extractionStrategies'), where('isPublic', '==', true));
@@ -167,10 +166,7 @@ export default function DocuParsePro() {
 
   const startAnalysis = async (docId: string) => {
     const file = uploadedFilesRef.current.get(docId);
-    if (!file) {
-      toast({ variant: "destructive", title: "本地文件丢失", description: "请尝试重新上传。" });
-      return;
-    }
+    if (!file) return;
 
     setIsExtracting(true);
     setLocalDocs(prev => prev.map(d => d.id === docId ? { ...d, status: 'processing' } : d));
@@ -324,7 +320,7 @@ export default function DocuParsePro() {
       mediaRecorder.start();
       setIsRecording(true);
     } catch (err) {
-      toast({ variant: "destructive", title: "麦克风故障", description: "无法开启语音输入，请检查权限。" });
+      toast({ variant: "destructive", title: "麦克风故障", description: "无法开启语音输入。" });
     }
   };
 
@@ -396,8 +392,10 @@ export default function DocuParsePro() {
               <Sheet>
                 <SheetTrigger asChild><Button variant="ghost" size="icon"><Menu size={24} /></Button></SheetTrigger>
                 <SheetContent side="left" className="p-0 w-[300px] border-none bg-transparent">
-                  <SheetTitle className="sr-only">导航菜单</SheetTitle>
-                  <SheetDescription className="sr-only">控制中心与文件管理</SheetDescription>
+                  <div className="sr-only">
+                    <SheetTitle>导航菜单</SheetTitle>
+                    <SheetDescription>管理您的文档与策略</SheetDescription>
+                  </div>
                   <SidebarContent />
                 </SheetContent>
               </Sheet>
