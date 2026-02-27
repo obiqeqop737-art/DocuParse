@@ -28,16 +28,13 @@ import {
   useUser, 
   useFirestore, 
   useCollection, 
-  useDoc,
   useMemoFirebase,
   initiateAnonymousSignIn
 } from '@/firebase';
-import { collection, query, orderBy, where, doc } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { performASR } from '@/ai/flows/asr-flow';
 
-// 配置 Server Action 超时时间为 120 秒
-export const maxDuration = 120;
-
+// 配置 PDF.js Worker
 if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 }
@@ -64,8 +61,8 @@ const SYSTEM_STRATEGIES = [
   {
     id: 'speech-expert',
     name: '语音文件转译专家',
-    description: '使用 TeleAI 模型，专注于语音内容的精准提取、校准与引导提问。',
-    content: '你是一个语音文件转译专家。请根据输入的 ASR (语音转文字) 内容，首先输出校准后的完整原文本，确保修正冗余词汇、语气词及错别字，使语意连贯且标点准确。随后，请在回复的末尾增加一句引导语，例如：“以上是为您校准后的文本，您可以针对内容细节向我提问。”',
+    description: '使用 TeleAI 模型，专注于语音内容的精准校准与原文本还原。',
+    content: '你是一个语音文件转译专家。请根据输入的 ASR (语音转文字) 内容，首先输出校准后的完整原文本，确保修正口语化冗余、语气词及同音错别字，使语意逻辑严密、标点准确。随后，请在回复的末尾增加一句引导语：“以上是为您校准后的文本，您可以针对内容细节向我提问。”',
     authorName: '系统预设',
     starCount: 888
   },
@@ -132,7 +129,9 @@ export default function DocuParsePro() {
   const selectedDoc = useMemo(() => localDocs.find(d => d.id === selectedDocId), [localDocs, selectedDocId]);
 
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
   }, [selectedDoc?.chatHistory, isChatting, isExtracting]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,7 +140,7 @@ export default function DocuParsePro() {
     
     for (const file of Array.from(files)) {
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
-      const docId = Math.random().toString(36).substring(2, 9);
+      const docId = `local_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
       
       const newDoc: LocalDocument = {
         id: docId,
@@ -160,7 +159,7 @@ export default function DocuParsePro() {
       
       toast({
         title: "文件接收成功",
-        description: `${file.name} 已加载，点击“开启深度解析”开始。`,
+        description: `${file.name} 已加入待解析列表。`,
       });
     }
     e.target.value = '';
@@ -169,7 +168,7 @@ export default function DocuParsePro() {
   const startAnalysis = async (docId: string) => {
     const file = uploadedFilesRef.current.get(docId);
     if (!file) {
-      toast({ variant: "destructive", title: "解析失败", description: "本地文件引用失效，请重新上传。" });
+      toast({ variant: "destructive", title: "本地文件丢失", description: "请尝试重新上传。" });
       return;
     }
 
@@ -200,7 +199,7 @@ export default function DocuParsePro() {
       }
 
       const fullContent = `\n# 文档内容: ${file.name}\n\n${finalContent}\n`;
-      setLocalDocs(prev => prev.map(d => d.id === docId ? { ...d, content: fullContent } : d));
+      setLocalDocs(prev => prev.map(d => d.id === docId ? { ...d, content: fullContent, status: 'completed' } : d));
       
       setIsExtracting(false);
       setIsChatting(true);
@@ -210,13 +209,13 @@ export default function DocuParsePro() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           documentContent: fullContent, 
-          userQuery: `请执行[${currentStrategy.name}]指令。`, 
+          userQuery: `请执行[${currentStrategy.name}]指令，开始深度解析。`, 
           rules: currentStrategy.content, 
           history: [] 
         })
       });
 
-      if (!res.ok) throw new Error("AI 响应异常");
+      if (!res.ok) throw new Error("AI 引擎未响应");
 
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
@@ -234,13 +233,12 @@ export default function DocuParsePro() {
           const dataStr = line.trim().slice(6);
           if (dataStr === '[DONE]') break;
           try {
-            const text = JSON.parse(dataStr).choices[0]?.delta?.content || "";
-            if (text) {
-              fullAnswer += text;
+            const delta = JSON.parse(dataStr).choices[0]?.delta?.content || "";
+            if (delta) {
+              fullAnswer += delta;
               setLocalDocs(prev => prev.map(d => d.id === docId ? { 
                 ...d, 
-                chatHistory: [{ role: 'model', content: fullAnswer }],
-                status: 'completed'
+                chatHistory: [{ role: 'model', content: fullAnswer }]
               } : d));
             }
           } catch (e) {}
@@ -267,7 +265,12 @@ export default function DocuParsePro() {
       const res = await fetch('/api/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentContent: selectedDoc.content, userQuery, rules: currentStrategy.content, history: selectedDoc.chatHistory })
+        body: JSON.stringify({ 
+          documentContent: selectedDoc.content, 
+          userQuery, 
+          rules: currentStrategy.content, 
+          history: selectedDoc.chatHistory 
+        })
       });
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
@@ -284,9 +287,9 @@ export default function DocuParsePro() {
           const dataStr = line.trim().slice(6);
           if (dataStr === '[DONE]') break;
           try {
-            const text = JSON.parse(dataStr).choices[0]?.delta?.content || "";
-            if (text) {
-              fullAnswer += text;
+            const delta = JSON.parse(dataStr).choices[0]?.delta?.content || "";
+            if (delta) {
+              fullAnswer += delta;
               setLocalDocs(prev => prev.map(d => d.id === selectedDoc.id ? { 
                 ...d, 
                 chatHistory: [...history, { role: 'model', content: fullAnswer }] 
@@ -313,18 +316,20 @@ export default function DocuParsePro() {
           setIsTranscribing(true);
           try {
             const { text } = await performASR({ audioBase64: reader.result as string });
-            if (text) setChatInput(prev => prev + text);
+            if (text) setChatInput(prev => prev + " " + text);
           } finally { setIsTranscribing(false); }
         };
         stream.getTracks().forEach(track => track.stop());
       };
       mediaRecorder.start();
       setIsRecording(true);
-    } catch (err) {}
+    } catch (err) {
+      toast({ variant: "destructive", title: "麦克风故障", description: "无法开启语音输入，请检查权限。" });
+    }
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full tech-glass rounded-r-[2.5rem] overflow-hidden">
+    <div className="flex flex-col h-full tech-glass rounded-r-[2.5rem] overflow-hidden p-1">
       <div className="p-8 pb-4 flex items-center gap-4">
         <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg">
           <BookOpen size={24} />
@@ -339,10 +344,10 @@ export default function DocuParsePro() {
         <div>
           <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">功能主菜单</p>
           <div className="space-y-2">
-            <button onClick={() => setActiveTab('chat')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-2xl transition-all font-bold text-[13px]", activeTab === 'chat' ? "bg-primary text-white shadow-xl ring-8 ring-primary/20" : "opacity-60 hover:bg-black/5 hover:opacity-100")}>
+            <button onClick={() => setActiveTab('chat')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-2xl transition-all font-bold text-[13px] border border-transparent", activeTab === 'chat' ? "bg-primary text-white shadow-xl ring-8 ring-primary/20" : "opacity-60 hover:bg-black/5 hover:opacity-100")}>
               <MessageSquare size={18} /> 智能对话终端
             </button>
-            <button onClick={() => setActiveTab('marketplace')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-2xl transition-all font-bold text-[13px]", activeTab === 'marketplace' ? "bg-primary text-white shadow-xl ring-8 ring-primary/20" : "opacity-60 hover:bg-black/5 hover:opacity-100")}>
+            <button onClick={() => setActiveTab('marketplace')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-2xl transition-all font-bold text-[13px] border border-transparent", activeTab === 'marketplace' ? "bg-primary text-white shadow-xl ring-8 ring-primary/20" : "opacity-60 hover:bg-black/5 hover:opacity-100")}>
               <ShoppingBag size={18} /> 规则策略广场
             </button>
           </div>
@@ -356,7 +361,7 @@ export default function DocuParsePro() {
             </div>
             <div className="min-w-0">
               <p className="text-[12px] font-black truncate">{currentStrategy.name}</p>
-              <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Active Ready</p>
+              <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Engine Ready</p>
             </div>
           </div>
         </div>
@@ -380,7 +385,7 @@ export default function DocuParsePro() {
 
   return (
     <div className={cn("flex h-screen relative overflow-hidden transition-all duration-300", theme === 'dark' ? "dark bg-slate-950 text-white" : "bg-slate-50 text-slate-900")}>
-      <aside className={cn("hidden lg:block transition-all duration-300 shrink-0 z-40", isSidebarOpen ? "w-[300px]" : "w-0")}>
+      <aside className={cn("hidden lg:block transition-all duration-300 shrink-0 z-40 p-2", isSidebarOpen ? "w-[300px]" : "w-0")}>
         <SidebarContent />
       </aside>
 
@@ -398,7 +403,7 @@ export default function DocuParsePro() {
               </Sheet>
             </div>
             <Button variant="ghost" size="icon" className="hidden lg:flex opacity-40 hover:opacity-100" onClick={() => setIsSidebarOpen(!isSidebarOpen)}><ChevronLeft className={cn("transition-transform", !isSidebarOpen && "rotate-180")} size={24} /></Button>
-            <h2 className="font-black text-lg tracking-widest uppercase">{activeTab === 'chat' ? '解析工作站' : '策略中心'}</h2>
+            <h2 className="font-black text-lg tracking-widest uppercase">{activeTab === 'chat' ? '解析终端' : '策略广场'}</h2>
           </div>
           <Badge className="bg-primary/20 border-primary/30 text-primary font-black px-4 py-1.5 rounded-xl uppercase tracking-widest text-[12px] flex items-center gap-2 shadow-sm">
             <Sparkles size={14} /> DeepSeek V3 Pro
@@ -407,14 +412,14 @@ export default function DocuParsePro() {
 
         {activeTab === 'chat' && (
           <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-            <div className={cn("w-full lg:w-[300px] border-b lg:border-b-0 lg:border-r border-black/5 flex flex-col shrink-0 bg-white/5", !selectedDocId && "flex-1 lg:flex-none", selectedDocId && "hidden lg:flex")}>
+            <div className={cn("w-full lg:w-[300px] border-b lg:border-b-0 lg:border-r border-black/5 flex flex-col shrink-0 bg-white/5 p-2", !selectedDocId && "flex-1 lg:flex-none", selectedDocId && "hidden lg:flex")}>
               <div className="p-4">
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 opacity-20" size={18} />
-                  <Input placeholder="搜索本地文件..." className="pl-12 h-12 bg-black/5 border-none rounded-xl text-[13px] font-bold focus:ring-2 focus:ring-primary/20" />
+                  <Input placeholder="检索本地文档..." className="pl-12 h-12 bg-black/5 border-none rounded-xl text-[13px] font-bold focus:ring-2 focus:ring-primary/20" />
                 </div>
               </div>
-              <ScrollArea className="flex-1 p-2 pb-10">
+              <ScrollArea className="flex-1 pb-10">
                 <div className="space-y-3 p-2">
                   {localDocs.map(d => (
                     <button key={d.id} onClick={() => setSelectedDocId(d.id)} className={cn("w-full p-4 rounded-2xl border transition-all text-left flex items-start gap-4", selectedDocId === d.id ? "bg-primary text-white shadow-xl border-primary ring-8 ring-primary/20" : "bg-black/5 border-transparent hover:bg-black/10")}>
@@ -430,7 +435,7 @@ export default function DocuParsePro() {
                   {localDocs.length === 0 && (
                     <div className="p-10 text-center opacity-20 flex flex-col items-center">
                       <Upload size={40} className="mb-4" />
-                      <p className="text-xs font-black uppercase tracking-widest">暂无文件</p>
+                      <p className="text-xs font-black uppercase tracking-widest">暂无解析文件</p>
                     </div>
                   )}
                 </div>
@@ -441,7 +446,7 @@ export default function DocuParsePro() {
               {selectedDocId && !selectedDoc ? (
                 <div className="flex-1 flex flex-col items-center justify-center animate-pulse">
                   <Loader2 className="animate-spin text-primary mb-4" size={40} />
-                  <p className="font-black uppercase tracking-widest text-sm opacity-40">加载本地资源...</p>
+                  <p className="font-black uppercase tracking-widest text-sm opacity-40">引擎加载中...</p>
                 </div>
               ) : selectedDoc ? (
                 <>
@@ -449,16 +454,22 @@ export default function DocuParsePro() {
                     <Button variant="ghost" size="sm" onClick={() => setSelectedDocId(null)} className="font-black opacity-60"><ChevronLeft size={18} /> 返回</Button>
                     <p className="ml-4 font-black text-sm truncate">{selectedDoc.name}</p>
                   </div>
-                  {selectedDoc.status === 'pending_confirm' ? (
+                  {selectedDoc.status === 'pending_confirm' || selectedDoc.status === 'processing' ? (
                     <div className="flex-1 flex items-center justify-start p-10 lg:p-20">
                       <Card className="max-w-md w-full rounded-[3rem] shadow-2xl p-10 text-center border-none bg-white/90 dark:bg-slate-900/90">
-                        <div className="w-20 h-20 bg-primary/10 text-primary rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner"><AlertCircle size={40} /></div>
-                        <CardTitle className="text-2xl font-black mb-4">准备就绪</CardTitle>
-                        <CardDescription className="font-bold opacity-60 mb-8 uppercase tracking-widest text-xs">即将开始分析: {selectedDoc.name}</CardDescription>
-                        <Button onClick={() => startAnalysis(selectedDoc.id)} disabled={isExtracting} className="w-full h-16 rounded-2xl bg-primary text-lg font-black shadow-lg hover:shadow-primary/30 transition-all">
-                          {isExtracting ? <Loader2 className="animate-spin mr-2" /> : <PlayCircle size={24} className="mr-2" />}
-                          开启深度解析
-                        </Button>
+                        <div className="w-20 h-20 bg-primary/10 text-primary rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
+                          {selectedDoc.status === 'processing' ? <Loader2 className="animate-spin" size={40} /> : <AlertCircle size={40} />}
+                        </div>
+                        <CardTitle className="text-2xl font-black mb-4">{selectedDoc.status === 'processing' ? '正在研读...' : '解析就绪'}</CardTitle>
+                        <CardDescription className="font-bold opacity-60 mb-8 uppercase tracking-widest text-xs">
+                          {selectedDoc.status === 'processing' ? '正在提取文档核心语义' : `准备分析: ${selectedDoc.name}`}
+                        </CardDescription>
+                        {selectedDoc.status === 'pending_confirm' && (
+                          <Button onClick={() => startAnalysis(selectedDoc.id)} disabled={isExtracting} className="w-full h-16 rounded-2xl bg-primary text-lg font-black shadow-lg hover:shadow-primary/30 transition-all">
+                            {isExtracting ? <Loader2 className="animate-spin mr-2" /> : <PlayCircle size={24} className="mr-2" />}
+                            开启深度解析
+                          </Button>
+                        )}
                       </Card>
                     </div>
                   ) : (
@@ -477,7 +488,7 @@ export default function DocuParsePro() {
                             <div className="flex gap-5">
                               <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center shrink-0 shadow-md animate-pulse"><Loader2 className="animate-spin" size={18} /></div>
                               <div className="bg-white/80 dark:bg-slate-800/80 p-6 rounded-[2rem] rounded-tl-none border border-black/5 animate-pulse text-sm font-bold opacity-40 shadow-sm">
-                                {isExtracting ? "正在提取并研读文档..." : "专家深度思考中..."}
+                                {isExtracting ? "文档研读中，请稍候..." : "专家思考中..."}
                               </div>
                             </div>
                           )}
@@ -486,7 +497,7 @@ export default function DocuParsePro() {
                       <footer className="p-8 lg:p-10 border-t border-black/5 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl sticky bottom-0">
                         <div className="max-w-3xl relative mx-auto lg:mx-0">
                           <textarea 
-                            placeholder={isRecording ? "正在倾听您的指令..." : "追问专家文档细节..."} 
+                            placeholder={isRecording ? "正在倾听您的指令..." : "追问文档细节..."} 
                             className={cn("w-full min-h-[90px] bg-white dark:bg-slate-800 border-black/10 rounded-[2rem] p-6 pr-36 text-sm lg:text-[15px] font-bold focus:ring-4 focus:ring-primary/10 shadow-xl resize-none transition-all", isRecording && "ring-4 ring-red-500/20 bg-red-50/50")} 
                             value={chatInput} 
                             onChange={(e) => setChatInput(e.target.value)} 
@@ -514,12 +525,12 @@ export default function DocuParsePro() {
 
         {activeTab === 'marketplace' && (
           <ScrollArea className="flex-1 p-4 lg:p-12 bg-white/5">
-            <div className="max-w-[1400px] mx-auto p-4 lg:p-8">
-              <div className="mb-16 text-center lg:text-left">
-                <h3 className="text-4xl font-black tracking-tighter mb-2 uppercase">规则广场</h3>
+            <div className="max-w-[1400px] mx-auto p-4 lg:p-12">
+              <div className="mb-16 text-center">
+                <h3 className="text-4xl font-black tracking-tighter mb-2 uppercase">解析规则广场</h3>
                 <p className="opacity-40 font-bold uppercase tracking-[0.4em] text-xs">Global Extraction Strategy</p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-10 p-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-10 p-6">
                 {allStrategies.map(s => (
                   <Card key={s.id} className={cn("rounded-[2.8rem] border-none shadow-xl bg-white dark:bg-slate-900/90 transition-all hover:-translate-y-3 flex flex-col h-full overflow-hidden p-1", selectedRuleId === s.id && "ring-8 ring-primary shadow-2xl shadow-primary/30")}>
                     <CardHeader className="p-8">
@@ -530,10 +541,10 @@ export default function DocuParsePro() {
                         <Button variant="ghost" size="icon" className="opacity-20 hover:opacity-100"><Star size={20} /></Button>
                       </div>
                       <CardTitle className="text-base font-black mb-2">{s.name}</CardTitle>
-                      <CardDescription className="text-[11px] font-bold opacity-60 leading-snug h-8 line-clamp-2 uppercase tracking-tight">{s.description}</CardDescription>
+                      <CardDescription className="text-[11px] font-bold opacity-60 dark:opacity-70 leading-snug h-8 line-clamp-2 uppercase tracking-tight">{s.description}</CardDescription>
                     </CardHeader>
                     <CardContent className="px-8 pb-4 flex-1">
-                       <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl text-[10px] font-bold opacity-60 line-clamp-5 h-28 italic border border-black/5">
+                       <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl text-[10px] font-bold opacity-60 dark:opacity-80 line-clamp-5 h-28 italic border border-black/5">
                          {s.content}
                        </div>
                     </CardContent>
@@ -551,13 +562,6 @@ export default function DocuParsePro() {
               </div>
             </div>
           </ScrollArea>
-        )}
-
-        {activeTab === 'stats' && (
-          <div className="flex-1 flex flex-col items-center justify-center opacity-5">
-             <BarChart3 size={150} />
-             <h3 className="text-4xl font-black mt-8 uppercase tracking-[1em]">引擎看板连接中</h3>
-          </div>
         )}
       </main>
 
