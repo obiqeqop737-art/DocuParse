@@ -1,211 +1,265 @@
 {
   "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user within the DocuParse Pro application, linking to an external authentication system and storing user-specific preferences and activities.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address, used for identification and display purposes. (Not for authentication)",
+          "format": "email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "A human-readable name for the user, suitable for display."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user account was created.",
+          "format": "date-time"
+        },
+        "starredStrategyIds": {
+          "type": "array",
+          "description": "References to ExtractionStrategy entities that this user has starred. (Relationship: User N:N ExtractionStrategy)",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "displayName",
+        "createdAt"
+      ]
+    },
     "Document": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Document",
       "type": "object",
-      "description": "Represents a technical document uploaded by a user for processing and data extraction within DocuParse Pro.",
+      "description": "Represents an uploaded technical document, its metadata, and processing status within the application.",
       "properties": {
         "id": {
           "type": "string",
           "description": "Unique identifier for the Document entity."
         },
+        "name": {
+          "type": "string",
+          "description": "The original file name of the uploaded document."
+        },
         "userId": {
           "type": "string",
-          "description": "Reference to the User who uploaded the document. (Relationship: User 1:N Document)"
-        },
-        "filename": {
-          "type": "string",
-          "description": "The original name of the uploaded file."
-        },
-        "fileType": {
-          "type": "string",
-          "description": "The type of the uploaded file (e.g., 'PDF', 'DOCX', 'TXT')."
+          "description": "Reference to the User who uploaded this document. (Relationship: User 1:N Document)"
         },
         "uploadDateTime": {
           "type": "string",
-          "description": "The date and time when the document was uploaded.",
+          "description": "Timestamp when the document was uploaded.",
           "format": "date-time"
+        },
+        "fileType": {
+          "type": "string",
+          "description": "The file type or extension of the document (e.g., 'PDF', 'DOCX', 'TXT')."
         },
         "storagePath": {
           "type": "string",
-          "description": "The internal URI or path where the document file is stored.",
-          "format": "uri"
+          "description": "The URI or internal path where the document content is stored."
         },
         "status": {
           "type": "string",
-          "description": "The current processing status of the document (e.g., 'Uploaded', 'Processing', 'Processed', 'Failed')."
+          "description": "The current processing status of the document (e.g., 'UPLOADED', 'PROCESSING', 'PROCESSED', 'FAILED')."
         },
-        "pageCount": {
-          "type": "number",
-          "description": "The total number of pages in the document, if applicable."
+        "processedDataId": {
+          "type": "string",
+          "description": "Reference to the ExtractedData entity generated from this document, if processed. (Relationship: Document 1:1 ExtractedData)"
+        },
+        "extractionStrategyId": {
+          "type": "string",
+          "description": "Reference to the ExtractionStrategy used to process this document, if any. (Relationship: ExtractionStrategy 1:N Document)"
         }
       },
       "required": [
         "id",
+        "name",
         "userId",
-        "filename",
-        "fileType",
         "uploadDateTime",
+        "fileType",
         "storagePath",
         "status"
       ]
     },
-    "ExtractionRuleSet": {
+    "ExtractionStrategy": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ExtractionRuleSet",
+      "title": "ExtractionStrategy",
       "type": "object",
-      "description": "Defines a collection of custom rules for extracting specific data points from technical documents.",
+      "description": "Defines a reusable collection of extraction rules for parsing technical documents. These strategies can be published to a marketplace.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the ExtractionRuleSet entity."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who created or last modified this rule set. (Relationship: User 1:N ExtractionRuleSet)"
+          "description": "Unique identifier for the ExtractionStrategy entity."
         },
         "name": {
           "type": "string",
-          "description": "A user-defined, human-readable name for the extraction rule set."
+          "description": "A descriptive name for the extraction strategy."
         },
         "description": {
           "type": "string",
-          "description": "A detailed description explaining the purpose and scope of this rule set."
+          "description": "A detailed description explaining what the strategy does and what kind of documents it's designed for."
         },
-        "ruleDefinition": {
+        "authorId": {
           "type": "string",
-          "description": "The serialized definition of the extraction rules, typically stored as a JSON string."
+          "description": "Reference to the User who created or published this strategy. (Relationship: User 1:N ExtractionStrategy)"
         },
-        "creationDateTime": {
+        "isPublic": {
+          "type": "boolean",
+          "description": "Indicates whether this strategy is public and available in the marketplace."
+        },
+        "ruleIds": {
+          "type": "array",
+          "description": "References to ExtractionRule entities that compose this strategy. (Relationship: ExtractionStrategy N:N ExtractionRule)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "starCount": {
+          "type": "number",
+          "description": "The total number of times this strategy has been starred by users."
+        },
+        "createdAt": {
           "type": "string",
-          "description": "The date and time when the rule set was initially created.",
+          "description": "Timestamp when the extraction strategy was created.",
           "format": "date-time"
         },
-        "lastModifiedDateTime": {
+        "updatedAt": {
           "type": "string",
-          "description": "The date and time when the rule set was last modified.",
+          "description": "Timestamp when the extraction strategy was last updated.",
           "format": "date-time"
         }
       },
       "required": [
         "id",
-        "userId",
         "name",
-        "ruleDefinition",
-        "creationDateTime",
-        "lastModifiedDateTime"
+        "description",
+        "authorId",
+        "isPublic",
+        "ruleIds",
+        "starCount",
+        "createdAt",
+        "updatedAt"
       ]
     },
-    "ExtractedDataItem": {
+    "ExtractionRule": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ExtractedDataItem",
+      "title": "ExtractionRule",
       "type": "object",
-      "description": "Represents a single piece of key-value data extracted from a document, either by AI or custom rules.",
+      "description": "Defines a single, specific rule or pattern for extracting data from documents. Rules can be composed into strategies.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the ExtractedDataItem entity."
+          "description": "Unique identifier for the ExtractionRule entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "A descriptive name for the extraction rule."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed explanation of what this rule extracts and how."
+        },
+        "ruleType": {
+          "type": "string",
+          "description": "The type of extraction rule (e.g., 'REGEX', 'KEY_VALUE', 'AI_HINT', 'TABLE_EXTRACTION')."
+        },
+        "configuration": {
+          "type": "string",
+          "description": "A JSON string or formatted text containing the specific parameters for the rule (e.g., regex pattern, key-value pair, AI prompt)."
+        },
+        "authorId": {
+          "type": "string",
+          "description": "Reference to the User who created this extraction rule. (Relationship: User 1:N ExtractionRule)"
+        },
+        "strategyIds": {
+          "type": "array",
+          "description": "References to ExtractionStrategy entities that include this rule. (Relationship: ExtractionRule N:N ExtractionStrategy)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the extraction rule was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the extraction rule was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "ruleType",
+        "configuration",
+        "authorId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ExtractedData": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ExtractedData",
+      "type": "object",
+      "description": "Stores the structured information extracted from a document using a specific extraction strategy.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ExtractedData entity."
         },
         "documentId": {
           "type": "string",
-          "description": "Reference to the Document from which this data was extracted. (Relationship: Document 1:N ExtractedDataItem)"
+          "description": "Reference to the Document from which this data was extracted. (Relationship: Document 1:1 ExtractedData)"
         },
-        "extractionRuleSetId": {
+        "extractionStrategyId": {
           "type": "string",
-          "description": "Optional reference to the ExtractionRuleSet used for this extraction, if applicable. (Relationship: ExtractionRuleSet 1:N ExtractedDataItem)"
+          "description": "Reference to the ExtractionStrategy that was used to produce this extracted data. (Relationship: ExtractionStrategy 1:N ExtractedData)"
         },
-        "key": {
+        "extractedContent": {
           "type": "string",
-          "description": "The identifying key or label for the extracted data (e.g., 'Part Number', 'Manufacturer')."
-        },
-        "value": {
-          "type": "string",
-          "description": "The extracted value corresponding to the key."
-        },
-        "pageNumber": {
-          "type": "number",
-          "description": "The page number within the source document where the data was found, if discernible."
+          "description": "The extracted structured data, typically stored as a JSON string."
         },
         "extractedDateTime": {
           "type": "string",
-          "description": "The date and time when this data item was extracted.",
+          "description": "Timestamp when the data extraction process was completed.",
           "format": "date-time"
         },
         "isValidated": {
           "type": "boolean",
-          "description": "Indicates whether a user has manually reviewed and validated this extracted data item."
-        },
-        "validationDateTime": {
-          "type": "string",
-          "description": "The date and time when the data item was validated, if applicable.",
-          "format": "date-time"
+          "description": "Indicates whether the extracted data has been reviewed and validated by a user."
         },
         "validatedByUserId": {
           "type": "string",
-          "description": "Reference to the User who performed the validation, if applicable. (Relationship: User 1:N ExtractedDataItem)"
+          "description": "Reference to the User who performed the validation, if any. (Relationship: User 1:N ExtractedData)"
+        },
+        "validationDateTime": {
+          "type": "string",
+          "description": "Timestamp when the data was last validated, if applicable.",
+          "format": "date-time"
         }
       },
       "required": [
         "id",
         "documentId",
-        "key",
-        "value",
+        "extractionStrategyId",
+        "extractedContent",
         "extractedDateTime",
         "isValidated"
-      ]
-    },
-    "TrafficConsumptionLog": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "TrafficConsumptionLog",
-      "type": "object",
-      "description": "Records various types of resource consumption or usage events within the application, providing data for backend statistics on traffic usage.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the TrafficConsumptionLog entry."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User associated with this consumption event. (Relationship: User 1:N TrafficConsumptionLog)"
-        },
-        "documentId": {
-          "type": "string",
-          "description": "Optional reference to the Document involved in the consumption event, if applicable. (Relationship: Document 1:N TrafficConsumptionLog)"
-        },
-        "extractionRuleSetId": {
-          "type": "string",
-          "description": "Optional reference to the ExtractionRuleSet used during the consumption event, if applicable. (Relationship: ExtractionRuleSet 1:N TrafficConsumptionLog)"
-        },
-        "eventType": {
-          "type": "string",
-          "description": "The type of consumption event (e.g., 'DocumentProcessed', 'AIProcessing', 'ReportExport', 'DocumentPreview', 'RuleSetCreated')."
-        },
-        "eventDateTime": {
-          "type": "string",
-          "description": "The date and time when the consumption event occurred.",
-          "format": "date-time"
-        },
-        "consumedAmount": {
-          "type": "number",
-          "description": "The quantity of resource consumed (e.g., number of pages processed, processing duration in seconds, number of AI tokens/units, file size in MB)."
-        },
-        "consumptionUnit": {
-          "type": "string",
-          "description": "The unit of the consumed amount (e.g., 'pages', 'seconds', 'tokens', 'API_calls', 'MB_processed')."
-        },
-        "details": {
-          "type": "string",
-          "description": "Additional event-specific details, stored as a serialized JSON string (e.g., '{\"aiModelUsed\": \"GPT-4\", \"fileSizeMB\": 25}')."
-        }
-      },
-      "required": [
-        "id",
-        "userId",
-        "eventType",
-        "eventDateTime",
-        "consumedAmount",
-        "consumptionUnit"
       ]
     }
   },
@@ -218,13 +272,29 @@
   "firestore": {
     "structure": [
       {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores individual user profiles. Access is restricted to the owner of the profile. Includes denormalized 'starredStrategyIds' for efficient lookup of user-starred strategies.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user, corresponding to `request.auth.uid`."
+            }
+          ]
+        }
+      },
+      {
         "path": "/users/{userId}/documents/{documentId}",
         "definition": {
           "entityName": "Document",
           "schema": {
             "$ref": "#/backend/entities/Document"
           },
-          "description": "Stores technical documents uploaded by a specific user. The 'userId' is part of the path, providing direct ownership for authorization. Includes all fields defined in the Document entity.",
+          "description": "Stores technical documents uploaded by a specific user. This collection ensures that each user's historical files are stored in isolation. Authorization is dependent on `resource.data.userId` matching `request.auth.uid`.",
           "params": [
             {
               "name": "userId",
@@ -232,92 +302,68 @@
             },
             {
               "name": "documentId",
-              "description": "The unique identifier for the specific document."
+              "description": "The unique identifier of the uploaded document."
             }
           ]
         }
       },
       {
-        "path": "/users/{userId}/extractionRuleSets/{ruleSetId}",
+        "path": "/users/{userId}/extractedData/{extractedDataId}",
         "definition": {
-          "entityName": "ExtractionRuleSet",
+          "entityName": "ExtractedData",
           "schema": {
-            "$ref": "#/backend/entities/ExtractionRuleSet"
+            "$ref": "#/backend/entities/ExtractedData"
           },
-          "description": "Contains custom data extraction rule sets created by a specific user. The 'userId' in the path ensures direct user ownership and simplifies authorization. Includes all fields defined in the ExtractionRuleSet entity.",
+          "description": "Stores structured data extracted from documents. To ensure authorization independence, each document in this collection includes a denormalized 'userId' field, matching the path's wildcard, derived from its associated Document entity. This allows direct authorization checks against `request.auth.uid`.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique identifier of the user who created this rule set."
+              "description": "The unique identifier of the user to whom this extracted data belongs."
             },
             {
-              "name": "ruleSetId",
-              "description": "The unique identifier for the specific extraction rule set."
+              "name": "extractedDataId",
+              "description": "The unique identifier for the extracted data record."
             }
           ]
         }
       },
       {
-        "path": "/users/{userId}/documents/{documentId}/extractedDataItems/{dataItemId}",
+        "path": "/users/{userId}/extractionRules/{ruleId}",
         "definition": {
-          "entityName": "ExtractedDataItem",
+          "entityName": "ExtractionRule",
           "schema": {
-            "$ref": "#/backend/entities/ExtractedDataItem"
+            "$ref": "#/backend/entities/ExtractionRule"
           },
-          "description": "Stores individual pieces of data extracted from a specific document. This path ensures the item belongs to a document, which belongs to a user. For authorization independence, each ExtractedDataItem document MUST include a 'userId' field (denormalized from the parent Document) matching the '{userId}' in the path. Includes all fields defined in the ExtractedDataItem entity.",
+          "description": "Contains custom extraction rules defined by a specific user. Authorization is dependent on `resource.data.authorId` matching `request.auth.uid`, ensuring privacy and ownership.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique identifier of the user who owns the parent document and this extracted data item."
+              "description": "The unique identifier of the user who created this extraction rule."
             },
             {
-              "name": "documentId",
-              "description": "The unique identifier of the document from which this data was extracted."
-            },
-            {
-              "name": "dataItemId",
-              "description": "The unique identifier for the specific extracted data item."
+              "name": "ruleId",
+              "description": "The unique identifier for the extraction rule."
             }
           ]
         }
       },
       {
-        "path": "/users/{userId}/trafficConsumptionLogs/{logId}",
+        "path": "/extractionStrategies/{strategyId}",
         "definition": {
-          "entityName": "TrafficConsumptionLog",
+          "entityName": "ExtractionStrategy",
           "schema": {
-            "$ref": "#/backend/entities/TrafficConsumptionLog"
+            "$ref": "#/backend/entities/ExtractionStrategy"
           },
-          "description": "Records resource consumption events specific to a user. The 'userId' in the path and within the document itself ensures direct user attribution and simplifies authorization. This path structure supports secure listing of a user's own consumption logs. Includes all fields defined in the TrafficConsumptionLog entity.",
+          "description": "Hosts all extraction strategies, forming a central marketplace. Documents in this collection are secured by their `isPublic` status (for read access by any authenticated user) and `authorId` (for write access by the creator). Includes denormalized `starCount` for public display.",
           "params": [
             {
-              "name": "userId",
-              "description": "The unique identifier of the user associated with this consumption log."
-            },
-            {
-              "name": "logId",
-              "description": "The unique identifier for the specific traffic consumption log entry."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/roles_admin/{userId}",
-        "definition": {
-          "entityName": "AdminRole",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Grants administrative privileges to a user based on the existence of a document at this path. A document's presence here indicates the corresponding user is an administrator (Existence over Content principle). This collection is typically used for DBAC (Database Access Control) rules.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user who has been granted administrative access."
+              "name": "strategyId",
+              "description": "The unique identifier for the extraction strategy."
             }
           ]
         }
       }
     ],
-    "reasoning": "The Firestore data structure for DocuParse Pro is designed with a strong emphasis on Authorization Independence, Clarity of Intent, and adherence to QAPs (Query As Predicates) to ensure robust security and simplified rule management. All user-specific data is organized under a top-level `/users/{userId}` collection, leveraging path-based ownership. This ensures that a user can only access their own documents, extraction rule sets, extracted data, and traffic logs, as enforced by simple rules comparing `request.auth.uid` with the `{userId}` wildcard in the path.\n\n**Authorization Independence:**\n*   For `Document` and `ExtractionRuleSet` entities, the `userId` is directly embedded in the collection path (`/users/{userId}/documents` and `/users/{userId}/extractionRuleSets`). This makes authorization checks atomic and eliminates the need for `get()` operations in security rules to ascertain ownership, fulfilling the critical Authorization Independence principle.\n*   For `ExtractedDataItem` and `TrafficConsumptionLog`, which are subcollections or related to user-owned data, the `userId` of the owner (matching the `{userId}` in the path) is denormalized and stored directly within each document. For `ExtractedDataItem`, this means a `userId` field (representing the owner of the parent document) will be included in its data, even if not explicitly in the provided schema, to enable direct authorization checks without querying the parent `Document` document. `TrafficConsumptionLog` already includes `userId` in its schema. This denormalization ensures that rules can evaluate ownership purely based on the document's own data or its direct path, significantly simplifying security rules and enabling atomic write operations.\n\n**QAPs (Query As Predicates) Support:**\n*   By structuring user data under `/users/{userId}`, `list` operations for a user's documents, rule sets, extracted data, and traffic logs inherently operate within the scope of that specific user. For example, a query to `/users/{userId}/documents` will only return documents owned by `{userId}`. The security rules will primarily validate that `request.auth.uid == userId` (from the path), rather than attempting to filter results based on document content. This aligns with QAPs by ensuring that the structure and client-side queries intrinsically define the access scope, and rules serve to validate this scope, not to filter arbitrary data.\n*   The `/roles_admin/{userId}` collection uses the 'Existence over Content' pattern for global roles, where the mere presence of a document for a `userId` grants admin status. Rules can check `exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))` for admin privileges, enabling broad, yet secure, access where needed (e.g., for backend administrative functions or aggregated statistics via Cloud Functions).\n\nThis design prevents complex rule dependencies, simplifies debugging, and supports efficient, secure data access patterns for DocuParse Pro."
+    "reasoning": "The Firestore structure for DocuParse Pro is designed with a strong emphasis on authorization independence, clear data segregation, and simplified security rules. Following the core design principles, user-specific data is isolated under a top-level `/users/{userId}` collection, ensuring private and easily manageable access control. Public data, such as the extraction strategy marketplace, resides in its own top-level collection, with authorization logic handled directly on the document's attributes rather than through complex hierarchical dependencies.\n\n**Authorization Independence (CRITICAL) and Denormalization:**\n\n1.  **User-owned Documents (`/users/{userId}/documents`):** Each user's uploaded documents are stored in a subcollection under their respective user ID. The `Document` entity already contains a `userId` field, which is explicitly checked against `request.auth.uid` in security rules. This eliminates the need for `get()` operations to check ownership, allowing atomic creation and updates.\n\n2.  **User-owned Extracted Data (`/users/{userId}/extractedData`):** Similar to documents, extracted data is also isolated per user. To achieve authorization independence as mandated, the `ExtractedData` entity, though not explicitly having a `userId` in the provided schema, **must be denormalized** to include a `userId` (or `ownerUserId`) field. This `userId` will be copied from the associated `Document` during creation. This denormalized field allows security rules to directly verify `request.auth.uid == resource.data.userId` without needing to perform a `get()` call to the parent `Document` or infer ownership from the path, thereby supporting atomic operations and simplified rule logic.\n\n3.  **User-owned Extraction Rules (`/users/{userId}/extractionRules`):** Each user's custom extraction rules are stored in a subcollection. The `ExtractionRule` entity includes an `authorId` field, which directly maps to the `userId` in the path, ensuring easy and independent authorization checks.\n\n4.  **Extraction Strategy Marketplace (`/extractionStrategies`):** All extraction strategies (public and private drafts) are stored in a single top-level collection. The `ExtractionStrategy` entity contains `authorId` and `isPublic` fields. Authorization rules will check `request.auth.uid == resource.data.authorId` for write access by the author, and `resource.data.isPublic == true` for read access by any authenticated user for marketplace browsing. No `get()` calls are needed as all necessary authorization context is denormalized directly within the strategy document.\n\n**QAPs (Rules are not Filters) Support:**\n\n*   **User-specific lists:** For `/users/{userId}/documents`, `/users/{userId}/extractedData`, and `/users/{userId}/extractionRules`, `list` operations are implicitly secured. A client requesting a list from `/users/myUserId/documents` must have `request.auth.uid == 'myUserId'`. The path itself acts as a strong filter, and rules only need to confirm the authenticated user matches the path's wildcard. This ensures that only a user's own data is returned, fulfilling the QAP principle.\n\n*   **Extraction Strategy Marketplace:** For `/extractionStrategies`, a `list` operation will be allowed with specific conditions. Rules will permit reads where `resource.data.isPublic == true` (for marketplace browsing) or `resource.data.authorId == request.auth.uid` (for viewing/managing own strategies). Client-side queries will include `where('isPublic', '==', true)` to retrieve marketplace items, and the server-side rules will validate this filter, ensuring the integrity of the data returned and adhering to QAP.\n\nThis structure ensures that security rules are straightforward, explicit, and do not rely on costly and complex `get()` operations or break atomic transactions. Data integrity for ownership, timestamps, and denormalized `starCount` is maintained through consistent field usage and transactional updates for cross-document consistency where necessary (e.g., starring a strategy)."
   }
 }

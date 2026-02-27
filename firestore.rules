@@ -3,124 +3,129 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * DocuParse Pro Security Rules
-     * 
-     * Core Philosophy: 
-     * This ruleset implements a strict user-ownership model. All application data 
-     * is organized under a top-level `/users/{userId}` path, ensuring that users 
-     * can only access and modify their own documents, extraction rules, and 
-     * resource consumption logs.
-     * 
+     * DocuParse Pro Security Rules Documentation
+     *
+     * Core Philosophy:
+     * This ruleset implements a strict user-ownership model for all private data (documents, extraction results,
+     * and custom rules) while providing a public marketplace for "Extraction Strategies". Access is primarily
+     * governed by the user's authenticated UID.
+     *
      * Data Structure:
-     * - Documents, Extraction Rules, and Traffic Logs are stored in user-specific subcollections.
-     * - Extracted Data Items are nested further under specific documents to maintain 
-     *   hierarchical integrity.
-     * - Global roles (Admins) are managed via the `/roles_admin` collection using 
-     *   an "existence-over-content" pattern.
-     * 
+     * - Private Data: Nested under `/users/{userId}/...` to ensure logical and physical isolation.
+     * - Marketplace Data: Located in the top-level `/extractionStrategies` collection for cross-user discovery.
+     *
      * Key Security Decisions:
-     * - Authorization Independence: User IDs are included in both the path and the 
-     *   document data. Rules validate that these match to prevent cross-user data injection.
-     * - Relational Integrity: Critical fields like `userId` and `documentId` are 
-     *   validated on creation and enforced as immutable during updates.
-     * - Prototyping Flexibility: While authorization is strictly enforced based on 
-     *   identity, the internal schema (field types, optionality) is not validated 
-     *   to allow for rapid iteration of the data model.
-     * - Admin Access: A global `isAdmin()` helper allows for administrative overrides 
-     *   or backend processing needs if necessary.
+     * 1. Authorization Independence: All documents contain denormalized ownership fields (userId or authorId).
+     *    This allows rules to verify access without performing expensive get() lookups on parent documents.
+     * 2. QAP (Rules are not Filters): Read rules are designed to align with user-specific queries, ensuring
+     *    the path-based isolation is enforced at the database level.
+     * 3. Prototyping Flexibility: Data types and schema shapes are not strictly enforced to allow for
+     *    rapid iteration, focusing instead on robust authorization and relational integrity.
+     *
+     * Denormalization for Authorization:
+     * - `ExtractedData` documents include a `userId` field to allow direct ownership checks.
+     * - `ExtractionStrategy` documents include `authorId` and `isPublic` fields to manage marketplace access.
      */
 
     // --- Helper Functions ---
 
-    /** Checks if the request is from an authenticated user. */
+    /** @description Checks if the user is authenticated with Firebase Auth. */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /** Checks if the authenticated user's UID matches the provided userId. */
+    /** @description Checks if the user's UID matches the provided ID. */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /** Checks if the user is an owner and the document currently exists. */
+    /** @description Checks if a document exists and the user is the owner. Used for updates/deletes. */
     function isExistingOwner(userId) {
       return resource != null && isOwner(userId);
     }
 
-    /** Checks if the user has administrative privileges via the roles_admin collection. */
-    function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    /** @description Checks if a field is being modified during an update. */
+    function isUnchanged(fieldName) {
+      return request.resource.data[fieldName] == resource.data[fieldName];
     }
 
     // --- Collection Rules ---
 
     /**
-     * @description Rules for technical documents uploaded by users.
-     * @path /users/{userId}/documents/{documentId}
-     * @allow (create) User 'abc' creates a document at /users/abc/documents/doc123 with userId 'abc'.
-     * @deny (list) User 'abc' attempts to list documents at /users/xyz/documents.
-     * @principle Path-based ownership with relational integrity validation.
+     * @description Rules for the User profile. Only the user can read or manage their own profile.
+     * @path /users/{userId}
+     * @allow (get) If the requesting user's UID matches {userId}.
+     * @deny (list) Listing users is globally disabled for privacy.
+     * @principle Restricts access to a user's own data tree and prevents user enumeration.
      */
-    match /users/{userId}/documents/{documentId} {
-      allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // User listing is not permitted in this application.
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if false; // Profile deletion is managed by administrative processes.
 
       /**
-       * @description Rules for data items extracted from a specific document.
-       * @path /users/{userId}/documents/{documentId}/extractedDataItems/{dataItemId}
-       * @allow (get) User 'abc' reads an extracted item belonging to their document.
-       * @deny (update) User 'abc' attempts to change the 'documentId' or 'userId' of an item.
-       * @principle Subcollection ownership requiring denormalized userId for atomic checks.
+       * @description Rules for user documents. Ensures isolation of historical files.
+       * @path /users/{userId}/documents/{documentId}
+       * @allow (create) If userId in path matches auth.uid AND userId in data matches auth.uid.
+       * @deny (update) If the userId field is being changed to another user's ID.
+       * @principle Enforces strict ownership and path-to-data consistency.
        */
-      match /extractedDataItems/{dataItemId} {
-        allow get, list: if isOwner(userId) || isAdmin();
-        allow create: if isOwner(userId) && request.resource.data.userId == userId && request.resource.data.documentId == documentId;
-        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId && request.resource.data.documentId == resource.data.documentId;
+      match /documents/{documentId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.userId == userId;
+        allow update: if isExistingOwner(userId) && isUnchanged('userId');
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Rules for extracted data. Isolated per user for privacy.
+       * @path /users/{userId}/extractedData/{extractedDataId}
+       * @allow (get) If the owner is requesting their specific extracted result.
+       * @deny (create) If the document's internal userId does not match the authenticated user.
+       * @principle Uses denormalized ownership fields to prevent cross-user data leaks.
+       */
+      match /extractedData/{extractedDataId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.userId == userId;
+        allow update: if isExistingOwner(userId) && isUnchanged('userId');
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Rules for custom extraction rules. Private to the creating user.
+       * @path /users/{userId}/extractionRules/{ruleId}
+       * @allow (create) If authorId in the rule data matches the user's UID.
+       * @deny (delete) If the user is not the owner of the rule.
+       * @principle Maintains privacy of proprietary extraction logic.
+       */
+      match /extractionRules/{ruleId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.authorId == userId;
+        allow update: if isExistingOwner(userId) && isUnchanged('authorId');
         allow delete: if isExistingOwner(userId);
       }
     }
 
     /**
-     * @description Rules for custom extraction rule sets defined by users.
-     * @path /users/{userId}/extractionRuleSets/{ruleSetId}
-     * @allow (update) User 'abc' modifies their own rule set.
-     * @deny (create) User 'abc' tries to create a rule set in User 'xyz's path.
-     * @principle Enforces that rule sets are private and owned by the creator.
+     * @description Rules for the Strategy Marketplace. Allows public discovery and author control.
+     * @path /extractionStrategies/{strategyId}
+     * @allow (list) If the strategy is marked as public OR the user is the author.
+     * @deny (update) If a non-author attempts to modify the strategy or its star count directly.
+     * @principle Implements a "Public Read, Owner-Only Write" pattern with marketplace logic.
      */
-    match /users/{userId}/extractionRuleSets/{ruleSetId} {
-      allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
-    }
-
-    /**
-     * @description Rules for logging resource and traffic consumption.
-     * @path /users/{userId}/trafficConsumptionLogs/{logId}
-     * @allow (list) User 'abc' views their own consumption history for statistics.
-     * @deny (delete) Users are generally prevented from deleting logs to maintain audit integrity.
-     * @principle Secure attribution of traffic usage to the specific authenticated user.
-     */
-    match /users/{userId}/trafficConsumptionLogs/{logId} {
-      allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      // Updates and deletes are restricted to admins to ensure log integrity
-      allow update, delete: if isAdmin();
-    }
-
-    /**
-     * @description Administrative roles collection. Presence of a document grants admin status.
-     * @path /roles_admin/{userId}
-     * @allow (get) Any signed-in user checks if they have admin status.
-     * @deny (write) Users attempting to grant themselves admin privileges.
-     * @principle Existence-over-content pattern for global RBAC.
-     */
-    match /roles_admin/{userId} {
-      allow get: if isSignedIn();
-      allow list: if isAdmin();
-      allow create, update, delete: if false; // Admin roles managed via Admin SDK/Console only.
+    match /extractionStrategies/{strategyId} {
+      // Users can see a strategy if it is public OR if they are the author.
+      allow get, list: if isSignedIn() && (resource.data.isPublic == true || resource.data.authorId == request.auth.uid);
+      
+      // Only the author can create a strategy.
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      
+      // Only the author can update or delete.
+      // Note: In a production app, starCount updates would typically happen via a Cloud Function to ensure integrity.
+      allow update: if isSignedIn() && resource.data.authorId == request.auth.uid && isUnchanged('authorId');
+      allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
     }
   }
 }
