@@ -78,7 +78,7 @@ const SYSTEM_STRATEGIES = [
   {
     id: 'speech-expert',
     name: '语音文件转译专家',
-    description: '使用 TeleAI/TeleSpeechASR 模型，专注于语音内容的精准提取。',
+    description: '使用 TeleAI/TeleSpeechASR 模型，专注于语音内容的精准提取与校准。',
     content: '你是一个语音文件转译专家。请根据输入的 ASR (语音转文字) 内容，首先输出校准后的完整原文本，确保修正冗余词汇、语气词及错别字，使语意连贯且标点准确。随后，请在回复的末尾增加一句引导语，例如：“以上是为您校准后的文本，您可以针对内容细节向我提问。”',
     authorName: '系统预设',
     starCount: 666
@@ -157,7 +157,14 @@ export default function DocuParsePro() {
       };
       uploadedFilesRef.current.set(docId, file);
       setDocumentNonBlocking(doc(db, 'users', user.uid, 'documents', docId), newDoc, { merge: true });
+      
+      // 关键修复：跳转并提示
       setSelectedDocId(docId);
+      setActiveTab('chat');
+      toast({
+        title: "文件上传成功",
+        description: `${file.name} 已加入待解析列表。`,
+      });
     }
     e.target.value = '';
   };
@@ -165,7 +172,14 @@ export default function DocuParsePro() {
   const startAnalysis = async (docId: string) => {
     if (!selectedDoc || !user?.uid || !db) return;
     const file = uploadedFilesRef.current.get(docId);
-    if (!file) return;
+    if (!file) {
+      toast({
+        variant: "destructive",
+        title: "分析失败",
+        description: "未找到本地文件缓存，请尝试重新上传。",
+      });
+      return;
+    }
 
     updateDocumentNonBlocking(doc(db, 'users', user.uid, 'documents', docId), { status: 'processing' });
 
@@ -322,7 +336,7 @@ export default function DocuParsePro() {
       
       <nav className="flex-1 px-4 mt-8 space-y-6 overflow-y-auto no-scrollbar">
         <div>
-          <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.3em] mb-4 pl-4">功能主菜单</p>
+          <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">功能主菜单</p>
           <div className="space-y-2 p-1">
             <button onClick={() => setActiveTab('chat')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-2xl transition-all font-bold text-sm", activeTab === 'chat' ? "bg-primary text-white shadow-lg ring-4 ring-primary/20" : "opacity-60 hover:bg-black/5 hover:opacity-100")}>
               <MessageSquare size={18} /> 智能对话工作站
@@ -426,7 +440,12 @@ export default function DocuParsePro() {
             </div>
 
             <div className={cn("flex-1 flex flex-col relative bg-white/20", !selectedDocId && "hidden lg:flex")}>
-              {selectedDoc ? (
+              {selectedDocId && !selectedDoc ? (
+                <div className="flex-1 flex flex-col items-center justify-center animate-pulse">
+                  <Loader2 className="animate-spin text-primary mb-4" size={40} />
+                  <p className="font-black uppercase tracking-widest text-sm opacity-40">引擎装载中...</p>
+                </div>
+              ) : selectedDoc ? (
                 <>
                   <div className="lg:hidden p-4 border-b border-black/5 flex items-center bg-white/80">
                     <Button variant="ghost" size="sm" onClick={() => setSelectedDocId(null)} className="font-black opacity-60"><ChevronLeft size={18} /> 返回</Button>
@@ -492,7 +511,7 @@ export default function DocuParsePro() {
                 <h3 className="text-4xl font-black tracking-tight mb-2 uppercase">规则广场</h3>
                 <p className="opacity-40 font-bold uppercase tracking-[0.4em] text-xs">Global Strategy Collection</p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-10 p-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-10 p-4">
                 {allStrategies.map(s => (
                   <Card key={s.id} className={cn("rounded-[2.5rem] border-none shadow-xl bg-white dark:bg-slate-900/80 dark:border dark:border-white/10 transition-all hover:-translate-y-2 flex flex-col h-full overflow-hidden", selectedRuleId === s.id && "ring-8 ring-primary shadow-2xl shadow-primary/30")}>
                     <CardHeader className="p-6">
