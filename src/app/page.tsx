@@ -198,10 +198,10 @@ export default function DocuParsePro() {
         const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
         const imagesToOCR: { pageIndex: number; dataUri: string }[] = [];
         
-        // 300 DPI 视觉高保真提取
+        // 200 DPI 高保真提取（降低以提升速度）
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: 3.0 }); 
+          const viewport = page.getViewport({ scale: 2.0 }); 
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
           canvas.height = viewport.height;
