@@ -1,13 +1,9 @@
-import { Readable } from 'stream';
-
 /**
  * PDF 解析服务
  * 支持：文本层提取 -> 分片 -> 并发OCR -> 进度反馈 -> 内存管理
  */
 
-import PDFDocument from 'pdf-lib';
-import pdf from 'pdf-parse';
-import axios from 'axios';
+import * as pdfjsLib from 'pdfjs-dist';
 
 // 配置
 const CONFIG = {
@@ -18,6 +14,12 @@ const CONFIG = {
   SILICON_FLOW_API_URL: 'https://api.siliconflow.cn/v1/chat/completions',
   OCR_MODEL: 'PaddlePaddle/PaddleOCR-VL-1.5',
 };
+
+// 配置 Worker
+if (typeof window === 'undefined') {
+  // 服务端环境
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+}
 
 interface ParseOptions {
   apiKey: string;
@@ -67,7 +69,7 @@ export async function parsePDF(pdfBuffer: Buffer, options: ParseOptions): Promis
 }
 
 /**
- * 步骤1: 尝试用 pdf-parse 提取文本层
+ * 步骤1: 尝试用 pdfjs 提取文本层
  */
 async function extractTextLayer(pdfBuffer: Buffer): Promise<{
   success: boolean;
@@ -75,13 +77,24 @@ async function extractTextLayer(pdfBuffer: Buffer): Promise<{
   pageCount?: number;
 }> {
   try {
-    const data = await pdf(pdfBuffer);
+    const pdf = await pdfjsLib.getDocument({ data: pdfBuffer }).promise;
+    const pageCount = pdf.numPages;
+    let fullText = '';
     
-    if (data.text && data.text.trim().length > 0) {
+    for (let i = 1; i <= pageCount; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ');
+      fullText += pageText + '\n\n';
+    }
+    
+    if (fullText.trim().length > 50) {
       return {
         success: true,
-        text: data.text,
-        pageCount: data.numpages,
+        text: fullText,
+        pageCount,
       };
     }
     
@@ -93,7 +106,7 @@ async function extractTextLayer(pdfBuffer: Buffer): Promise<{
 }
 
 /**
- * 步骤2: 使用 OCR 解析
+ * 步骤2: 使用 OCR 解析（复用已有的 /api/ocr 逻辑）
  */
 async function parseWithOCR(
   pdfBuffer: Buffer, 
@@ -101,82 +114,68 @@ async function parseWithOCR(
   onProgress?: (current: number, total: number, status: string) => void
 ): Promise<ParseResult> {
   
-  // ===== 2.1: 用 pdf-lib 分割 PDF =====
-  onProgress?.(0, 100, '正在分割PDF...');
+  // ===== 2.1: PDF 转图片 =====
+  onProgress?.(0, 100, '正在转换PDF为图片...');
   
-  const pdfDoc = await PDFDocument.load(pdfBuffer);
-  const totalPages = pdfDoc.getPageCount();
-  const chunks: { start: number; end: number }[] = [];
+  const pdf = await pdfjsLib.getDocument({ data: pdfBuffer }).promise;
+  const totalPages = pdf.numPages;
   
-  // 分片
-  for (let i = 0; i < totalPages; i += CONFIG.PAGES_PER_CHUNK) {
-    chunks.push({
-      start: i + 1,
-      end: Math.min(i + CONFIG.PAGES_PER_CHUNK, totalPages),
+  const images: { pageIndex: number; dataUri: string }[] = [];
+  
+  // 分批转换，避免内存溢出
+  const BATCH_SIZE = 10;
+  
+  for (let i = 1; i <= totalPages; i++) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 1.5 });
+    
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+    
+    await page.render({ canvasContext: context!, viewport }).promise;
+    
+    images.push({
+      pageIndex: i,
+      dataUri: canvas.toDataURL('image/jpeg', 0.6),
     });
+    
+    // 进度更新
+    const progress = Math.floor((i / totalPages) * 50);
+    onProgress?.(progress, 100, `已转换 ${i}/${totalPages} 页...`);
+    
+    // 每批清理一次内存
+    if (i % BATCH_SIZE === 0) {
+      await new Promise(r => setTimeout(r, 100)); // 给 GC 一点时间
+    }
   }
   
-  console.log(`[Parser] PDF共${totalPages}页，分成${chunks.length}个chunk`);
+  // ===== 2.2: 调用 OCR API =====
+  onProgress?.(50, 100, '开始OCR识别...');
   
-  // ===== 2.2: 并发处理 chunks =====
-  const results: string[] = [];
-  let processedCount = 0;
+  // 复用现有的 OCR API
+  const response = await fetch(process.env.NEXT_PUBLIC_API_URL + '/api/ocr', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ images }),
+  });
   
-  // 导入 p-limit
-  const pLimit = await import('p-limit');
-  const limit = pLimit.default(CONFIG.CONCURRENT_LIMIT);
+  if (!response.ok) {
+    throw new Error('OCR API 调用失败');
+  }
   
-  // 创建并发任务
-  const tasks = chunks.map((chunk, index) => 
-    limit(async () => {
-      try {
-        onProgress?.(processedCount, totalPages, `正在处理第 ${chunk.start}-${chunk.end} 页...`);
-        
-        // 提取当前chunk的页面
-        const chunkPdf = await pdfDoc.copyPages(
-          pdfDoc.getPages().slice(chunk.start - 1, chunk.end),
-          pdfDoc.getPages().slice(chunk.start - 1, chunk.end)
-        );
-        
-        // 创建新PDF
-        const newPdf = await PDFDocument.create();
-        for (const page of chunkPdf) {
-          newPdf.addPage(page);
-        }
-        
-        // 转图片
-        const images = await pdfToImages(newPdf);
-        
-        // OCR识别
-        const ocrText = await processOCRChunk(images, apiKey);
-        
-        results.push(`\n## 第 ${chunk.start}-${chunk.end} 页\n\n${ocrText}`);
-        
-        // 释放内存
-        images.length = 0;
-        
-        processedCount = Math.min(processedCount + (chunk.end - chunk.start + 1), totalPages);
-        onProgress?.(processedCount, totalPages, `已完成 ${processedCount}/${totalPages} 页`);
-        
-        return ocrText;
-      } catch (error: any) {
-        console.error(`[Parser] Chunk ${index + 1} 处理失败:`, error);
-        throw error;
-      }
-    })
-  );
+  const { results } = await response.json();
   
-  // 等待所有任务完成
-  await Promise.all(tasks);
+  // 合并结果
+  const textParts = results.map((r: any) => `## 第 ${r.pageIndex} 页\n\n${r.text}`);
+  const finalText = textParts.join('\n\n');
   
-  // ===== 2.3: 清理内存 =====
-  pdfDoc.destroy();
-  pdfBuffer = Buffer.alloc(0);
+  // 清理内存
+  images.length = 0;
+  pdf.destroy();
   
-  // ===== 2.4: 合并结果 =====
-  const finalText = results.join('\n\n');
-  
-  onProgress?.(totalPages, totalPages, 'OCR完成');
+  onProgress?.(100, 100, 'OCR完成');
   
   return {
     text: finalText,
@@ -186,104 +185,9 @@ async function parseWithOCR(
 }
 
 /**
- * PDF 转图片序列（简化版，实际需要用 pdf.js 或其他库）
- */
-async function pdfToImages(pdfDoc: any): Promise<string[]> {
-  // 这里需要实现 PDF 转图片的逻辑
-  // 由于浏览器端已经做了转换，这里简化处理
-  // 实际部署时需要在服务端也实现类似逻辑
-  
-  // 临时返回空数组，实际会走另一条路径
-  return [];
-}
-
-/**
- * OCR 处理单个 chunk（带重试机制）
- */
-async function processOCRChunk(images: string[], apiKey: string): Promise<string> {
-  if (images.length === 0) {
-    return '[图片转换失败]';
-  }
-  
-  const ocrPrompt = `请提取图片中的所有文字内容，以Markdown格式输出。`;
-  
-  // 串行处理每张图片
-  const results: string[] = [];
-  
-  for (const imageData of images) {
-    const result = await callOCRWithRetry(imageData, ocrPrompt, apiKey);
-    results.push(result);
-  }
-  
-  return results.join('\n\n');
-}
-
-/**
- * 带重试的 OCR 调用
- */
-async function callOCRWithRetry(
-  imageData: string, 
-  prompt: string, 
-  apiKey: string,
-  retries: number = CONFIG.MAX_RETRIES
-): Promise<string> {
-  
-  for (let attempt = 0; attempt < retries; attempt++) {
-    try {
-      const response = await axios.post(
-        CONFIG.SILICON_FLOW_API_URL,
-        {
-          model: CONFIG.OCR_MODEL,
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: prompt },
-                { type: "image_url", image_url: { url: imageData } }
-              ]
-            }
-          ],
-          temperature: 0.1,
-          max_tokens: 4096,
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-          },
-          timeout: 60000, // 60秒超时
-        }
-      );
-      
-      if (response.status === 200) {
-        return response.data.choices?.[0]?.message?.content || '';
-      }
-      
-    } catch (error: any) {
-      const status = error.response?.status;
-      
-      // 502/504 或网络错误，重试
-      if ((status === 502 || status === 504 || !status) && attempt < retries - 1) {
-        const delay = CONFIG.RETRY_DELAY * Math.pow(2, attempt); // 指数退避
-        console.log(`[OCR] 请求失败，${delay}ms 后重试 (${attempt + 1}/${retries})`);
-        await new Promise(r => setTimeout(r, delay));
-        continue;
-      }
-      
-      throw error;
-    }
-  }
-  
-  return '[OCR处理失败]';
-}
-
-/**
  * SSE 进度推送辅助函数
  */
-export function createSSEProgress(
-  res: any, 
-  onProgress: (current: number, total: number, status: string) => void
-) {
+export function createSSEProgress(res: any) {
   const encoder = new TextEncoder();
   
   return {
