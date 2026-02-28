@@ -26,7 +26,6 @@ import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
 
 import { performASR } from '@/ai/flows/asr-flow';
-import { performOCR } from '@/ai/flows/ocr-flow';
 
 // 配置 PDF.js Worker
 if (typeof window !== 'undefined') {
@@ -214,7 +213,18 @@ export default function DocuParsePro() {
           });
         }
         
-        const { results } = await performOCR({ images: imagesToOCR });
+        const ocrResponse = await fetch('/api/ocr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ images: imagesToOCR })
+        });
+        
+        if (!ocrResponse.ok) {
+          const errorData = await ocrResponse.json().catch(() => ({}));
+          throw new Error(errorData.error || "OCR 识别失败");
+        }
+        
+        const { results } = await ocrResponse.json();
         finalContent = results.map(r => `## 第 ${r.pageIndex} 页\n${r.text}`).join('\n\n');
         if (!finalContent.trim()) finalContent = "[PDF 视觉识别未提取到有效文本]";
       } 

@@ -5,7 +5,8 @@ import { NextRequest, NextResponse } from 'next/server';
  * 升级模型 ID 为 deepseek-ai/DeepSeek-V3.2。
  */
 
-export const runtime = 'edge';
+export const maxDuration = 60; // 延长到60秒
+export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;

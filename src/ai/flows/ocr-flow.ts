@@ -1,7 +1,8 @@
 'use server';
 /**
  * @fileOverview 硅基流动 (SiliconFlow) 视觉 OCR 流程。
- * 使用 Qwen2-VL 进行图像识别，支持提示词，并发处理提升速度。
+ * 使用 Qwen2-VL 进行图像识别，支持提示词。
+ * 改为 API route 以避免 Server Action 超时
  */
 
 import { z } from 'genkit';
@@ -26,7 +27,7 @@ export async function performOCR(input: OCRInput): Promise<OCROutput> {
   const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
   const SILICON_FLOW_API_KEY = process.env.SILICON_FLOW_API_KEY;
   
-  // 使用 Qwen2-VL-7B 模型（比72B快很多）
+  // 使用 Qwen2-VL-7B 模型（更快）
   const MODEL_ID = 'Qwen/Qwen2.5-VL-7B-Instruct';
 
   if (!SILICON_FLOW_API_KEY) {
@@ -83,9 +84,9 @@ export async function performOCR(input: OCRInput): Promise<OCROutput> {
     return { pageIndex: item.pageIndex, text: content };
   };
 
-  // 分批并发处理，每批3个
+  // 分批并发处理，每批2个（避免超时）
   const results: { pageIndex: number; text: string }[] = [];
-  const batchSize = 3;
+  const batchSize = 2;
   
   for (let i = 0; i < input.images.length; i += batchSize) {
     const batch = input.images.slice(i, i + batchSize);
