@@ -25,14 +25,6 @@ import * as pdfjsLib from 'pdfjs-dist';
 import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
 
-import { 
-  useUser, 
-  useFirestore, 
-  useCollection, 
-  useMemoFirebase,
-  initiateAnonymousSignIn
-} from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
 import { performASR } from '@/ai/flows/asr-flow';
 import { performOCR } from '@/ai/flows/ocr-flow';
 
@@ -72,7 +64,7 @@ const SYSTEM_STRATEGIES = [
     id: 'speech-expert',
     name: '语音文件转译专家',
     description: '输出精准校准的原文本，并引导提问。',
-    content: '你是一个语音文件转译专家。请根据输入的 ASR 内容，首先输出校准后的完整原文本，确保修正口语化冗余、语气词及同音错别字，使语意逻辑严密、标点准确。随后，请在回复的末尾增加一句引导语：“以上是为您校准后的文本，您可以针对内容细节向我提问。”',
+    content: '你是一个语音文件转译专家。请根据输入的 ASR 内容，首先输出校准后的完整原文本，确保修正口语化冗余、语气词及同音错别字，使语意逻辑严密、标点准确。随后，请在回复的末尾增加一句引导语："以上是为您校准后的文本，您可以针对内容细节向我提问。"',
     authorName: '系统预设',
     starCount: 888
   },
@@ -88,8 +80,6 @@ const SYSTEM_STRATEGIES = [
 
 export default function DocuParsePro() {
   const { toast } = useToast();
-  const { user, auth, isUserLoading } = useUser();
-  const db = useFirestore();
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<'chat' | 'marketplace'>('chat');
@@ -104,20 +94,8 @@ export default function DocuParsePro() {
   const uploadedFilesRef = useRef<Map<string, File>>(new Map());
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!user && auth && !isUserLoading) {
-      initiateAnonymousSignIn(auth);
-    }
-  }, [user, auth, isUserLoading]);
-
-  const marketQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
-    return query(collection(db, 'extractionStrategies'), where('isPublic', '==', true));
-  }, [db, user]);
-  const { data: marketplaceStrategiesData } = useCollection(marketQuery);
-  const marketplaceStrategies = marketplaceStrategiesData || [];
-
-  const allStrategies = useMemo(() => [...SYSTEM_STRATEGIES, ...marketplaceStrategies], [marketplaceStrategies]);
+  // 直接使用系统预设策略，不需要 Firestore
+  const allStrategies = useMemo(() => [...SYSTEM_STRATEGIES], []);
   const currentStrategy = useMemo(() => allStrategies.find(s => s.id === selectedRuleId) || SYSTEM_STRATEGIES[0], [allStrategies, selectedRuleId]);
 
   const selectedDoc = useMemo(() => localDocs.find(d => d.id === selectedDocId), [localDocs, selectedDocId]);
