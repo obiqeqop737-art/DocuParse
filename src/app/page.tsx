@@ -186,9 +186,52 @@ export default function DocuParsePro() {
         throw new Error(errorData.error || "文件解析失败");
       }
 
-      const { content } = await parseResponse.json();
+      const { content, needsOCR } = await parseResponse.json();
 
-      const fullContent = `\n# 技术文档: ${file.name}\n\n${content}\n`;
+      let finalContent = content;
+
+      // 如果需要 OCR，前端处理 PDF 转图片
+      if (needsOCR && file.type === 'application/pdf') {
+        const pdfjsLib = await import('pdfjs-dist');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+        
+        const ab = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+        const imagesToOCR: { pageIndex: number; dataUri: string }[] = [];
+
+        // 渲染 PDF 页面为图片
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+
+          await page.render({ canvasContext: context!, viewport }).promise;
+          imagesToOCR.push({
+            pageIndex: i,
+            dataUri: canvas.toDataURL('image/jpeg', 0.7)
+          });
+        }
+
+        // 调用 OCR API
+        const ocrResponse = await fetch('/api/ocr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ images: imagesToOCR })
+        });
+        
+        if (!ocrResponse.ok) {
+          const errorData = await ocrResponse.json().catch(() => ({}));
+          throw new Error(errorData.error || "OCR 识别失败");
+        }
+        
+        const { mergedContent } = await ocrResponse.json();
+        finalContent = mergedContent || "[OCR 识别未提取到有效文本]";
+      }
+
+      const fullContent = `\n# 技术文档: ${file.name}\n\n${finalContent}\n`;
       setLocalDocs(prev => prev.map(d => d.id === docId ? { ...d, content: fullContent, status: 'completed' } : d));
 
       setIsExtracting(false);

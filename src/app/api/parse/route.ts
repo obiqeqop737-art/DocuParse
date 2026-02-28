@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * @fileOverview 文件解析 API - 轻量版
- * 使用 pdf-parse 进行文本提取，避免内存问题
+ * PDF 文本提取 + 前端 OCR 支持
  */
 
-export const maxDuration = 60; // 1分钟
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,7 +19,6 @@ export async function POST(req: NextRequest) {
 
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
     
-    // 支持的文件类型
     const supportedTypes = ['pdf', 'docx', 'xlsx', 'xls', 'csv', 'txt'];
     if (!supportedTypes.includes(ext)) {
       return NextResponse.json({ error: `不支持的文件类型: ${ext}` }, { status: 400 });
@@ -29,10 +28,12 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
 
     let parsedContent = '';
+    let needsOCR = false;
     
     if (ext === 'pdf') {
-      // PDF 文本提取
-      parsedContent = await processPDF(buffer);
+      const result = await processPDF(buffer);
+      parsedContent = result.content;
+      needsOCR = result.needsOCR;
     } else if (['docx', 'doc'].includes(ext)) {
       parsedContent = await processDOCX(buffer);
     } else if (['xlsx', 'xls', 'csv'].includes(ext)) {
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
       parsedContent = buffer.toString('utf-8');
     }
 
-    if (!parsedContent.trim()) {
+    if (!parsedContent.trim() && !needsOCR) {
       return NextResponse.json({ error: '未能提取到有效内容' }, { status: 400 });
     }
 
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
       success: true,
       filename: file.name,
       content: parsedContent,
+      needsOCR,
       strategy
     });
 
@@ -61,17 +63,24 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ========== PDF 处理 (文本提取) ==========
-async function processPDF(buffer: Buffer): Promise<string> {
+// ========== PDF 处理 ==========
+async function processPDF(buffer: Buffer): Promise<{ content: string; needsOCR: boolean }> {
   try {
-    // 使用 pdf-parse 提取文本
     const pdfParse = await import('pdf-parse');
     const data = await pdfParse.default(buffer);
-    return data.text || '';
+    
+    // 如果提取到足够的文本，直接返回
+    if (data.text && data.text.trim().length > 100) {
+      console.log('[PDF] 文本提取成功');
+      return { content: data.text, needsOCR: false };
+    }
+    
+    console.log('[PDF] 文本提取失败或内容过少，需要 OCR');
+    return { content: '', needsOCR: true };
+    
   } catch (error: any) {
     console.error('PDF parse error:', error);
-    // 如果文本提取失败，返回提示
-    return `[PDF 文本提取失败，请确保 PDF 包含可搜索文本。如果是扫描版 PDF，建议先 OCR 处理。]`;
+    return { content: '', needsOCR: true };
   }
 }
 
