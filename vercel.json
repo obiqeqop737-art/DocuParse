@@ -1,0 +1,4 @@
+{
+  "buildCommand": "npm install --no-cache && npm run build",
+  "installCommand": "npm install --no-cache"
+}
