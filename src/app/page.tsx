@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { 
-  FileText, Upload, MessageSquare, Send, Loader2, Search, BookOpen, 
+import {
+  FileText, Upload, MessageSquare, Send, Loader2, Search, BookOpen,
   Sparkles, Layers, Menu, ChevronLeft, FileDown,
   AlertCircle, PlayCircle, Trash2, FileSpreadsheet, Presentation, Star, ShoppingBag,
   Target, Sun, Moon, BarChart3, Clock, Truck, Music, Mic, ChevronRight
@@ -14,8 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
-import { 
-  Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription 
+import {
+  Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import ReactMarkdown from 'react-markdown';
@@ -79,7 +79,7 @@ const SYSTEM_STRATEGIES = [
 
 export default function DocuParsePro() {
   const { toast } = useToast();
-  
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<'chat' | 'marketplace'>('chat');
   const [chatInput, setChatInput] = useState('');
@@ -89,7 +89,7 @@ export default function DocuParsePro() {
   const [selectedRuleId, setSelectedRuleId] = useState<string>('universal-expert');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isLoaded, setIsLoaded] = useState(false);
-  
+
   const [localDocs, setLocalDocs] = useState<LocalDocument[]>([]);
   const uploadedFilesRef = useRef<Map<string, File>>(new Map());
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -143,11 +143,11 @@ export default function DocuParsePro() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    
+
     for (const file of Array.from(files)) {
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
       const docId = `local_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
-      
+
       const newDoc: LocalDocument = {
         id: docId,
         name: file.name,
@@ -161,8 +161,8 @@ export default function DocuParsePro() {
       uploadedFilesRef.current.set(docId, file);
       setLocalDocs(prev => [newDoc, ...prev]);
       setSelectedDocId(docId);
-      setActiveTab('chat'); 
-      
+      setActiveTab('chat');
+
       toast({
         title: "文件就绪",
         description: `${file.name} 已准备好进行 AI 研读。`,
@@ -182,7 +182,7 @@ export default function DocuParsePro() {
       let finalContent = "";
       const ab = await file.arrayBuffer();
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
-      
+
       if (['wav', 'mp3', 'm4a', 'ogg'].includes(ext)) {
         const reader = new FileReader();
         const base64Promise = new Promise<string>((resolve) => {
@@ -192,69 +192,70 @@ export default function DocuParsePro() {
         const base64 = await base64Promise;
         const { text } = await performASR({ audioBase64: base64 });
         finalContent = text || "[音频转写未发现有效内容]";
-      } 
+      }
       else if (ext === 'pdf') {
         const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
         const imagesToOCR: { pageIndex: number; dataUri: string }[] = [];
-        
-        // 300 DPI 高保真提取（工业场景需要高清）
+
+        // PDF 转图片 (scale 1.5 减少图片大小，避免413)
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: 3.0 }); 
+          const viewport = page.getViewport({ scale: 1.5 });
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
           canvas.height = viewport.height;
           canvas.width = viewport.width;
           
           await page.render({ canvasContext: context!, viewport }).promise;
+          // 压缩图片质量到 0.6
           imagesToOCR.push({
             pageIndex: i,
-            dataUri: canvas.toDataURL('image/jpeg', 0.8)
+            dataUri: canvas.toDataURL('image/jpeg', 0.6)
           });
         }
-        
+
         const ocrResponse = await fetch('/api/ocr', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ images: imagesToOCR })
         });
-        
+
         if (!ocrResponse.ok) {
           const errorData = await ocrResponse.json().catch(() => ({}));
           throw new Error(errorData.error || "OCR 识别失败");
         }
-        
+
         const { results } = await ocrResponse.json();
         finalContent = results.map(r => `## 第 ${r.pageIndex} 页\n${r.text}`).join('\n\n');
         if (!finalContent.trim()) finalContent = "[PDF 视觉识别未提取到有效文本]";
-      } 
+      }
       else if (ext === 'docx') {
         const res = await mammoth.extractRawText({ arrayBuffer: ab });
         finalContent = res.value.trim() || "[DOCX 内容提取为空]";
-      } 
+      }
       else if (['xlsx', 'xls', 'csv'].includes(ext)) {
         const workbook = XLSX.read(ab);
         finalContent = workbook.SheetNames.map(name => XLSX.utils.sheet_to_txt(workbook.Sheets[name])).join('\n\n');
         if (!finalContent.trim()) finalContent = "[表格内容提取为空]";
-      } 
+      }
       else {
         finalContent = (await file.text()).trim() || "[文本内容为空]";
       }
 
       const fullContent = `\n# 技术文档: ${file.name}\n\n${finalContent}\n`;
       setLocalDocs(prev => prev.map(d => d.id === docId ? { ...d, content: fullContent, status: 'completed' } : d));
-      
+
       setIsExtracting(false);
       setIsChatting(true);
 
       const res = await fetch('/api/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          documentContent: fullContent, 
-          userQuery: `请执行[${currentStrategy.name}]指令，开始深度解析。`, 
-          rules: currentStrategy.content, 
-          history: [] 
+        body: JSON.stringify({
+          documentContent: fullContent,
+          userQuery: `请执行[${currentStrategy.name}]指令，开始深度解析。`,
+          rules: currentStrategy.content,
+          history: []
         })
       });
 
@@ -282,8 +283,8 @@ export default function DocuParsePro() {
             const delta = JSON.parse(dataStr).choices[0]?.delta?.content || "";
             if (delta) {
               fullAnswer += delta;
-              setLocalDocs(prev => prev.map(d => d.id === docId ? { 
-                ...d, 
+              setLocalDocs(prev => prev.map(d => d.id === docId ? {
+                ...d,
                 chatHistory: [{ role: 'model', content: fullAnswer }]
               } : d));
             }
@@ -311,11 +312,11 @@ export default function DocuParsePro() {
       const res = await fetch('/api/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          documentContent: selectedDoc.content, 
-          userQuery, 
-          rules: currentStrategy.content, 
-          history: selectedDoc.chatHistory 
+        body: JSON.stringify({
+          documentContent: selectedDoc.content,
+          userQuery,
+          rules: currentStrategy.content,
+          history: selectedDoc.chatHistory
         })
       });
       if (!res.ok) {
@@ -340,9 +341,9 @@ export default function DocuParsePro() {
             const delta = JSON.parse(dataStr).choices[0]?.delta?.content || "";
             if (delta) {
               fullAnswer += delta;
-              setLocalDocs(prev => prev.map(d => d.id === selectedDoc.id ? { 
-                ...d, 
-                chatHistory: [...history, { role: 'model', content: fullAnswer }] 
+              setLocalDocs(prev => prev.map(d => d.id === selectedDoc.id ? {
+                ...d,
+                chatHistory: [...history, { role: 'model', content: fullAnswer }]
               } : d));
             }
           } catch (e) {}
@@ -366,7 +367,7 @@ export default function DocuParsePro() {
           </div>
         </div>
       </div>
-      
+
       <nav className="flex-1 p-4 overflow-y-auto">
         <div className="space-y-1">
           <button onClick={() => setActiveTab('chat')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-sm font-medium", activeTab === 'chat' ? "bg-gradient-to-r from-blue-500 to-cyan-400 text-white shadow-lg shadow-blue-500/25" : "text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-white/10")}>
@@ -382,17 +383,17 @@ export default function DocuParsePro() {
           <div className="space-y-1">
             {localDocs.map(d => (
               <div key={d.id} className="group flex items-center gap-2">
-                <button 
-                  onClick={() => setSelectedDocId(d.id)} 
+                <button
+                  onClick={() => setSelectedDocId(d.id)}
                   className={cn(
-                    "flex-1 flex items-center gap-3 px-4 py-2.5 rounded-2xl transition-all text-left", 
-                    selectedDocId === d.id 
-                      ? "bg-white/80 dark:bg-white/10 shadow-lg" 
+                    "flex-1 flex items-center gap-3 px-4 py-2.5 rounded-2xl transition-all text-left",
+                    selectedDocId === d.id
+                      ? "bg-white/80 dark:bg-white/10 shadow-lg"
                       : "hover:bg-white/50 dark:hover:bg-white/10"
                   )}
                 >
                   <div className={cn(
-                    "w-8 h-8 rounded-xl flex items-center justify-center shrink-0", 
+                    "w-8 h-8 rounded-xl flex items-center justify-center shrink-0",
                     selectedDocId === d.id ? "bg-gradient-to-br from-blue-500 to-cyan-400 text-white" : "bg-blue-100 dark:bg-blue-900/30 text-blue-500"
                   )}>
                     {['MP3','WAV','M4A','OGG'].includes(d.type) ? <Music size={14} /> : <FileText size={14} />}
@@ -401,7 +402,7 @@ export default function DocuParsePro() {
                     <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{d.name}</p>
                   </div>
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     if (confirm(`确定要删除 "${d.name}" 吗？`)) {
                       const newDocs = localDocs.filter(doc => doc.id !== d.id);
@@ -526,11 +527,11 @@ export default function DocuParsePro() {
                       </ScrollArea>
                       <footer className="p-8 lg:p-10 border-t border-black/5 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl sticky bottom-0">
                         <div className="max-w-3xl relative mx-auto lg:mx-0">
-                          <textarea 
-                            placeholder={`基于 [${currentStrategy.name}] 的解析结果追问...`} 
-                            className="w-full min-h-[90px] bg-white dark:bg-slate-800 border border-black/10 rounded-[2rem] p-6 pr-20 text-sm lg:text-[15px] font-bold focus:ring-4 focus:ring-primary/10 shadow-xl resize-none transition-all" 
-                            value={chatInput} 
-                            onChange={(e) => setChatInput(e.target.value)} 
+                          <textarea
+                            placeholder={`基于 [${currentStrategy.name}] 的解析结果追问...`}
+                            className="w-full min-h-[90px] bg-white dark:bg-slate-800 border border-black/10 rounded-[2rem] p-6 pr-20 text-sm lg:text-[15px] font-bold focus:ring-4 focus:ring-primary/10 shadow-xl resize-none transition-all"
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
                           />
                           <div className="absolute right-4 bottom-4">
                              <Button onClick={handleSendMessage} disabled={!chatInput.trim() || isChatting} className="w-14 h-14 rounded-2xl bg-primary shadow-xl shadow-primary/20 hover:shadow-primary/40 transition-all"><Send size={22} /></Button>
