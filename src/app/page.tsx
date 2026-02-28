@@ -89,10 +89,45 @@ export default function DocuParsePro() {
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [selectedRuleId, setSelectedRuleId] = useState<string>('universal-expert');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [isLoaded, setIsLoaded] = useState(false);
   
   const [localDocs, setLocalDocs] = useState<LocalDocument[]>([]);
   const uploadedFilesRef = useRef<Map<string, File>>(new Map());
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // 从 localStorage 加载数据
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('docuparse_docs');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // 只加载已解析的文档（包含内容的），排除待处理的
+        const completedDocs = parsed.filter((d: LocalDocument) => d.status === 'completed' || d.status === 'error');
+        setLocalDocs(completedDocs);
+        if (completedDocs.length > 0) {
+          toast({
+            title: "已恢复会话",
+            description: `找到 ${completedDocs.length} 个已解析的文档`,
+          });
+        }
+      }
+    } catch (e) {
+      console.error('加载本地存储失败:', e);
+    }
+    setIsLoaded(true);
+  }, []);
+
+  // 保存到 localStorage（只保存已解析的文档）
+  useEffect(() => {
+    if (!isLoaded) return;
+    try {
+      // 过滤掉还在处理中的文档，只保存已完成的
+      const toSave = localDocs.filter(d => d.status === 'completed' || d.status === 'error');
+      localStorage.setItem('docuparse_docs', JSON.stringify(toSave));
+    } catch (e) {
+      console.error('保存本地存储失败:', e);
+    }
+  }, [localDocs, isLoaded]);
 
   // 直接使用系统预设策略，不需要 Firestore
   const allStrategies = useMemo(() => [...SYSTEM_STRATEGIES], []);
@@ -368,6 +403,22 @@ export default function DocuParsePro() {
       </nav>
 
       <div className="p-6 pb-10 space-y-4">
+        {/* 清除历史记录按钮 */}
+        {localDocs.length > 0 && (
+          <button 
+            onClick={() => {
+              if (confirm('确定要清除所有历史记录吗？')) {
+                localStorage.removeItem('docuparse_docs');
+                setLocalDocs([]);
+                setSelectedDocId(null);
+                toast({ title: "已清除", description: "所有历史记录已删除" });
+              }
+            }}
+            className="w-full h-10 flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950 rounded-[1.8rem] transition-all text-xs font-bold uppercase tracking-widest"
+          >
+            <Trash2 size={14} /> 清除历史
+          </button>
+        )}
         <div className="flex items-center justify-between px-6 py-4 bg-black/5 dark:bg-white/5 rounded-[1.8rem] border border-black/5">
            <div className="flex items-center gap-2">
               {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
