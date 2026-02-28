@@ -12,8 +12,15 @@ export async function POST(req: NextRequest) {
     const { documentContent, userQuery, rules, history } = await req.json();
 
     const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
-    const SILICON_FLOW_API_KEY = 'sk-orcwdodraxjcyrllecfaaukwuuepdysjqeeslnaarzhhjeey';
+    const SILICON_FLOW_API_KEY = process.env.SILICON_FLOW_API_KEY;
     const MODEL_ID = 'deepseek-ai/DeepSeek-V3.2';
+
+    if (!SILICON_FLOW_API_KEY) {
+      return NextResponse.json(
+        { error: 'Server configuration error: SILICON_FLOW_API_KEY not set' },
+        { status: 500 }
+      );
+    }
 
     const systemPrompt = `你是一个工厂技术文档专家。请严格遵循以下解析规则和文档背景来回答用户问题。
 
