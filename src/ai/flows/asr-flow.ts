@@ -21,7 +21,11 @@ export async function performASR(input: ASRInput): Promise<ASROutput> {
   const MODEL_ID = 'TeleAI/TeleSpeechASR';
 
   if (!SILICON_FLOW_API_KEY) {
-    throw new Error('Server configuration error: SILICON_FLOW_API_KEY not set');
+    throw new Error('❌ 配置错误：未设置 SILICON_FLOW_API_KEY 环境变量\\n\\n💡 解决方案：在 Vercel 项目设置中添加该环境变量');
+  }
+
+  if (!input.audioBase64) {
+    throw new Error('❌ 参数错误：没有音频数据');
   }
 
   try {
@@ -29,6 +33,12 @@ export async function performASR(input: ASRInput): Promise<ASROutput> {
     const base64Data = input.audioBase64.includes(',') 
       ? input.audioBase64.split(',')[1] 
       : input.audioBase64;
+
+    if (!base64Data) {
+      throw new Error('❌ 音频数据格式错误');
+    }
+
+    console.log(`[ASR] 开始语音转写，使用模型: ${MODEL_ID}`);
 
     const formData = new FormData();
     const blob = new Blob([Buffer.from(base64Data, 'base64')], { type: 'audio/wav' });
@@ -45,13 +55,38 @@ export async function performASR(input: ASRInput): Promise<ASROutput> {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(`ASR API 错误: ${errorData.message || '请求失败'}`);
+      const errorMsg = errorData.message || errorData.error?.message || '未知错误';
+      
+      if (response.status === 401) {
+        throw new Error(`🔑 API 密钥无效 (401)\\n${errorMsg}`);
+      } else if (response.status === 413) {
+        throw new Error(`📁 音频文件过大 (413)\\n请上传小于 10MB 的音频`);
+      } else if (response.status === 429) {
+        throw new Error(`⏳ API 调用过于频繁 (429)\\n请稍后重试`);
+      } else if (response.status >= 500) {
+        throw new Error(`🔥 硅基流动服务错误 (${response.status})\\n${errorMsg}`);
+      } else {
+        throw new Error(`❌ 语音转写失败\\n错误: ${errorMsg}`);
+      }
     }
 
     const data = await response.json();
-    return { text: data.text || '' };
+    
+    if (!data.text) {
+      console.warn('[ASR] 音频转写结果为空');
+      return { text: '[音频转写结果为空]' };
+    }
+    
+    console.log(`[ASR] 转写完成`);
+    return { text: data.text };
+    
   } catch (error: any) {
-    console.error('ASR Flow Error:', error);
-    throw new Error(`语音识别失败: ${error.message}`);
+    console.error('[ASR] 语音转写失败:', error);
+    
+    if (error.message.includes('Failed to fetch') || error.message.includes('network')) {
+      throw new Error(`🌐 网络连接失败\\n请检查网络后重试`);
+    }
+    
+    throw error;
   }
 }
