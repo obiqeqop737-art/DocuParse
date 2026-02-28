@@ -205,7 +205,7 @@ export default function DocuParsePro() {
           const context = canvas.getContext('2d');
           canvas.height = viewport.height;
           canvas.width = viewport.width;
-          
+
           await page.render({ canvasContext: context!, viewport }).promise;
           // 压缩图片质量到 0.6
           imagesToOCR.push({
@@ -219,14 +219,15 @@ export default function DocuParsePro() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ images: imagesToOCR })
         });
-
+        
         if (!ocrResponse.ok) {
           const errorData = await ocrResponse.json().catch(() => ({}));
           throw new Error(errorData.error || "OCR 识别失败");
         }
-
-        const { results } = await ocrResponse.json();
-        finalContent = results.map(r => `## 第 ${r.pageIndex} 页\n${r.text}`).join('\n\n');
+        
+        const { results, mergedContent } = await ocrResponse.json();
+        // 优先使用合并后的内容
+        finalContent = mergedContent || results.map(r => `## 第 ${r.pageIndex} 页\n${r.text}`).join('\n\n');
         if (!finalContent.trim()) finalContent = "[PDF 视觉识别未提取到有效文本]";
       }
       else if (ext === 'docx') {
