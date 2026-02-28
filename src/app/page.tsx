@@ -128,7 +128,7 @@ export default function DocuParsePro() {
     }
   }, [localDocs, isLoaded]);
 
-  // 直接使用系统预设策略，不需要 Firestore
+  // 使用系统预设策略
   const allStrategies = useMemo(() => [...SYSTEM_STRATEGIES], []);
   const currentStrategy = useMemo(() => allStrategies.find(s => s.id === selectedRuleId) || SYSTEM_STRATEGIES[0], [allStrategies, selectedRuleId]);
 
@@ -197,21 +197,33 @@ export default function DocuParsePro() {
         const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
         const imagesToOCR: { pageIndex: number; dataUri: string }[] = [];
 
-        // PDF 转图片 (scale 1.5 减少图片大小，避免413)
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: 1.5 });
+        // ========== 优化: 并行渲染 PDF 页面 ==========
+        const renderPage = async (pageNum: number) => {
+          const page = await pdf.getPage(pageNum);
+          // 降低 scale 到 1.0 (OCR 足够，更快)
+          const viewport = page.getViewport({ scale: 1.0 });
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
           canvas.height = viewport.height;
           canvas.width = viewport.width;
 
           await page.render({ canvasContext: context!, viewport }).promise;
-          // 压缩图片质量到 0.6
-          imagesToOCR.push({
-            pageIndex: i,
-            dataUri: canvas.toDataURL('image/jpeg', 0.6)
-          });
+          // 降低质量到 0.5 (OCR 场景 0.5 足够，文件更小)
+          return {
+            pageIndex: pageNum,
+            dataUri: canvas.toDataURL('image/jpeg', 0.5)
+          };
+        };
+
+        // 并行渲染所有页面 (最多同时5个)
+        const batchSize = 5;
+        for (let i = 1; i <= pdf.numPages; i += batchSize) {
+          const batch = [];
+          for (let j = i; j < Math.min(i + batchSize, pdf.numPages + 1); j++) {
+            batch.push(renderPage(j));
+          }
+          const results = await Promise.all(batch);
+          imagesToOCR.push(...results);
         }
 
         const ocrResponse = await fetch('/api/ocr', {
