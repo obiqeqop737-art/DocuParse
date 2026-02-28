@@ -28,8 +28,12 @@ const asrFlow = ai.defineFlow(
   },
   async (input) => {
     const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/audio/transcriptions';
-    const SILICON_FLOW_API_KEY = 'sk-orcwdodraxjcyrllecfaaukwuuepdysjqeeslnaarzhhjeey';
+    const SILICON_FLOW_API_KEY = process.env.SILICON_FLOW_API_KEY;
     const MODEL_ID = 'TeleAI/TeleSpeechASR';
+
+    if (!SILICON_FLOW_API_KEY) {
+      throw new Error('Server configuration error: SILICON_FLOW_API_KEY not set');
+    }
 
     try {
       // 提取 base64 数据
