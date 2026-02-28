@@ -32,31 +32,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ========== 优化1: 使用更快的模型 ==========
-    // Qwen2-VL-2B 比 PaddleOCR-VL 更快更便宜
-    const MODEL_ID = 'Qwen/Qwen2-VL-2B-Instruct';
+    // ========== 使用 PaddleOCR-VL 模型 ==========
+    const MODEL_ID = 'PaddlePaddle/PaddleOCR-VL-1.5';
 
-    const ocrPrompt = `你是一个专业的OCR文字识别助手。请提取图片中的所有文字内容，按原文格式输出。不要添加任何解释或额外内容。`;
+    const ocrPrompt = `请提取图片中的所有文字内容，以Markdown格式输出。保持原文排版和段落结构。`;
 
-    // ========== 优化2: 增大批量处理规模 ==========
-    const CHUNK_SIZE = 30; // 从10页提升到30页
+    // ========== 优化：动态批量处理 ==========
     const totalPages = images.length;
+    
+    // 根据页数动态调整批量大小
+    let CHUNK_SIZE = 20;
+    if (totalPages > 100) CHUNK_SIZE = 50;  // 超过100页，增大批量
+    if (totalPages > 200) CHUNK_SIZE = 100; // 超过200页，进一步增大
+    
     const chunks: typeof images[] = [];
     
     for (let i = 0; i < totalPages; i += CHUNK_SIZE) {
       chunks.push(images.slice(i, i + CHUNK_SIZE));
     }
     
-    console.log(`[OCR] 总共 ${totalPages} 页，分成 ${chunks.length} 个chunk处理`);
+    console.log(`[OCR] 总共 ${totalPages} 页，分成 ${chunks.length} 个chunk处理，每批 ${CHUNK_SIZE} 页`);
 
-    // ========== 优化3: 并行处理所有chunk ==========
+    // ========== 优化：并行处理chunk ==========
     const processChunk = async (chunk: typeof images, chunkIndex: number): Promise<typeof results> => {
-      console.log(`[OCR] 开始处理 chunk ${chunkIndex + 1}/${chunks.length}`);
+      console.log(`[OCR] 开始处理 chunk ${chunkIndex + 1}/${chunks.length} (${chunk.length}页)`);
       
       const chunkResults: { pageIndex: number; text: string }[] = [];
       
-      // 改为3页一批并行请求（平衡速度和API限制）
-      const miniBatchSize = 3;
+      // 动态调整 mini-batch 大小
+      const miniBatchSize = totalPages > 100 ? 5 : 3; // 长文档增加并发
+      
       for (let i = 0; i < chunk.length; i += miniBatchSize) {
         const miniBatch = chunk.slice(i, i + miniBatchSize);
         
@@ -101,19 +106,18 @@ export async function POST(req: NextRequest) {
           const data = await response.json();
           const content = data.choices?.[0]?.message?.content || '';
           
-          // 解析返回的多页结果（假设按顺序返回）
-          const lines = content.split('\n').filter(l => l.trim());
+          // 智能分割结果
+          const pageTexts = splitOCRResult(content, miniBatch.length);
           miniBatch.forEach((item, idx) => {
-            // 简单分割：按行均分或按页码标记分割
-            const pageText = lines.length > idx * 10 
-              ? lines.slice(idx * Math.ceil(lines.length / miniBatch.length), (idx + 1) * Math.ceil(lines.length / miniBatch.length)).join('\n')
-              : content;
-            chunkResults.push({ pageIndex: item.pageIndex, text: pageText || content });
+            chunkResults.push({ 
+              pageIndex: item.pageIndex, 
+              text: pageTexts[idx] || content 
+            });
           });
           
         } catch (error: any) {
           console.error(`Mini-batch ${i} OCR failed:`, error);
-          // 如果批量失败，降级到逐页处理
+          // 降级到逐页处理
           for (const item of miniBatch) {
             try {
               const response = await fetch(SILICON_FLOW_API_URL, {
@@ -179,6 +183,38 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function splitOCRResult(content: string, pageCount: number): string[] {
+  // 智能分割 OCR 结果
+  if (pageCount === 1) return [content];
+  
+  // 尝试按页码标记分割
+  const pageMarkers = content.match(/第\s*\d+\s*页|Page\s*\d+/gi);
+  if (pageMarkers && pageMarkers.length >= pageCount - 1) {
+    const parts: string[] = [];
+    let lastIndex = 0;
+    pageMarkers.forEach((marker, idx) => {
+      const markerIndex = content.indexOf(marker, lastIndex);
+      if (idx > 0) {
+        parts.push(content.substring(lastIndex, markerIndex).trim());
+      }
+      lastIndex = markerIndex;
+    });
+    parts.push(content.substring(lastIndex).trim());
+    return parts;
+  }
+  
+  // 按段落均分
+  const paragraphs = content.split(/\n\n+/);
+  const chunkSize = Math.ceil(paragraphs.length / pageCount);
+  const result: string[] = [];
+  for (let i = 0; i < pageCount; i++) {
+    const start = i * chunkSize;
+    const end = Math.min((i + 1) * chunkSize, paragraphs.length);
+    result.push(paragraphs.slice(start, end).join('\n\n'));
+  }
+  return result;
 }
 
 function mergeMarkdownResults(results: { pageIndex: number; text: string }[]): string {
