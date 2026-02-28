@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview 硅基流动 (SiliconFlow) 视觉 OCR 流程。
- * 针对 100% 数字高保真提取进行了提示词强化与参数调优。
+ * 使用 Qwen2-VL 进行图像识别，支持提示词。
  */
 
 import { z } from 'genkit';
@@ -25,24 +25,27 @@ export type OCROutput = z.infer<typeof OCROutputSchema>;
 export async function performOCR(input: OCRInput): Promise<OCROutput> {
   const SILICON_FLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions';
   const SILICON_FLOW_API_KEY = process.env.SILICON_FLOW_API_KEY;
-  const MODEL_ID = 'PaddlePaddle/PaddleOCR-VL-1.5'; 
+  
+  // 使用 Qwen2-VL 视觉模型，支持提示词
+  const MODEL_ID = 'Qwen/Qwen2-VL-72B-Instruct';
 
   if (!SILICON_FLOW_API_KEY) {
     throw new Error('Server configuration error: SILICON_FLOW_API_KEY not set');
-  } 
+  }
 
   const results: { pageIndex: number; text: string }[] = [];
 
-  const antiHallucinationPrompt = `你是一个极其精确的工业数据提取器。你的唯一任务是【像素级复刻】图片中的内容。
-1. 绝对禁止任何形式的推理、联想或语病修正。
-2. 对于所有的【数字、小数点、物理单位、负号】，必须逐字核对，原样输出。如果看不清，请保留原样或输出'[不清]'，绝对不允许自行猜测填补。
-3. 如果是表格，请严格保证行列对应，不要漏掉任何一个单元格的数值。
-请直接以 Markdown 格式返回提取结果，不要包含任何多余的解释。`;
+  // 提示词要求模型精准提取图像中的文本内容
+  const ocrPrompt = `你是一个极其精确的文档内容提取器。请仔细识别并提取图片中的所有文字内容。
+要求：
+1. 保持原文排版和格式，使用 Markdown 格式输出
+2. 对于表格，必须保持行列对应
+3. 数字、标点、单位必须精确保留
+4. 如果遇到图片中的水印或无关内容，请忽略
+5. 不要添加任何解释或总结，只输出提取的文本`;
 
   for (const item of input.images) {
     try {
-      const cleanDataUri = item.dataUri.trim();
-
       const response = await fetch(SILICON_FLOW_API_URL, {
         method: 'POST',
         headers: {
@@ -55,13 +58,12 @@ export async function performOCR(input: OCRInput): Promise<OCROutput> {
             {
               role: "user",
               content: [
-                { type: "text", text: antiHallucinationPrompt },
-                { type: "image_url", image_url: { url: cleanDataUri } }
+                { type: "text", text: ocrPrompt },
+                { type: "image_url", image_url: { url: item.dataUri } }
               ]
             }
           ],
-          temperature: 0.01,
-          top_p: 0.1,
+          temperature: 0.1,
           max_tokens: 4096
         }),
       });
