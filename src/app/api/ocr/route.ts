@@ -27,15 +27,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const MODEL_ID = 'Qwen/Qwen2.5-VL-7B-Instruct';
+    // 百度PaddleOCR模型
+    const MODEL_ID = 'PaddlePaddle/PaddleOCR-VL-1.5';
 
-    const ocrPrompt = `你是一个极其精确的文档内容提取器。请仔细识别并提取图片中的所有文字内容。
-要求：
-1. 保持原文排版和格式，使用 Markdown 格式输出
-2. 对于表格，必须保持行列对应
-3. 数字、标点、单位必须精确保留
-4. 如果遇到图片中的水印或无关内容，请忽略
-5. 不要添加任何解释或总结，只输出提取的文本`;
+    // 简化提示词
+    const ocrPrompt = `请提取图片中的所有文字内容，以Markdown格式输出。`;
 
     // 逐个处理（减少并发避免超时）
     const results: { pageIndex: number; text: string }[] = [];
