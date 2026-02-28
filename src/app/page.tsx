@@ -344,90 +344,64 @@ export default function DocuParsePro() {
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-white/70 dark:bg-slate-950/70 backdrop-blur-2xl rounded-r-[2.5rem] overflow-hidden p-4 border-r border-white/20 shadow-2xl">
-      <div className="p-8 pb-4 flex items-center gap-4">
-        <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-primary/30">
-          <BookOpen size={24} />
-        </div>
-        <div>
-          <h1 className="text-lg font-black tracking-tight">DocuParse</h1>
-          <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">DeepSeek V3.2 Engine</p>
+    <div className="flex flex-col h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center text-white">
+            <BookOpen size={20} />
+          </div>
+          <div>
+            <h1 className="font-semibold text-slate-900 dark:text-white">DocuParse</h1>
+            <p className="text-xs text-slate-500">智能文档解析</p>
+          </div>
         </div>
       </div>
       
-      <nav className="flex-1 mt-8 space-y-8 overflow-y-auto no-scrollbar">
-        <div className="p-1">
-          <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">系统主控</p>
-          <div className="space-y-2">
-            <button onClick={() => setActiveTab('chat')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-[1.8rem] transition-all font-black text-[13px] border border-transparent shadow-sm", activeTab === 'chat' ? "bg-primary text-white shadow-xl shadow-primary/20" : "opacity-60 hover:bg-black/5 dark:hover:bg-white/5 hover:opacity-100")}>
-              <MessageSquare size={18} /> 智能解析终端
-            </button>
-            <button onClick={() => setActiveTab('marketplace')} className={cn("w-full h-16 flex items-center gap-4 px-6 rounded-[1.8rem] transition-all font-black text-[13px] border border-transparent shadow-sm", activeTab === 'marketplace' ? "bg-primary text-white shadow-xl shadow-primary/20" : "opacity-60 hover:bg-black/5 dark:hover:bg-white/5 hover:opacity-100")}>
-              <ShoppingBag size={18} /> 解析规则广场
-            </button>
-          </div>
+      <nav className="flex-1 p-4 overflow-y-auto">
+        <div className="space-y-1">
+          <button onClick={() => setActiveTab('chat')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sm font-medium", activeTab === 'chat' ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50")}>
+            <MessageSquare size={18} /> 智能解析
+          </button>
+          <button onClick={() => setActiveTab('marketplace')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sm font-medium", activeTab === 'marketplace' ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50")}>
+            <ShoppingBag size={18} /> 解析规则
+          </button>
         </div>
 
-        <div className="p-1">
-          <p className="text-[11px] font-black opacity-40 uppercase tracking-[0.4em] mb-4 pl-4">我的文档</p>
-          <div className="space-y-3 px-6 pb-20">
+        <div className="mt-8">
+          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3 px-4">我的文档</p>
+          <div className="space-y-1">
             {localDocs.map(d => (
               <button 
                 key={d.id} 
                 onClick={() => setSelectedDocId(d.id)} 
                 className={cn(
-                  "w-full h-12 flex items-center gap-3 px-4 rounded-xl transition-all text-left relative group min-w-0 overflow-hidden shrink-0", 
+                  "w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all text-left", 
                   selectedDocId === d.id 
-                    ? "bg-primary/15 text-primary" 
-                    : "hover:bg-black/5 dark:hover:bg-white/5"
+                    ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300" 
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                 )}
               >
                 <div className={cn(
-                  "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm transition-colors", 
-                  selectedDocId === d.id ? "bg-primary text-white" : "bg-primary/10 text-primary"
+                  "w-8 h-8 rounded-lg flex items-center justify-center shrink-0", 
+                  selectedDocId === d.id ? "bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-300" : "bg-slate-100 dark:bg-slate-800 text-slate-500"
                 )}>
                   {['MP3','WAV','M4A','OGG'].includes(d.type) ? <Music size={14} /> : <FileText size={14} />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-[13px] truncate leading-tight">{d.name}</p>
+                  <p className="text-sm font-medium truncate">{d.name}</p>
                 </div>
               </button>
             ))}
             {localDocs.length === 0 && (
-              <div className="py-10 text-center opacity-20">
-                <p className="text-[10px] font-black uppercase tracking-widest">暂无文件</p>
-              </div>
+              <p className="text-sm text-slate-400 text-center py-8">暂无文档</p>
             )}
           </div>
         </div>
       </nav>
 
-      <div className="p-6 pb-10 space-y-4">
-        {/* 清除历史记录按钮 */}
-        {localDocs.length > 0 && (
-          <button 
-            onClick={() => {
-              if (confirm('确定要清除所有历史记录吗？')) {
-                localStorage.removeItem('docuparse_docs');
-                setLocalDocs([]);
-                setSelectedDocId(null);
-                toast({ title: "已清除", description: "所有历史记录已删除" });
-              }
-            }}
-            className="w-full h-10 flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950 rounded-[1.8rem] transition-all text-xs font-bold uppercase tracking-widest"
-          >
-            <Trash2 size={14} /> 清除历史
-          </button>
-        )}
-        <div className="flex items-center justify-between px-6 py-4 bg-black/5 dark:bg-white/5 rounded-[1.8rem] border border-black/5">
-           <div className="flex items-center gap-2">
-              {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
-              <span className="text-[11px] font-black uppercase tracking-widest">{theme === 'dark' ? 'Night' : 'Day'}</span>
-           </div>
-           <Switch checked={theme === 'dark'} onCheckedChange={(v) => setTheme(v ? 'dark' : 'light')} />
-        </div>
-        <label className="w-full h-16 flex items-center justify-center gap-2 bg-primary text-white rounded-[1.8rem] transition-all shadow-xl shadow-primary/20 cursor-pointer hover:bg-primary/90 font-black text-sm uppercase tracking-widest">
-          <Upload size={20} /> 上传文件
+      <div className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+        <label className="w-full flex items-center justify-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-3 rounded-xl transition-all text-sm font-medium cursor-pointer hover:bg-slate-800 dark:hover:bg-slate-100">
+          <Upload size={16} /> 上传文件
           <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.pdf,.docx,.doc,.xlsx,.xls,.csv,.mp3,.wav,.m4a,.ogg" />
         </label>
       </div>
@@ -441,31 +415,23 @@ export default function DocuParsePro() {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 relative">
-        <header className="h-20 px-8 flex items-center justify-between border-b border-black/5 sticky top-0 shrink-0 bg-white/5 backdrop-blur-md z-30">
+        <header className="h-16 px-6 flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 shrink-0 z-30">
           <div className="flex items-center gap-4">
-            <div className="lg:hidden">
-              <Sheet>
-                <SheetTrigger asChild><Button variant="ghost" size="icon"><Menu size={24} /></Button></SheetTrigger>
-                <SheetContent side="left" className="p-0 w-[300px] border-none bg-transparent">
-                  <SheetTitle className="sr-only">导航菜单</SheetTitle>
-                  <SheetDescription className="sr-only">管理文档和策略</SheetDescription>
-                  <SidebarContent />
-                </SheetContent>
-              </Sheet>
-            </div>
-            <Button variant="ghost" size="icon" className="hidden lg:flex opacity-40 hover:opacity-100" onClick={() => setIsSidebarOpen(!isSidebarOpen)}><ChevronLeft className={cn("transition-transform", !isSidebarOpen && "rotate-180")} size={24} /></Button>
+            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+              <Menu size={20} />
+            </Button>
             <div className="flex flex-col">
-              <h2 className="font-black text-lg tracking-widest uppercase">{activeTab === 'chat' ? '解析终端' : '规则广场'}</h2>
-              <div className="flex items-center gap-2 mt-0.5">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-black opacity-40 uppercase tracking-widest">当前挂载: {currentStrategy.name}</span>
+              <h2 className="font-semibold text-slate-900 dark:text-white">{activeTab === 'chat' ? '智能解析' : '解析规则'}</h2>
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                <span className="text-xs text-slate-500">当前策略: {currentStrategy.name}</span>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Badge className="bg-primary/20 border-primary/30 text-primary font-black px-4 py-1.5 rounded-xl uppercase tracking-widest text-[12px] flex items-center gap-2 shadow-sm">
-              <Sparkles size={14} /> DeepSeek V3.2 Pro
-            </Badge>
+            <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full">
+              DeepSeek V3.2
+            </span>
           </div>
         </header>
 
