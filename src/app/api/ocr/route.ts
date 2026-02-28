@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * @fileOverview OCR 视觉识别 API
  */
 
-export const maxDuration = 60;
+export const maxDuration = 120; // 2分钟超时
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,8 +27,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 使用 DeepSeek OCR 专用模型
-    const MODEL_ID = 'deepseek-ai/DeepSeek-OCR';
+    const MODEL_ID = 'PaddlePaddle/PaddleOCR-VL-1.5';
 
     // 简化提示词
     const ocrPrompt = `请提取图片中的所有文字内容，以Markdown格式输出。`;

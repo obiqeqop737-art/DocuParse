@@ -381,26 +381,43 @@ export default function DocuParsePro() {
           <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3 px-4">我的文档</p>
           <div className="space-y-1">
             {localDocs.map(d => (
-              <button 
-                key={d.id} 
-                onClick={() => setSelectedDocId(d.id)} 
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl transition-all text-left", 
-                  selectedDocId === d.id 
-                    ? "bg-white/80 dark:bg-white/10 shadow-lg" 
-                    : "hover:bg-white/50 dark:hover:bg-white/10"
-                )}
-              >
-                <div className={cn(
-                  "w-8 h-8 rounded-xl flex items-center justify-center shrink-0", 
-                  selectedDocId === d.id ? "bg-gradient-to-br from-blue-500 to-cyan-400 text-white" : "bg-blue-100 dark:bg-blue-900/30 text-blue-500"
-                )}>
-                  {['MP3','WAV','M4A','OGG'].includes(d.type) ? <Music size={14} /> : <FileText size={14} />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{d.name}</p>
-                </div>
-              </button>
+              <div key={d.id} className="group flex items-center gap-2">
+                <button 
+                  onClick={() => setSelectedDocId(d.id)} 
+                  className={cn(
+                    "flex-1 flex items-center gap-3 px-4 py-2.5 rounded-2xl transition-all text-left", 
+                    selectedDocId === d.id 
+                      ? "bg-white/80 dark:bg-white/10 shadow-lg" 
+                      : "hover:bg-white/50 dark:hover:bg-white/10"
+                  )}
+                >
+                  <div className={cn(
+                    "w-8 h-8 rounded-xl flex items-center justify-center shrink-0", 
+                    selectedDocId === d.id ? "bg-gradient-to-br from-blue-500 to-cyan-400 text-white" : "bg-blue-100 dark:bg-blue-900/30 text-blue-500"
+                  )}>
+                    {['MP3','WAV','M4A','OGG'].includes(d.type) ? <Music size={14} /> : <FileText size={14} />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{d.name}</p>
+                  </div>
+                </button>
+                <button 
+                  onClick={() => {
+                    if (confirm(`确定要删除 "${d.name}" 吗？`)) {
+                      const newDocs = localDocs.filter(doc => doc.id !== d.id);
+                      setLocalDocs(newDocs);
+                      localStorage.setItem('docuparse_docs', JSON.stringify(newDocs));
+                      if (selectedDocId === d.id) {
+                        setSelectedDocId(null);
+                      }
+                      toast({ title: "已删除", description: d.name });
+                    }
+                  }}
+                  className="opacity-0 group-hover:opacity-100 p-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl transition-all"
+                >
+                  <Trash2 size={14} className="text-red-500" />
+                </button>
+              </div>
             ))}
             {localDocs.length === 0 && (
               <p className="text-sm text-slate-400 text-center py-8">暂无文档</p>

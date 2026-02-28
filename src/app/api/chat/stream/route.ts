@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * 升级模型 ID 为 deepseek-ai/DeepSeek-V3.2。
  */
 
-export const maxDuration = 60; // 延长到60秒
+export const maxDuration = 120; // 延长到2分钟
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
