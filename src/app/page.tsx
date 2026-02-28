@@ -344,25 +344,25 @@ export default function DocuParsePro() {
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 overflow-hidden">
-      <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+    <div className="flex flex-col h-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl rounded-r-3xl overflow-hidden border-r border-white/20 shadow-xl">
+      <div className="p-6 border-b border-white/20">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center text-white">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
             <BookOpen size={20} />
           </div>
           <div>
             <h1 className="font-semibold text-slate-900 dark:text-white">DocuParse</h1>
-            <p className="text-xs text-slate-500">智能文档解析</p>
+            <p className="text-xs text-blue-500 font-medium">智能文档解析</p>
           </div>
         </div>
       </div>
       
       <nav className="flex-1 p-4 overflow-y-auto">
         <div className="space-y-1">
-          <button onClick={() => setActiveTab('chat')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sm font-medium", activeTab === 'chat' ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50")}>
+          <button onClick={() => setActiveTab('chat')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-sm font-medium", activeTab === 'chat' ? "bg-gradient-to-r from-blue-500 to-cyan-400 text-white shadow-lg shadow-blue-500/25" : "text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-white/10")}>
             <MessageSquare size={18} /> 智能解析
           </button>
-          <button onClick={() => setActiveTab('marketplace')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sm font-medium", activeTab === 'marketplace' ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50")}>
+          <button onClick={() => setActiveTab('marketplace')} className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-sm font-medium", activeTab === 'marketplace' ? "bg-gradient-to-r from-blue-500 to-cyan-400 text-white shadow-lg shadow-blue-500/25" : "text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-white/10")}>
             <ShoppingBag size={18} /> 解析规则
           </button>
         </div>
@@ -375,20 +375,20 @@ export default function DocuParsePro() {
                 key={d.id} 
                 onClick={() => setSelectedDocId(d.id)} 
                 className={cn(
-                  "w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all text-left", 
+                  "w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl transition-all text-left", 
                   selectedDocId === d.id 
-                    ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300" 
-                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                    ? "bg-white/80 dark:bg-white/10 shadow-lg" 
+                    : "hover:bg-white/50 dark:hover:bg-white/10"
                 )}
               >
                 <div className={cn(
-                  "w-8 h-8 rounded-lg flex items-center justify-center shrink-0", 
-                  selectedDocId === d.id ? "bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-300" : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                  "w-8 h-8 rounded-xl flex items-center justify-center shrink-0", 
+                  selectedDocId === d.id ? "bg-gradient-to-br from-blue-500 to-cyan-400 text-white" : "bg-blue-100 dark:bg-blue-900/30 text-blue-500"
                 )}>
                   {['MP3','WAV','M4A','OGG'].includes(d.type) ? <Music size={14} /> : <FileText size={14} />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{d.name}</p>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{d.name}</p>
                 </div>
               </button>
             ))}
@@ -399,8 +399,8 @@ export default function DocuParsePro() {
         </div>
       </nav>
 
-      <div className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
-        <label className="w-full flex items-center justify-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-3 rounded-xl transition-all text-sm font-medium cursor-pointer hover:bg-slate-800 dark:hover:bg-slate-100">
+      <div className="p-4 border-t border-white/20">
+        <label className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-cyan-400 text-white py-3 rounded-2xl transition-all text-sm font-medium shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 cursor-pointer">
           <Upload size={16} /> 上传文件
           <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.pdf,.docx,.doc,.xlsx,.xls,.csv,.mp3,.wav,.m4a,.ogg" />
         </label>
@@ -409,13 +409,13 @@ export default function DocuParsePro() {
   );
 
   return (
-    <div className={cn("flex h-screen relative overflow-hidden transition-all duration-300", theme === 'dark' ? "dark bg-slate-950 text-white" : "bg-slate-50 text-slate-900")}>
+    <div className={cn("flex h-screen relative overflow-hidden", theme === 'dark' ? "bg-slate-950" : "bg-gradient-to-br from-blue-50 via-white to-cyan-50")}>
       <aside className={cn("hidden lg:block transition-all duration-300 shrink-0 z-40 p-2", isSidebarOpen ? "w-[300px]" : "w-0")}>
         <SidebarContent />
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 relative">
-        <header className="h-16 px-6 flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 shrink-0 z-30">
+        <header className="h-16 px-6 flex items-center justify-between border-b border-white/20 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md sticky top-0 shrink-0 z-30">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
               <Menu size={20} />
@@ -423,13 +423,13 @@ export default function DocuParsePro() {
             <div className="flex flex-col">
               <h2 className="font-semibold text-slate-900 dark:text-white">{activeTab === 'chat' ? '智能解析' : '解析规则'}</h2>
               <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                 <span className="text-xs text-slate-500">当前策略: {currentStrategy.name}</span>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full">
+            <span className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-full font-medium">
               DeepSeek V3.2
             </span>
           </div>
