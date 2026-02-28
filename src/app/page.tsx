@@ -21,16 +21,8 @@ import { Switch } from "@/components/ui/switch";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-import * as pdfjsLib from 'pdfjs-dist';
-import * as XLSX from 'xlsx';
-import mammoth from 'mammoth';
-
-import { performASR } from '@/ai/flows/asr-flow';
-
-// 配置 PDF.js Worker
-if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-}
+// 简化版：移除前端文件处理，直接上传到后端
+// 后端 API 处理 PDF OCR 和文件解析
 
 interface LocalDocument {
   id: string;
@@ -179,83 +171,24 @@ export default function DocuParsePro() {
     setLocalDocs(prev => prev.map(d => d.id === docId ? { ...d, status: 'processing' } : d));
 
     try {
-      let finalContent = "";
-      const ab = await file.arrayBuffer();
-      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      // 简化版：直接上传文件到后端 API 处理
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('strategy', currentStrategy.id);
 
-      if (['wav', 'mp3', 'm4a', 'ogg'].includes(ext)) {
-        const reader = new FileReader();
-        const base64Promise = new Promise<string>((resolve) => {
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(file);
-        });
-        const base64 = await base64Promise;
-        const { text } = await performASR({ audioBase64: base64 });
-        finalContent = text || "[音频转写未发现有效内容]";
-      }
-      else if (ext === 'pdf') {
-        const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
-        const imagesToOCR: { pageIndex: number; dataUri: string }[] = [];
+      const parseResponse = await fetch('/api/parse', {
+        method: 'POST',
+        body: formData
+      });
 
-        // ========== 优化: 并行渲染 PDF 页面 ==========
-        const renderPage = async (pageNum: number) => {
-          const page = await pdf.getPage(pageNum);
-          // 降低 scale 到 1.0 (OCR 足够，更快)
-          const viewport = page.getViewport({ scale: 1.0 });
-          const canvas = document.createElement('canvas');
-          const context = canvas.getContext('2d');
-          canvas.height = viewport.height;
-          canvas.width = viewport.width;
-
-          await page.render({ canvasContext: context!, viewport }).promise;
-          // 降低质量到 0.5 (OCR 场景 0.5 足够，文件更小)
-          return {
-            pageIndex: pageNum,
-            dataUri: canvas.toDataURL('image/jpeg', 0.5)
-          };
-        };
-
-        // 并行渲染所有页面 (最多同时5个)
-        const batchSize = 5;
-        for (let i = 1; i <= pdf.numPages; i += batchSize) {
-          const batch = [];
-          for (let j = i; j < Math.min(i + batchSize, pdf.numPages + 1); j++) {
-            batch.push(renderPage(j));
-          }
-          const results = await Promise.all(batch);
-          imagesToOCR.push(...results);
-        }
-
-        const ocrResponse = await fetch('/api/ocr', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ images: imagesToOCR })
-        });
-        
-        if (!ocrResponse.ok) {
-          const errorData = await ocrResponse.json().catch(() => ({}));
-          throw new Error(errorData.error || "OCR 识别失败");
-        }
-        
-        const { results, mergedContent } = await ocrResponse.json();
-        // 优先使用合并后的内容
-        finalContent = mergedContent || results.map(r => `## 第 ${r.pageIndex} 页\n${r.text}`).join('\n\n');
-        if (!finalContent.trim()) finalContent = "[PDF 视觉识别未提取到有效文本]";
-      }
-      else if (ext === 'docx') {
-        const res = await mammoth.extractRawText({ arrayBuffer: ab });
-        finalContent = res.value.trim() || "[DOCX 内容提取为空]";
-      }
-      else if (['xlsx', 'xls', 'csv'].includes(ext)) {
-        const workbook = XLSX.read(ab);
-        finalContent = workbook.SheetNames.map(name => XLSX.utils.sheet_to_txt(workbook.Sheets[name])).join('\n\n');
-        if (!finalContent.trim()) finalContent = "[表格内容提取为空]";
-      }
-      else {
-        finalContent = (await file.text()).trim() || "[文本内容为空]";
+      if (!parseResponse.ok) {
+        const errorData = await parseResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || "文件解析失败");
       }
 
-      const fullContent = `\n# 技术文档: ${file.name}\n\n${finalContent}\n`;
+      const { content } = await parseResponse.json();
+
+      const fullContent = `\n# 技术文档: ${file.name}\n\n${content}\n`;
       setLocalDocs(prev => prev.map(d => d.id === docId ? { ...d, content: fullContent, status: 'completed' } : d));
 
       setIsExtracting(false);
